@@ -462,6 +462,64 @@ def guide(dataset_id: str, output: str, target_size: int):
         console.print(f"  预估成本: ${pipeline.estimated_total_cost:,.0f}")
 
 
+@main.command("deep-guide")
+@click.argument("url")
+@click.option("--output", "-o", type=click.Path(), help="Output file path for production guide")
+def deep_guide(url: str, output: str):
+    """Generate a customized production guide using deep analysis.
+
+    This command performs deep analysis on a paper or dataset page and
+    generates a specialized production guide based on the methodology
+    detected in the source.
+
+    URL can be an arXiv paper, dataset page, or any web URL describing
+    a dataset's construction methodology.
+
+    Example:
+        datarecipe deep-guide https://arxiv.org/abs/2506.07982
+    """
+    from datarecipe.deep_analyzer import DeepAnalyzer, deep_analysis_to_markdown
+
+    analyzer = DeepAnalyzer()
+
+    with console.status(f"[cyan]Performing deep analysis on {url}...[/cyan]"):
+        try:
+            result = analyzer.analyze(url)
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        except Exception as e:
+            console.print(f"[red]Error during analysis:[/red] {e}")
+            sys.exit(1)
+
+    # Generate customized guide
+    guide_content = deep_analysis_to_markdown(result)
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(guide_content, encoding="utf-8")
+        console.print(f"[green]✓ 专项生产指南已保存到:[/green] {output}")
+    else:
+        print(guide_content)
+
+    # Display summary
+    console.print("\n[bold cyan]深度分析概要:[/bold cyan]")
+    console.print(f"  数据集名称: {result.name}")
+    console.print(f"  分类: {result.category.value}")
+    console.print(f"  领域: {result.domain or '通用'}")
+    if result.methodology:
+        console.print(f"  方法论: {result.methodology}")
+    if result.key_innovations:
+        console.print(f"  核心创新: {len(result.key_innovations)} 项")
+    if result.generation_steps:
+        console.print(f"  生产步骤: {len(result.generation_steps)} 步")
+    if result.code_available:
+        console.print(f"  代码可用: ✓ {result.code_url or ''}")
+    if result.data_available:
+        console.print(f"  数据可用: ✓ {result.data_url or ''}")
+
+
 @main.command()
 @click.option("--output", "-o", type=click.Path(), help="Output YAML file path")
 def create(output: str):

@@ -353,11 +353,472 @@ dataset.push_to_hub("your-org/dataset-name")''',
             "未利用修正反馈改进 LLM 提示词",
         ],
     ),
+
+    "programmatic": ProductionPipeline(
+        name="程序化数据集生产流程",
+        description="通过程序化/组合式方法生成可验证的多样化任务数据",
+        prerequisites=[
+            "领域知识文档",
+            "环境规范定义",
+            "原子操作库",
+            "Python 环境 + 测试框架",
+        ],
+        steps=[
+            PipelineStep(
+                step_number=1,
+                step_type=PipelineStepType.DATA_COLLECTION,
+                name="设计领域环境",
+                description="定义可交互的共享世界：实体、属性、状态",
+                inputs=["领域知识", "需求文档"],
+                outputs=["environment_spec.yaml"],
+                code_snippet='''# environment_spec.yaml 示例
+domain: telecom
+entities:
+  - user_account:
+      attributes: [plan_type, balance, usage, status]
+  - device:
+      attributes: [model, imei, sim_status, network_status]
+  - service:
+      attributes: [name, status, start_date, end_date]
+
+world_state:
+  observable_by_user: [account_balance, current_plan, device_status]
+  observable_by_agent: [full_account_history, internal_notes, system_status]
+  shared: [conversation_history, action_results]''',
+                tips=[
+                    "区分用户可见状态和代理可见状态",
+                    "定义共享的可观测信息",
+                    "确保环境足够复杂以产生有意义的交互",
+                ],
+            ),
+            PipelineStep(
+                step_number=2,
+                step_type=PipelineStepType.PROMPT_DESIGN,
+                name="定义原子操作",
+                description="定义用户和代理可执行的基本操作及其前置条件和效果",
+                inputs=["environment_spec.yaml"],
+                outputs=["actions.yaml"],
+                code_snippet='''# actions.yaml 示例
+user_actions:
+  - check_balance:
+      preconditions: [logged_in]
+      effects: [display_balance]
+  - restart_device:
+      preconditions: [has_device]
+      effects: [device_restart, potential_fix]
+  - provide_info:
+      params: [info_type, value]
+      effects: [update_context]
+
+agent_actions:
+  - lookup_account:
+      params: [user_id]
+      effects: [retrieve_full_account]
+  - apply_credit:
+      params: [amount, reason]
+      preconditions: [verified_issue]
+      effects: [update_balance]
+  - guide_user:
+      params: [action_to_take, instructions]
+      effects: [user_receives_guidance]''',
+                tips=[
+                    "用户操作应该对解决问题有实际影响",
+                    "代理需要能够指导用户执行操作",
+                    "定义清晰的前置条件和效果",
+                ],
+            ),
+            PipelineStep(
+                step_number=3,
+                step_type=PipelineStepType.LLM_GENERATION,
+                name="组合任务生成",
+                description="程序化生成多样、可验证的任务",
+                inputs=["environment_spec.yaml", "actions.yaml"],
+                outputs=["tasks.jsonl"],
+                code_snippet='''class TaskGenerator:
+    def __init__(self, env_spec, actions):
+        self.env = env_spec
+        self.actions = actions
+
+    def generate_task(self, complexity_level):
+        # 1. 随机初始化世界状态
+        initial_state = self.random_initial_state()
+
+        # 2. 定义目标状态
+        goal_state = self.define_goal(initial_state, complexity_level)
+
+        # 3. 计算最优解（用于验证）
+        optimal_solution = self.compute_solution(initial_state, goal_state)
+
+        # 4. 生成用户意图描述
+        user_intent = self.generate_intent(initial_state, goal_state)
+
+        return {
+            "initial_state": initial_state,
+            "goal_state": goal_state,
+            "user_intent": user_intent,
+            "optimal_solution": optimal_solution,
+            "requires_user_action": self.check_user_action_needed(optimal_solution),
+            "complexity": complexity_level,
+        }''',
+                tips=[
+                    "确保每个任务都有明确的解决方案",
+                    "平衡需要/不需要用户操作的任务",
+                    "保持任务多样性",
+                ],
+            ),
+            PipelineStep(
+                step_number=4,
+                step_type=PipelineStepType.POST_PROCESSING,
+                name="构建模拟器",
+                description="创建与环境耦合的用户/代理模拟器",
+                inputs=["tasks.jsonl", "environment_spec.yaml"],
+                outputs=["user_simulator.py", "env_simulator.py"],
+                code_snippet='''class UserSimulator:
+    def __init__(self, task, behavior_params):
+        self.task = task
+        self.observable_state = task["initial_state"]["user_visible"]
+        self.intent = task["user_intent"]
+        self.cooperation_level = behavior_params.get("cooperation", 0.9)
+        self.comprehension_level = behavior_params.get("comprehension", 0.8)
+
+    def respond(self, agent_message, available_actions):
+        # 1. 理解代理消息
+        parsed = self.parse_agent_message(agent_message)
+
+        # 2. 决定是否配合
+        if random.random() > self.cooperation_level:
+            return self.generate_uncooperative_response()
+
+        # 3. 如果代理请求用户操作
+        if parsed["requests_user_action"]:
+            action = parsed["requested_action"]
+            if random.random() < self.comprehension_level:
+                result = self.execute_action(action)
+                return self.report_action_result(result)
+            else:
+                return self.generate_confused_response(action)
+
+        return self.generate_response(parsed)''',
+                tips=[
+                    "定义用户行为参数：配合度、理解能力、耐心",
+                    "模拟真实用户的错误和误解",
+                    "用户模拟器应能执行操作并更新状态",
+                ],
+            ),
+            PipelineStep(
+                step_number=5,
+                step_type=PipelineStepType.VALIDATION,
+                name="人工验证",
+                description="确保生成的任务对人类可解",
+                inputs=["tasks.jsonl"],
+                outputs=["human_baseline.json", "validated_tasks.jsonl"],
+                code_snippet='''# human_baseline.json 示例
+{
+  "task_id": "task_001",
+  "human_solvers": 2,
+  "attempts_needed": [1, 2],
+  "success": true,
+  "time_taken_seconds": [120, 180],
+  "notes": "需要指导用户重启路由器"
+}''',
+                tips=[
+                    "每个任务至少 2 名人类测试者",
+                    "在 2 次尝试内解决",
+                    "记录人类平均表现作为基准",
+                ],
+            ),
+            PipelineStep(
+                step_number=6,
+                step_type=PipelineStepType.FORMAT_CONVERSION,
+                name="校准与发布",
+                description="数据集划分、复杂度校准、发布",
+                inputs=["validated_tasks.jsonl", "human_baseline.json"],
+                outputs=["final_dataset/"],
+                tips=[
+                    "划分训练集/公开评估集/私有评估集",
+                    "确保复杂度分布均匀",
+                    "覆盖所有操作类型",
+                ],
+            ),
+        ],
+        quality_criteria=[
+            "每个任务有明确的最优解",
+            "需要双控制协作的任务占比 > 50%",
+            "人类测试通过率 > 90%",
+            "任务多样性：覆盖所有原子操作",
+            "用户模拟器行为符合真实用户分布",
+        ],
+        common_pitfalls=[
+            "环境设计过于简单 → 无法产生有意义的双控制交互",
+            "用户模拟器太完美 → 不能反映真实用户的错误和误解",
+            "任务无解或有多解 → 导致评估不公平",
+            "跳过人工验证 → 可能包含人类也无法解决的任务",
+            "忽略效率指标 → 只看完成率会鼓励低效的暴力尝试",
+        ],
+    ),
+
+    "simulation": ProductionPipeline(
+        name="模拟器驱动的数据集生产流程",
+        description="基于环境模拟器生成交互式评估数据",
+        prerequisites=[
+            "领域专家输入",
+            "模拟器框架（如 Gym/PettingZoo）",
+            "用户行为模型",
+            "Python 环境",
+        ],
+        steps=[
+            PipelineStep(
+                step_number=1,
+                step_type=PipelineStepType.DATA_COLLECTION,
+                name="设计双控制环境",
+                description="建模为 Dec-POMDP：用户和代理都能影响环境状态",
+                inputs=["领域分析", "交互模式"],
+                outputs=["env_spec.yaml", "state_space.py"],
+                code_snippet='''# Dec-POMDP 环境建模
+class DualControlEnv:
+    """双控制环境：用户和代理都能使用工具"""
+
+    def __init__(self, config):
+        # 状态空间
+        self.state = self.init_state(config)
+
+        # 可观测性
+        self.user_observable = config["user_observable"]
+        self.agent_observable = config["agent_observable"]
+
+    def get_user_observation(self):
+        """返回用户可见的部分状态"""
+        return {k: self.state[k] for k in self.user_observable}
+
+    def get_agent_observation(self):
+        """返回代理可见的部分状态"""
+        return {k: self.state[k] for k in self.agent_observable}
+
+    def execute(self, action, actor):
+        """执行动作并更新状态"""
+        if actor == "user":
+            return self._execute_user_action(action)
+        else:
+            return self._execute_agent_action(action)''',
+                tips=[
+                    "定义清晰的部分可观测性",
+                    "用户和代理的观测可以重叠",
+                    "考虑动作的前置条件和效果",
+                ],
+            ),
+            PipelineStep(
+                step_number=2,
+                step_type=PipelineStepType.PROMPT_DESIGN,
+                name="定义动作空间",
+                description="定义用户和代理的完整动作空间",
+                inputs=["env_spec.yaml"],
+                outputs=["actions.py"],
+                tips=[
+                    "用户动作应有实际环境效果",
+                    "代理需要能指导用户执行操作",
+                    "定义动作的成功/失败条件",
+                ],
+            ),
+            PipelineStep(
+                step_number=3,
+                step_type=PipelineStepType.LLM_GENERATION,
+                name="任务实例生成",
+                description="基于状态空间生成多样化任务实例",
+                inputs=["env_spec.yaml", "actions.py"],
+                outputs=["tasks.jsonl"],
+                tips=[
+                    "控制任务复杂度分布",
+                    "确保每个任务有可达的目标状态",
+                    "生成最优解路径用于评估",
+                ],
+            ),
+            PipelineStep(
+                step_number=4,
+                step_type=PipelineStepType.POST_PROCESSING,
+                name="用户模拟器构建",
+                description="创建参数化的用户行为模型",
+                inputs=["tasks.jsonl", "actions.py"],
+                outputs=["user_sim.py"],
+                code_snippet='''class ParameterizedUserSim:
+    """参数化用户模拟器"""
+
+    def __init__(self, params):
+        self.cooperation = params.get("cooperation", 0.9)
+        self.comprehension = params.get("comprehension", 0.8)
+        self.patience = params.get("patience", 5)  # max turns
+        self.verbosity = params.get("verbosity", 0.5)
+
+    def should_cooperate(self):
+        return random.random() < self.cooperation
+
+    def understands_instruction(self, complexity):
+        threshold = self.comprehension * (1 - complexity * 0.2)
+        return random.random() < threshold''',
+                tips=[
+                    "模拟真实用户的不完美行为",
+                    "参数化便于控制实验变量",
+                    "收集真实用户数据校准参数",
+                ],
+            ),
+            PipelineStep(
+                step_number=5,
+                step_type=PipelineStepType.VALIDATION,
+                name="人类基准测试",
+                description="人类参与者完成任务以验证可解性和建立基准",
+                inputs=["tasks.jsonl", "user_sim.py"],
+                outputs=["human_baseline.json"],
+                tips=[
+                    "记录成功率、尝试次数、时间",
+                    "收集定性反馈",
+                    "剔除人类无法解决的任务",
+                ],
+            ),
+            PipelineStep(
+                step_number=6,
+                step_type=PipelineStepType.FORMAT_CONVERSION,
+                name="数据集打包发布",
+                description="划分数据集并准备发布",
+                inputs=["human_baseline.json", "tasks.jsonl"],
+                outputs=["final_dataset/"],
+                tips=[
+                    "保留私有测试集防止过拟合",
+                    "提供详细的评估协议",
+                    "开源模拟器代码",
+                ],
+            ),
+        ],
+        quality_criteria=[
+            "任务可解性：人类成功率 > 60%",
+            "复杂度分布均匀",
+            "模拟器与真实用户行为匹配",
+            "评估指标明确可计算",
+        ],
+        common_pitfalls=[
+            "模拟器与真实环境差距过大",
+            "用户模型过于简单或完美",
+            "忽略效率/成本指标",
+            "测试集泄露",
+        ],
+    ),
+
+    "benchmark": ProductionPipeline(
+        name="评估基准数据集生产流程",
+        description="创建标准化的模型评估基准",
+        prerequisites=[
+            "评估目标定义",
+            "参考数据或任务来源",
+            "评估协议文档",
+            "人类基准测试资源",
+        ],
+        steps=[
+            PipelineStep(
+                step_number=1,
+                step_type=PipelineStepType.DATA_COLLECTION,
+                name="定义评估维度",
+                description="明确要评估的能力维度和指标",
+                inputs=["评估目标"],
+                outputs=["eval_spec.yaml"],
+                tips=[
+                    "区分不同能力维度",
+                    "定义明确的成功标准",
+                    "考虑效率和成本指标",
+                ],
+            ),
+            PipelineStep(
+                step_number=2,
+                step_type=PipelineStepType.SEED_DATA,
+                name="任务收集/设计",
+                description="收集或设计评估任务",
+                inputs=["eval_spec.yaml"],
+                outputs=["raw_tasks.jsonl"],
+                tips=[
+                    "任务应覆盖所有评估维度",
+                    "控制难度分布",
+                    "避免数据污染",
+                ],
+            ),
+            PipelineStep(
+                step_number=3,
+                step_type=PipelineStepType.QUALITY_FILTER,
+                name="任务筛选与验证",
+                description="确保任务质量和可解性",
+                inputs=["raw_tasks.jsonl"],
+                outputs=["filtered_tasks.jsonl"],
+                tips=[
+                    "人工审核关键任务",
+                    "确保答案唯一或可验证",
+                    "检查任务表述清晰度",
+                ],
+            ),
+            PipelineStep(
+                step_number=4,
+                step_type=PipelineStepType.VALIDATION,
+                name="人类基准建立",
+                description="人类完成任务以建立性能基准",
+                inputs=["filtered_tasks.jsonl"],
+                outputs=["human_baseline.json"],
+                tips=[
+                    "多人测试取平均",
+                    "记录时间和错误类型",
+                    "作为模型性能的参照",
+                ],
+            ),
+            PipelineStep(
+                step_number=5,
+                step_type=PipelineStepType.FORMAT_CONVERSION,
+                name="数据集划分与发布",
+                description="划分公开/私有测试集并发布",
+                inputs=["filtered_tasks.jsonl", "human_baseline.json"],
+                outputs=["benchmark_dataset/"],
+                tips=[
+                    "保留私有测试集",
+                    "提供标准评估脚本",
+                    "建立排行榜",
+                ],
+            ),
+        ],
+        quality_criteria=[
+            "任务覆盖所有评估维度",
+            "人类基准可靠",
+            "评估协议标准化",
+            "防止数据泄露",
+        ],
+        common_pitfalls=[
+            "任务难度分布不均",
+            "评估指标定义模糊",
+            "测试集被污染",
+            "缺乏人类基准",
+        ],
+    ),
 }
 
 
-def get_pipeline_template(generation_type: str, synthetic_ratio: float = None) -> ProductionPipeline:
-    """Get appropriate pipeline template based on generation type."""
+def get_pipeline_template(generation_type: str, synthetic_ratio: float = None, category: str = None) -> ProductionPipeline:
+    """Get appropriate pipeline template based on generation type or category.
+
+    Args:
+        generation_type: The type of data generation (synthetic, human, etc.)
+        synthetic_ratio: Ratio of synthetic data (0.0-1.0)
+        category: Dataset category from deep analysis (programmatic, simulation, etc.)
+
+    Returns:
+        Appropriate ProductionPipeline template
+    """
+    # First check category from deep analysis
+    if category:
+        category_lower = category.lower()
+        if category_lower in ["programmatic", "programmatic_generation"]:
+            return PIPELINE_TEMPLATES["programmatic"]
+        elif category_lower in ["simulation", "simulator"]:
+            return PIPELINE_TEMPLATES["simulation"]
+        elif category_lower in ["benchmark", "evaluation"]:
+            return PIPELINE_TEMPLATES["benchmark"]
+        elif category_lower in ["llm_distillation", "distillation"]:
+            return PIPELINE_TEMPLATES["distillation"]
+        elif category_lower in ["human_annotation", "human"]:
+            return PIPELINE_TEMPLATES["human_annotation"]
+
+    # Fall back to synthetic ratio
     if synthetic_ratio is not None:
         if synthetic_ratio >= 0.9:
             return PIPELINE_TEMPLATES["distillation"]
@@ -366,10 +827,17 @@ def get_pipeline_template(generation_type: str, synthetic_ratio: float = None) -
         else:
             return PIPELINE_TEMPLATES["hybrid"]
 
+    # Fall back to generation type
     if generation_type in ["synthetic", "distillation"]:
         return PIPELINE_TEMPLATES["distillation"]
     elif generation_type in ["human", "human_annotation"]:
         return PIPELINE_TEMPLATES["human_annotation"]
+    elif generation_type in ["programmatic"]:
+        return PIPELINE_TEMPLATES["programmatic"]
+    elif generation_type in ["simulation"]:
+        return PIPELINE_TEMPLATES["simulation"]
+    elif generation_type in ["benchmark"]:
+        return PIPELINE_TEMPLATES["benchmark"]
     else:
         return PIPELINE_TEMPLATES["hybrid"]
 
