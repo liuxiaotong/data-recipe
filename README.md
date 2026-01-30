@@ -101,25 +101,36 @@ We classify datasets along multiple dimensions using keyword frequency analysis 
 
 ### 3.4 Deep Analysis
 
-A key innovation in DataRecipe is the deep analysis capability, which extracts detailed methodology from academic papers and dataset documentation:
+A key innovation in DataRecipe is the deep analysis capability, which extracts detailed methodology from academic papers and dataset documentation through multi-source aggregation:
 
-```python
-class DeepAnalyzer:
-    """Extracts detailed construction methodology from papers and documentation."""
-
-    def analyze(self, url: str) -> DeepAnalysisResult:
-        # 1. Fetch and parse content
-        # 2. Detect dataset category
-        # 3. Extract methodology and innovations
-        # 4. Identify generation steps
-        # 5. Extract quality control methods
-        # 6. Return structured result
 ```
+URL Input
+    ↓
+┌─────────────────────────────────────┐
+│  Multi-Source Content Aggregation   │
+├─────────────────────────────────────┤
+│  1. Website Content                 │
+│  2. arXiv Paper (auto-discovered)   │
+│     └─ PDF Full Text Extraction     │
+│  3. GitHub README                   │
+└─────────────────────────────────────┘
+    ↓
+Pattern Matching (30+ rules)
+    ↓
+Structured Analysis Result
+```
+
+**Key Features:**
+
+- **PDF Full Text Parsing**: Extracts complete paper content using PyMuPDF, not just abstracts
+- **Automatic Paper Discovery**: Searches arXiv for related papers when methodology is unclear
+- **Multi-Source Aggregation**: Combines website, paper, and GitHub README for comprehensive analysis
+- **LLM-Enhanced Analysis** (Optional): Uses Claude or GPT for deeper semantic understanding
 
 The deep analyzer identifies:
 - **Dataset Category**: LLM distillation, programmatic, simulation, benchmark, etc.
-- **Key Innovations**: Novel techniques or approaches
-- **Generation Steps**: Step-by-step construction pipeline
+- **Key Innovations**: Novel techniques or approaches (30+ detection patterns)
+- **Generation Steps**: Step-by-step construction pipeline with code examples
 - **Quality Methods**: Validation and filtering approaches
 - **Resource Requirements**: Code, data, and infrastructure needs
 
@@ -234,7 +245,7 @@ Production guides include:
 
 1. **Content-Level Analysis**: Implement classifiers to detect AI-generated text patterns within dataset samples
 2. **Cost Model Calibration**: Develop empirically-grounded estimation based on API pricing and annotation market rates
-3. **LLM-Enhanced Analysis**: Use language models to extract more nuanced methodology details
+3. ~~**LLM-Enhanced Analysis**~~: ✅ Implemented - Use `--llm` flag with Anthropic or OpenAI API
 4. **Community Validation**: Enable crowdsourced recipe contribution and verification
 5. **Automated Pipeline Execution**: Generate executable scripts for dataset reproduction
 
@@ -276,6 +287,19 @@ cd data-recipe
 pip install -e .
 ```
 
+### Optional Dependencies
+
+```bash
+# For PDF parsing (recommended)
+pip install datarecipe[pdf]
+
+# For LLM-enhanced analysis
+pip install datarecipe[llm]
+
+# Install all optional dependencies
+pip install datarecipe[all]
+```
+
 ## Usage
 
 ### Basic Analysis
@@ -299,8 +323,19 @@ datarecipe analyze <dataset_id> --json          # JSON
 # Generate standard production guide
 datarecipe guide Anthropic/hh-rlhf -o guide.md
 
-# Deep analysis with customized guide
+# Deep analysis with customized guide (PDF parsing + multi-source)
 datarecipe deep-guide https://arxiv.org/abs/2506.07982 -o deep-guide.md
+
+# Deep analysis for dataset websites (auto-discovers papers)
+datarecipe deep-guide https://arcprize.org/arc-agi/2/ -o arc-guide.md
+
+# LLM-enhanced analysis (requires API key)
+export ANTHROPIC_API_KEY="your-key"
+datarecipe deep-guide https://example.com/dataset --llm -o guide.md
+
+# Use OpenAI instead
+export OPENAI_API_KEY="your-key"
+datarecipe deep-guide https://example.com/dataset --llm --provider openai -o guide.md
 ```
 
 ### Other Commands
@@ -431,25 +466,36 @@ TEACHER_MODEL_PATTERNS = [
 
 ### 3.4 深度分析
 
-DataRecipe 的一项关键创新是深度分析能力，可从学术论文和数据集文档中提取详细的方法论：
+DataRecipe 的一项关键创新是深度分析能力，通过多源聚合从学术论文和数据集文档中提取详细的方法论：
 
-```python
-class DeepAnalyzer:
-    """从论文和文档中提取详细的构建方法论。"""
-
-    def analyze(self, url: str) -> DeepAnalysisResult:
-        # 1. 获取并解析内容
-        # 2. 检测数据集类别
-        # 3. 提取方法论和创新点
-        # 4. 识别生成步骤
-        # 5. 提取质量控制方法
-        # 6. 返回结构化结果
 ```
+URL 输入
+    ↓
+┌─────────────────────────────────────┐
+│       多源内容聚合                    │
+├─────────────────────────────────────┤
+│  1. 网站内容                         │
+│  2. arXiv 论文（自动发现）            │
+│     └─ PDF 全文提取                  │
+│  3. GitHub README                   │
+└─────────────────────────────────────┘
+    ↓
+模式匹配（30+ 规则）
+    ↓
+结构化分析结果
+```
+
+**核心特性：**
+
+- **PDF 全文解析**：使用 PyMuPDF 提取完整论文内容，而非仅摘要
+- **自动论文发现**：当方法论不明确时，自动搜索 arXiv 相关论文
+- **多源聚合**：综合网站、论文和 GitHub README 进行全面分析
+- **LLM 增强分析**（可选）：使用 Claude 或 GPT 进行更深层的语义理解
 
 深度分析器识别：
 - **数据集类别**：LLM 蒸馏、程序化、模拟器、基准测试等
-- **核心创新**：新颖的技术或方法
-- **生成步骤**：逐步的构建流程
+- **核心创新**：新颖的技术或方法（30+ 检测规则）
+- **生成步骤**：逐步的构建流程及代码示例
 - **质量方法**：验证和过滤方法
 - **资源需求**：代码、数据和基础设施需求
 
@@ -564,7 +610,7 @@ reproducibility:
 
 1. **内容级分析**：实现分类器以检测数据集样本中的人工智能生成文本模式
 2. **成本模型校准**：基于 API 定价和标注市场费率开发经验性估算
-3. **LLM 增强分析**：使用语言模型提取更细致的方法论细节
+3. ~~**LLM 增强分析**~~：✅ 已实现 - 使用 `--llm` 参数配合 Anthropic 或 OpenAI API
 4. **社区验证**：支持众包配方贡献和验证
 5. **自动化流程执行**：生成用于数据集复现的可执行脚本
 
@@ -606,6 +652,19 @@ cd data-recipe
 pip install -e .
 ```
 
+### 可选依赖
+
+```bash
+# PDF 解析（推荐）
+pip install datarecipe[pdf]
+
+# LLM 增强分析
+pip install datarecipe[llm]
+
+# 安装所有可选依赖
+pip install datarecipe[all]
+```
+
 ## 使用方法
 
 ### 基础分析
@@ -629,8 +688,19 @@ datarecipe analyze <dataset_id> --json          # JSON
 # 生成标准生产指南
 datarecipe guide Anthropic/hh-rlhf -o guide.md
 
-# 深度分析并生成定制化指南
+# 深度分析并生成定制化指南（PDF 解析 + 多源聚合）
 datarecipe deep-guide https://arxiv.org/abs/2506.07982 -o deep-guide.md
+
+# 深度分析数据集网站（自动发现相关论文）
+datarecipe deep-guide https://arcprize.org/arc-agi/2/ -o arc-guide.md
+
+# LLM 增强分析（需要 API 密钥）
+export ANTHROPIC_API_KEY="your-key"
+datarecipe deep-guide https://example.com/dataset --llm -o guide.md
+
+# 使用 OpenAI
+export OPENAI_API_KEY="your-key"
+datarecipe deep-guide https://example.com/dataset --llm --provider openai -o guide.md
 ```
 
 ### 其他命令
