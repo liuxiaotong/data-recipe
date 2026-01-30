@@ -269,9 +269,9 @@ def display_recipe(recipe: Recipe) -> None:
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="datarecipe")
+@click.version_option(version="0.2.0", prog_name="datarecipe")
 def main():
-    """DataRecipe - Analyze AI dataset ingredients."""
+    """DataRecipe - Analyze AI dataset ingredients, estimate costs, and generate workflows."""
     pass
 
 
@@ -684,6 +684,313 @@ metadata:
     # Show preview
     console.print("\n[bold]预览 / Preview:[/bold]")
     console.print(yaml_content)
+
+
+@main.command()
+@click.argument("dataset_id")
+@click.option("--model", "-m", default="gpt-4o", help="LLM model for cost estimation")
+@click.option("--examples", "-n", type=int, help="Target number of examples")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def cost(dataset_id: str, model: str, examples: int, as_json: bool):
+    """Calculate production cost estimate for a dataset.
+
+    DATASET_ID is the identifier of the dataset to analyze.
+    """
+    from datarecipe.cost_calculator import CostCalculator
+
+    analyzer = DatasetAnalyzer()
+    calculator = CostCalculator()
+
+    with console.status(f"[cyan]Analyzing {dataset_id}...[/cyan]"):
+        try:
+            recipe = analyzer.analyze(dataset_id)
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+
+    target_size = examples or recipe.num_examples or 10000
+
+    with console.status("[cyan]Calculating costs...[/cyan]"):
+        cost_breakdown = calculator.estimate_from_recipe(recipe, target_size, model)
+
+    if as_json:
+        import json
+        console.print(json.dumps(cost_breakdown.to_dict(), indent=2))
+    else:
+        console.print(f"\n[bold cyan]Cost Estimate for {dataset_id}[/bold cyan]")
+        console.print(f"Target size: {target_size:,} examples")
+        console.print(f"Model: {model}")
+        console.print("")
+
+        table = Table(title="Cost Breakdown")
+        table.add_column("Category", style="cyan")
+        table.add_column("Low", justify="right")
+        table.add_column("Expected", justify="right", style="green")
+        table.add_column("High", justify="right")
+
+        table.add_row(
+            "API Calls",
+            f"${cost_breakdown.api_cost.low:,.0f}",
+            f"${cost_breakdown.api_cost.expected:,.0f}",
+            f"${cost_breakdown.api_cost.high:,.0f}",
+        )
+        table.add_row(
+            "Human Annotation",
+            f"${cost_breakdown.human_annotation_cost.low:,.0f}",
+            f"${cost_breakdown.human_annotation_cost.expected:,.0f}",
+            f"${cost_breakdown.human_annotation_cost.high:,.0f}",
+        )
+        table.add_row(
+            "Compute",
+            f"${cost_breakdown.compute_cost.low:,.0f}",
+            f"${cost_breakdown.compute_cost.expected:,.0f}",
+            f"${cost_breakdown.compute_cost.high:,.0f}",
+        )
+        table.add_row(
+            "[bold]Total[/bold]",
+            f"[bold]${cost_breakdown.total.low:,.0f}[/bold]",
+            f"[bold green]${cost_breakdown.total.expected:,.0f}[/bold green]",
+            f"[bold]${cost_breakdown.total.high:,.0f}[/bold]",
+        )
+
+        console.print(table)
+
+        if cost_breakdown.assumptions:
+            console.print("\n[bold]Assumptions:[/bold]")
+            for assumption in cost_breakdown.assumptions:
+                console.print(f"  - {assumption}")
+
+
+@main.command()
+@click.argument("dataset_id")
+@click.option("--sample-size", "-n", type=int, default=1000, help="Number of examples to sample")
+@click.option("--text-field", "-f", default="text", help="Field containing text to analyze")
+@click.option("--detect-ai", is_flag=True, help="Run AI content detection")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def quality(dataset_id: str, sample_size: int, text_field: str, detect_ai: bool, as_json: bool):
+    """Analyze quality metrics for a dataset.
+
+    DATASET_ID is the identifier of the dataset to analyze.
+    """
+    from datarecipe.quality_metrics import QualityAnalyzer
+
+    quality_analyzer = QualityAnalyzer()
+
+    with console.status(f"[cyan]Analyzing quality of {dataset_id}...[/cyan]"):
+        try:
+            report = quality_analyzer.analyze_from_huggingface(
+                dataset_id,
+                text_field=text_field,
+                sample_size=sample_size,
+                detect_ai=detect_ai,
+            )
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+
+    if as_json:
+        import json
+        console.print(json.dumps(report.to_dict(), indent=2))
+    else:
+        console.print(f"\n[bold cyan]Quality Report for {dataset_id}[/bold cyan]")
+        console.print(f"Sample size: {report.sample_size:,}")
+        console.print("")
+
+        # Overall score
+        score = report.overall_score
+        score_bar = "[" + "#" * int(score / 10) + "-" * (10 - int(score / 10)) + "]"
+        console.print(f"[bold]Overall Score: {score:.0f}/100 {score_bar}[/bold]")
+        console.print("")
+
+        # Metrics tables
+        table = Table(title="Diversity Metrics")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", justify="right")
+        table.add_row("Unique Token Ratio", f"{report.diversity.unique_token_ratio:.4f}")
+        table.add_row("Vocabulary Size", f"{report.diversity.vocabulary_size:,}")
+        table.add_row("Semantic Diversity", f"{report.diversity.semantic_diversity:.4f}")
+        console.print(table)
+        console.print("")
+
+        table = Table(title="Consistency Metrics")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", justify="right")
+        table.add_row("Format Consistency", f"{report.consistency.format_consistency:.4f}")
+        table.add_row("Structure Score", f"{report.consistency.structure_score:.4f}")
+        table.add_row("Field Completeness", f"{report.consistency.field_completeness:.4f}")
+        console.print(table)
+        console.print("")
+
+        table = Table(title="Complexity Metrics")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", justify="right")
+        table.add_row("Avg Length", f"{report.complexity.avg_length:.0f} chars")
+        table.add_row("Avg Tokens", f"{report.complexity.avg_tokens:.0f}")
+        table.add_row("Vocabulary Richness", f"{report.complexity.vocabulary_richness:.4f}")
+        table.add_row("Readability Score", f"{report.complexity.readability_score:.0f}")
+        console.print(table)
+
+        if detect_ai and report.ai_detection:
+            console.print("")
+            table = Table(title="AI Detection")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", justify="right")
+            table.add_row("AI Probability", f"{report.ai_detection.ai_probability:.2%}")
+            table.add_row("Confidence", f"{report.ai_detection.confidence:.2%}")
+            if report.ai_detection.indicators:
+                table.add_row("Indicators", ", ".join(report.ai_detection.indicators[:3]))
+            console.print(table)
+
+        if report.recommendations:
+            console.print("\n[bold]Recommendations:[/bold]")
+            for rec in report.recommendations:
+                console.print(f"  - {rec}")
+
+        if report.warnings:
+            console.print("\n[yellow]Warnings:[/yellow]")
+            for warning in report.warnings:
+                console.print(f"  - {warning}")
+
+
+@main.command()
+@click.argument("dataset_ids", nargs=-1)
+@click.option("--file", "-f", type=click.Path(exists=True), help="File with dataset IDs")
+@click.option("--parallel", "-p", type=int, default=4, help="Number of parallel workers")
+@click.option("--output", "-o", type=click.Path(), help="Output directory for results")
+@click.option("--format", "fmt", type=click.Choice(["yaml", "json", "markdown"]), default="yaml", help="Output format")
+def batch(dataset_ids: tuple, file: str, parallel: int, output: str, fmt: str):
+    """Analyze multiple datasets in parallel.
+
+    DATASET_IDS are the identifiers of datasets to analyze.
+    Use -f to read dataset IDs from a file.
+    """
+    from datarecipe.batch_analyzer import BatchAnalyzer
+
+    # Collect dataset IDs
+    ids = list(dataset_ids)
+    if file:
+        batch_analyzer = BatchAnalyzer(max_workers=parallel)
+        result = batch_analyzer.analyze_from_file(file)
+    elif ids:
+        batch_analyzer = BatchAnalyzer(max_workers=parallel)
+
+        def progress_callback(dataset_id, completed, total):
+            console.print(f"  [{completed}/{total}] Analyzed: {dataset_id}")
+
+        batch_analyzer.progress_callback = progress_callback
+        result = batch_analyzer.analyze_batch(ids)
+    else:
+        console.print("[red]Error:[/red] Provide dataset IDs or use -f to specify a file")
+        sys.exit(1)
+
+    console.print(f"\n[bold cyan]Batch Analysis Complete[/bold cyan]")
+    console.print(f"  Total: {len(result.results)}")
+    console.print(f"  [green]Successful: {result.successful}[/green]")
+    console.print(f"  [red]Failed: {result.failed}[/red]")
+    console.print(f"  Duration: {result.total_duration_seconds:.1f}s")
+
+    if result.failed > 0:
+        console.print("\n[yellow]Failed datasets:[/yellow]")
+        for r in result.get_failed():
+            console.print(f"  - {r.dataset_id}: {r.error}")
+
+    if output:
+        created = batch_analyzer.export_results(result, output, fmt)
+        console.print(f"\n[green]Results exported to {output}[/green]")
+        console.print(f"  Created {len(created)} files")
+
+
+@main.command()
+@click.argument("dataset_ids", nargs=-1, required=True)
+@click.option("--format", "fmt", type=click.Choice(["table", "markdown"]), default="table", help="Output format")
+@click.option("--include-quality", is_flag=True, help="Include quality analysis (slower)")
+@click.option("--output", "-o", type=click.Path(), help="Output file")
+def compare(dataset_ids: tuple, fmt: str, include_quality: bool, output: str):
+    """Compare multiple datasets side by side.
+
+    DATASET_IDS are 2 or more dataset identifiers to compare.
+    """
+    from datarecipe.comparator import DatasetComparator
+
+    if len(dataset_ids) < 2:
+        console.print("[red]Error:[/red] Please provide at least 2 datasets to compare")
+        sys.exit(1)
+
+    comparator = DatasetComparator(include_quality=include_quality)
+
+    with console.status(f"[cyan]Comparing {len(dataset_ids)} datasets...[/cyan]"):
+        try:
+            report = comparator.compare_by_ids(list(dataset_ids))
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+
+    if fmt == "markdown":
+        content = report.to_markdown()
+    else:
+        content = report.to_table()
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(content, encoding="utf-8")
+        console.print(f"[green]Report saved to {output}[/green]")
+    else:
+        print(content)
+
+    # Show recommendations
+    if report.recommendations and fmt == "table":
+        console.print("\n[bold cyan]Recommendations:[/bold cyan]")
+        for rec in report.recommendations:
+            console.print(f"  - {rec}")
+
+
+@main.command()
+@click.argument("dataset_id")
+@click.option("--output", "-o", type=click.Path(), required=True, help="Output directory for project")
+@click.option("--target-size", "-n", type=int, help="Target number of examples")
+@click.option("--format", "fmt", type=click.Choice(["huggingface", "jsonl", "parquet"]), default="huggingface", help="Output format")
+def workflow(dataset_id: str, output: str, target_size: int, fmt: str):
+    """Generate a production workflow for reproducing a dataset.
+
+    Creates a complete project structure with scripts, configuration,
+    and documentation for producing a dataset similar to DATASET_ID.
+    """
+    from datarecipe.workflow import WorkflowGenerator
+
+    analyzer = DatasetAnalyzer()
+    generator = WorkflowGenerator()
+
+    with console.status(f"[cyan]Analyzing {dataset_id}...[/cyan]"):
+        try:
+            recipe = analyzer.analyze(dataset_id)
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+
+    with console.status("[cyan]Generating workflow...[/cyan]"):
+        wf = generator.generate(recipe, target_size, fmt)
+
+    # Export project
+    created_files = wf.export_project(output)
+
+    console.print(f"\n[bold green]Workflow generated successfully![/bold green]")
+    console.print(f"  Project: {output}")
+    console.print(f"  Target size: {wf.target_size:,} examples")
+    console.print(f"  Estimated cost: ${wf.estimated_total_cost:,.0f}")
+    console.print(f"  Steps: {len(wf.steps)}")
+
+    console.print(f"\n[bold]Created files ({len(created_files)}):[/bold]")
+    for f in created_files[:10]:
+        console.print(f"  - {f}")
+    if len(created_files) > 10:
+        console.print(f"  ... and {len(created_files) - 10} more")
+
+    console.print(f"\n[bold cyan]Next steps:[/bold cyan]")
+    console.print(f"  1. cd {output}")
+    console.print(f"  2. pip install -r requirements.txt")
+    console.print(f"  3. cp .env.example .env && edit .env")
+    console.print(f"  4. See README.md for detailed instructions")
 
 
 if __name__ == "__main__":

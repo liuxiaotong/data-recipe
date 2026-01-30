@@ -4,9 +4,9 @@
 
 ## Abstract
 
-The proliferation of large language models has created an unprecedented demand for high-quality training datasets. However, while model architectures and training procedures are increasingly transparent, the construction methodologies of these datasets remain opaque. This paper presents DataRecipe, a systematic framework for analyzing dataset provenance—analogous to "nutrition labels" for food products. Our tool extracts metadata from multiple sources (HuggingFace Hub, GitHub repositories, and web pages) to identify generation methodologies, teacher models used in distillation, estimated creation costs, and reproducibility scores. Beyond analysis, DataRecipe introduces a novel deep analysis capability that extracts detailed construction pipelines from academic papers and generates customized production guides. We demonstrate the framework's capabilities across diverse dataset types—including programmatic generation, simulation-based benchmarks, and LLM distillation—and discuss implications for AI governance, scientific reproducibility, and research accessibility.
+The proliferation of large language models has created an unprecedented demand for high-quality training datasets. However, while model architectures and training procedures are increasingly transparent, the construction methodologies of these datasets remain opaque. This paper presents DataRecipe, a systematic framework for analyzing dataset provenance—analogous to "nutrition labels" for food products. Our tool extracts metadata from multiple sources (HuggingFace Hub, GitHub repositories, and web pages) to identify generation methodologies, teacher models used in distillation, estimated creation costs, and reproducibility scores. Beyond analysis, DataRecipe introduces a novel deep analysis capability that extracts detailed construction pipelines from academic papers and generates customized production guides. **New in v0.2**: Commercial features including precise cost estimation with multi-provider LLM pricing, quality metrics analysis (diversity, consistency, complexity, AI detection), batch analysis for parallel processing, dataset comparison reports, and complete production workflow generation with executable scripts. We demonstrate the framework's capabilities across diverse dataset types—including programmatic generation, simulation-based benchmarks, and LLM distillation—and discuss implications for AI governance, scientific reproducibility, and research accessibility.
 
-**Keywords:** dataset provenance, synthetic data, knowledge distillation, reproducibility, AI transparency, production pipeline
+**Keywords:** dataset provenance, synthetic data, knowledge distillation, reproducibility, AI transparency, production pipeline, cost estimation, quality metrics
 
 ---
 
@@ -155,6 +155,78 @@ Available pipeline templates:
 | simulation | Environment simulator-driven data generation |
 | benchmark | Standardized evaluation dataset creation |
 
+### 3.7 Cost Calculator
+
+DataRecipe includes a comprehensive cost estimation system that calculates production costs across three dimensions:
+
+**API Costs**: Token-based pricing for major LLM providers:
+- OpenAI (GPT-4o, GPT-4o-mini, GPT-4-turbo, GPT-3.5-turbo)
+- Anthropic (Claude 3 Opus/Sonnet/Haiku, Claude 3.5 Sonnet)
+- Google (Gemini Pro, Gemini 1.5 Pro)
+- Open source via API (Llama 3, Mixtral)
+
+**Human Annotation Costs**: Per-annotation pricing by task complexity:
+| Task Type | Cost per Annotation |
+|-----------|---------------------|
+| Simple label | $0.05 |
+| Text classification | $0.10 |
+| Text generation | $0.50 |
+| Expert annotation | $5.00 |
+
+**Compute Costs**: Hourly rates for different compute tiers (CPU standard to GPU H100).
+
+### 3.8 Quality Metrics
+
+The quality analysis module evaluates datasets across multiple dimensions:
+
+- **Diversity Metrics**: Unique token ratio, vocabulary size, semantic diversity, n-gram diversity
+- **Consistency Metrics**: Format consistency, structure score, field completeness, length variance
+- **Complexity Metrics**: Average length/tokens, vocabulary richness, readability score
+- **AI Detection**: Heuristic-based detection of AI-generated content patterns
+
+Quality scores are aggregated into an overall 0-100 score with actionable recommendations.
+
+### 3.9 Batch Analysis
+
+For analyzing multiple datasets efficiently:
+
+- Parallel processing with configurable worker count
+- Support for dataset lists from files (txt, json, csv)
+- Progress tracking and error handling
+- Batch export to YAML, JSON, or Markdown
+
+### 3.10 Dataset Comparison
+
+Side-by-side comparison of multiple datasets with:
+
+- Cost comparison tables
+- Quality metric comparisons
+- Strength/weakness analysis per dataset
+- "Best for" recommendations (best value, largest scale, highest quality, etc.)
+- Export to Markdown or ASCII table format
+
+### 3.11 Production Workflow Generation
+
+Generates complete, executable project structures for dataset reproduction:
+
+```
+my_project/
+├── README.md           # Project documentation
+├── requirements.txt    # Python dependencies
+├── config.yaml         # Configuration
+├── checklist.md        # Resource checklist
+├── timeline.md         # Project milestones
+├── .env.example        # Environment variables template
+└── scripts/
+    ├── 01_seed_data.py
+    ├── 02_llm_generation.py
+    ├── 03_quality_filtering.py
+    ├── 04_deduplication.py
+    └── 05_validation.py
+```
+
+Workflow templates adapt based on the source recipe's generation type (synthetic, human, or hybrid).
+
 ### 3.6 Reproducibility Scoring
 
 Reproducibility is assessed on a 10-point scale based on information availability:
@@ -243,11 +315,11 @@ Production guides include:
 
 ### 5.2 Future Directions
 
-1. **Content-Level Analysis**: Implement classifiers to detect AI-generated text patterns within dataset samples
-2. **Cost Model Calibration**: Develop empirically-grounded estimation based on API pricing and annotation market rates
+1. ~~**Content-Level Analysis**~~: ✅ Implemented - `datarecipe quality --detect-ai` for AI content detection
+2. ~~**Cost Model Calibration**~~: ✅ Implemented - `datarecipe cost` with detailed API/annotation/compute pricing
 3. ~~**LLM-Enhanced Analysis**~~: ✅ Implemented - Use `--llm` flag with Anthropic or OpenAI API
 4. **Community Validation**: Enable crowdsourced recipe contribution and verification
-5. **Automated Pipeline Execution**: Generate executable scripts for dataset reproduction
+5. ~~**Automated Pipeline Execution**~~: ✅ Implemented - `datarecipe workflow` generates executable scripts
 
 ---
 
@@ -282,7 +354,7 @@ pip install datarecipe
 Or install from source:
 
 ```bash
-git clone https://github.com/yourusername/data-recipe.git
+git clone https://github.com/liuxiaotong/data-recipe.git
 cd data-recipe
 pip install -e .
 ```
@@ -296,8 +368,17 @@ pip install datarecipe[pdf]
 # For LLM-enhanced analysis
 pip install datarecipe[llm]
 
+# For quality metrics with embeddings
+pip install datarecipe[quality]
+
+# For workflow generation with templates
+pip install datarecipe[workflow]
+
 # Install all optional dependencies
 pip install datarecipe[all]
+
+# Install everything including dev tools
+pip install datarecipe[full]
 ```
 
 ## Usage
@@ -338,6 +419,71 @@ export OPENAI_API_KEY="your-key"
 datarecipe deep-guide https://example.com/dataset --llm --provider openai -o guide.md
 ```
 
+### Cost Estimation
+
+```bash
+# Estimate production cost for a dataset
+datarecipe cost Anthropic/hh-rlhf --model gpt-4o
+
+# Specify target size
+datarecipe cost Anthropic/hh-rlhf --model gpt-4o --examples 50000
+
+# Output as JSON
+datarecipe cost Anthropic/hh-rlhf --json
+```
+
+### Quality Analysis
+
+```bash
+# Analyze dataset quality
+datarecipe quality Anthropic/hh-rlhf --sample-size 1000
+
+# Include AI detection
+datarecipe quality Anthropic/hh-rlhf --detect-ai
+
+# Specify text field
+datarecipe quality Anthropic/hh-rlhf --text-field content
+```
+
+### Batch Analysis
+
+```bash
+# Analyze multiple datasets in parallel
+datarecipe batch Anthropic/hh-rlhf openai/gsm8k tatsu-lab/alpaca
+
+# With parallel workers and output directory
+datarecipe batch dataset1 dataset2 dataset3 -p 4 -o results/
+
+# Read dataset IDs from file
+datarecipe batch -f datasets.txt --format json
+```
+
+### Dataset Comparison
+
+```bash
+# Compare multiple datasets
+datarecipe compare Anthropic/hh-rlhf openai/gsm8k tatsu-lab/alpaca
+
+# Output as markdown
+datarecipe compare dataset1 dataset2 --format markdown -o comparison.md
+
+# Include quality analysis (slower)
+datarecipe compare dataset1 dataset2 --include-quality
+```
+
+### Production Workflow Generation
+
+```bash
+# Generate complete project for reproducing a dataset
+datarecipe workflow Anthropic/hh-rlhf -o ./reproduce_hh_rlhf
+
+# Specify target size
+datarecipe workflow Anthropic/hh-rlhf -o ./my_project -n 10000
+
+# Check generated files
+ls ./my_project/scripts/
+```
+
 ### Other Commands
 
 ```bash
@@ -371,9 +517,9 @@ MIT License
 
 ## 摘要
 
-大语言模型的快速发展催生了对高质量训练数据集的空前需求。然而，尽管模型架构和训练流程日益透明，这些数据集的构建方法却仍处于不透明状态。本文介绍 DataRecipe，一个用于分析数据集来源的系统性框架——其理念类似于食品行业的"营养成分标签"制度。该工具从多种来源（HuggingFace Hub、GitHub 仓库和网页）提取元数据，以识别生成方法、蒸馏过程中使用的教师模型、估算的创建成本以及可复现性评分。除了分析功能外，DataRecipe 还引入了一项创新的深度分析能力，可从学术论文中提取详细的构建流程并生成定制化的生产指南。我们在多种数据集类型上展示了该框架的能力——包括程序化生成、基于模拟器的基准测试和大语言模型蒸馏——并讨论其对人工智能治理、科学可复现性和研究可及性的影响。
+大语言模型的快速发展催生了对高质量训练数据集的空前需求。然而，尽管模型架构和训练流程日益透明，这些数据集的构建方法却仍处于不透明状态。本文介绍 DataRecipe，一个用于分析数据集来源的系统性框架——其理念类似于食品行业的"营养成分标签"制度。该工具从多种来源（HuggingFace Hub、GitHub 仓库和网页）提取元数据，以识别生成方法、蒸馏过程中使用的教师模型、估算的创建成本以及可复现性评分。除了分析功能外，DataRecipe 还引入了一项创新的深度分析能力，可从学术论文中提取详细的构建流程并生成定制化的生产指南。**v0.2 新增**：商业功能包括精确成本估算（支持多家 LLM 提供商定价）、质量指标分析（多样性、一致性、复杂度、AI 检测）、批量并行分析、数据集对比报告，以及完整的生产工作流生成（含可执行脚本）。我们在多种数据集类型上展示了该框架的能力——包括程序化生成、基于模拟器的基准测试和大语言模型蒸馏——并讨论其对人工智能治理、科学可复现性和研究可及性的影响。
 
-**关键词：** 数据集溯源、合成数据、知识蒸馏、可复现性、人工智能透明度、生产流程
+**关键词：** 数据集溯源、合成数据、知识蒸馏、可复现性、人工智能透明度、生产流程、成本估算、质量指标
 
 ---
 
@@ -522,6 +668,78 @@ URL 输入
 | simulation | 环境模拟器驱动的数据生成 |
 | benchmark | 标准化评估数据集创建 |
 
+### 3.7 成本计算器
+
+DataRecipe 包含全面的成本估算系统，从三个维度计算生产成本：
+
+**API 成本**：主流 LLM 提供商的基于 token 的定价：
+- OpenAI (GPT-4o, GPT-4o-mini, GPT-4-turbo, GPT-3.5-turbo)
+- Anthropic (Claude 3 Opus/Sonnet/Haiku, Claude 3.5 Sonnet)
+- Google (Gemini Pro, Gemini 1.5 Pro)
+- 开源模型 API (Llama 3, Mixtral)
+
+**人工标注成本**：按任务复杂度的单次标注定价：
+| 任务类型 | 单次标注成本 |
+|---------|-------------|
+| 简单标签 | $0.05 |
+| 文本分类 | $0.10 |
+| 文本生成 | $0.50 |
+| 专家标注 | $5.00 |
+
+**计算成本**：不同计算资源的小时费率（从标准 CPU 到 GPU H100）。
+
+### 3.8 质量指标
+
+质量分析模块从多个维度评估数据集：
+
+- **多样性指标**：唯一 token 比率、词汇量大小、语义多样性、n-gram 多样性
+- **一致性指标**：格式一致性、结构评分、字段完整性、长度方差
+- **复杂度指标**：平均长度/token 数、词汇丰富度、可读性评分
+- **AI 检测**：基于启发式规则检测 AI 生成内容的特征
+
+质量分数汇总为 0-100 的综合评分，并提供可操作的改进建议。
+
+### 3.9 批量分析
+
+高效分析多个数据集：
+
+- 可配置工作进程数的并行处理
+- 支持从文件读取数据集列表（txt, json, csv）
+- 进度跟踪和错误处理
+- 批量导出为 YAML、JSON 或 Markdown
+
+### 3.10 数据集对比
+
+多数据集横向对比：
+
+- 成本对比表格
+- 质量指标对比
+- 每个数据集的优势/劣势分析
+- "最适合"推荐（性价比最高、规模最大、质量最好等）
+- 导出为 Markdown 或 ASCII 表格格式
+
+### 3.11 生产工作流生成
+
+生成完整的、可执行的项目结构用于数据集复现：
+
+```
+my_project/
+├── README.md           # 项目文档
+├── requirements.txt    # Python 依赖
+├── config.yaml         # 配置文件
+├── checklist.md        # 资源清单
+├── timeline.md         # 项目里程碑
+├── .env.example        # 环境变量模板
+└── scripts/
+    ├── 01_seed_data.py
+    ├── 02_llm_generation.py
+    ├── 03_quality_filtering.py
+    ├── 04_deduplication.py
+    └── 05_validation.py
+```
+
+工作流模板根据源配方的生成类型（合成、人工或混合）自动适配。
+
 ### 3.6 可复现性评分
 
 可复现性采用 10 分制评估，基于信息可用性：
@@ -610,11 +828,11 @@ reproducibility:
 
 ### 5.2 未来方向
 
-1. **内容级分析**：实现分类器以检测数据集样本中的人工智能生成文本模式
-2. **成本模型校准**：基于 API 定价和标注市场费率开发经验性估算
+1. ~~**内容级分析**~~：✅ 已实现 - `datarecipe quality --detect-ai` 检测 AI 生成内容
+2. ~~**成本模型校准**~~：✅ 已实现 - `datarecipe cost` 提供详细的 API/标注/计算成本定价
 3. ~~**LLM 增强分析**~~：✅ 已实现 - 使用 `--llm` 参数配合 Anthropic 或 OpenAI API
 4. **社区验证**：支持众包配方贡献和验证
-5. **自动化流程执行**：生成用于数据集复现的可执行脚本
+5. ~~**自动化流程执行**~~：✅ 已实现 - `datarecipe workflow` 生成可执行脚本
 
 ---
 
@@ -649,7 +867,7 @@ pip install datarecipe
 或从源码安装：
 
 ```bash
-git clone https://github.com/yourusername/data-recipe.git
+git clone https://github.com/liuxiaotong/data-recipe.git
 cd data-recipe
 pip install -e .
 ```
@@ -663,8 +881,17 @@ pip install datarecipe[pdf]
 # LLM 增强分析
 pip install datarecipe[llm]
 
+# 质量指标分析（含 embedding）
+pip install datarecipe[quality]
+
+# 工作流生成（含模板引擎）
+pip install datarecipe[workflow]
+
 # 安装所有可选依赖
 pip install datarecipe[all]
+
+# 安装全部依赖（含开发工具）
+pip install datarecipe[full]
 ```
 
 ## 使用方法
@@ -703,6 +930,71 @@ datarecipe deep-guide https://example.com/dataset --llm -o guide.md
 # 使用 OpenAI
 export OPENAI_API_KEY="your-key"
 datarecipe deep-guide https://example.com/dataset --llm --provider openai -o guide.md
+```
+
+### 成本估算
+
+```bash
+# 估算数据集生产成本
+datarecipe cost Anthropic/hh-rlhf --model gpt-4o
+
+# 指定目标数量
+datarecipe cost Anthropic/hh-rlhf --model gpt-4o --examples 50000
+
+# JSON 格式输出
+datarecipe cost Anthropic/hh-rlhf --json
+```
+
+### 质量分析
+
+```bash
+# 分析数据集质量
+datarecipe quality Anthropic/hh-rlhf --sample-size 1000
+
+# 包含 AI 检测
+datarecipe quality Anthropic/hh-rlhf --detect-ai
+
+# 指定文本字段
+datarecipe quality Anthropic/hh-rlhf --text-field content
+```
+
+### 批量分析
+
+```bash
+# 并行分析多个数据集
+datarecipe batch Anthropic/hh-rlhf openai/gsm8k tatsu-lab/alpaca
+
+# 指定并行数和输出目录
+datarecipe batch dataset1 dataset2 dataset3 -p 4 -o results/
+
+# 从文件读取数据集列表
+datarecipe batch -f datasets.txt --format json
+```
+
+### 数据集对比
+
+```bash
+# 对比多个数据集
+datarecipe compare Anthropic/hh-rlhf openai/gsm8k tatsu-lab/alpaca
+
+# Markdown 格式输出
+datarecipe compare dataset1 dataset2 --format markdown -o comparison.md
+
+# 包含质量分析（较慢）
+datarecipe compare dataset1 dataset2 --include-quality
+```
+
+### 生产工作流生成
+
+```bash
+# 生成完整的数据集复现项目
+datarecipe workflow Anthropic/hh-rlhf -o ./reproduce_hh_rlhf
+
+# 指定目标数量
+datarecipe workflow Anthropic/hh-rlhf -o ./my_project -n 10000
+
+# 查看生成的脚本
+ls ./my_project/scripts/
 ```
 
 ### 其他命令
