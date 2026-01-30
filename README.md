@@ -53,8 +53,8 @@ Output:
 │    • Human: 15%                                          │
 │                                                          │
 │ 🤖 Teacher Models:                                       │
-│    • GPT-4                                               │
-│    • Claude 3                                            │
+│    • GPT-5.2                                             │
+│    • Claude 4.5                                          │
 │                                                          │
 │ 💰 Estimated Cost: $50,000 - $100,000                   │
 │                                                          │
@@ -78,7 +78,7 @@ generation:
   synthetic_ratio: 0.85
   methods:
     - type: distillation
-      teacher_model: gpt-4
+      teacher_model: gpt-5.2
       prompt_template: available
     - type: human_annotation
       platform: scale-ai

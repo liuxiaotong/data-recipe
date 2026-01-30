@@ -18,18 +18,23 @@ from datarecipe.schema import (
 
 # Known teacher models and their patterns
 TEACHER_MODEL_PATTERNS = [
+    (r"gpt-?5\.?2", "GPT-5.2"),
+    (r"gpt-?5", "GPT-5"),
     (r"gpt-?4", "GPT-4"),
     (r"gpt-?3\.?5", "GPT-3.5"),
+    (r"claude[-\s]?4\.?5", "Claude 4.5"),
+    (r"claude[-\s]?4", "Claude 4"),
     (r"claude[-\s]?3", "Claude 3"),
-    (r"claude[-\s]?2", "Claude 2"),
     (r"claude", "Claude"),
+    (r"llama[-\s]?4", "Llama 4"),
     (r"llama[-\s]?3", "Llama 3"),
-    (r"llama[-\s]?2", "Llama 2"),
+    (r"gemini[-\s]?2", "Gemini 2"),
     (r"gemini", "Gemini"),
-    (r"palm", "PaLM"),
     (r"mistral", "Mistral"),
     (r"mixtral", "Mixtral"),
+    (r"qwen[-\s]?3", "Qwen 3"),
     (r"qwen", "Qwen"),
+    (r"deepseek[-\s]?v3", "DeepSeek V3"),
     (r"deepseek", "DeepSeek"),
 ]
 

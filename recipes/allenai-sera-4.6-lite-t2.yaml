@@ -12,15 +12,15 @@ generation:
   synthetic_ratio: 0.85
   human_ratio: 0.15
   teacher_models:
-    - GPT-4
-    - Claude 3
+    - GPT-5.2
+    - Claude 4.5
   methods:
     - type: distillation
-      teacher_model: GPT-4
+      teacher_model: GPT-5.2
       prompt_template: available
       description: Primary synthetic data generation via API distillation
     - type: distillation
-      teacher_model: Claude 3
+      teacher_model: Claude 4.5
       prompt_template: available
       description: Supplementary responses for diversity
     - type: human_annotation
