@@ -1,0 +1,68 @@
+# Recipe for allenai/Sera-4.6-Lite-T2
+# A lightweight training dataset for instruction-following models
+
+name: allenai/Sera-4.6-Lite-T2
+version: "4.6"
+
+source:
+  type: huggingface
+  id: allenai/Sera-4.6-Lite-T2
+
+generation:
+  synthetic_ratio: 0.85
+  human_ratio: 0.15
+  teacher_models:
+    - GPT-4
+    - Claude 3
+  methods:
+    - type: distillation
+      teacher_model: GPT-4
+      prompt_template: available
+      description: Primary synthetic data generation via API distillation
+    - type: distillation
+      teacher_model: Claude 3
+      prompt_template: available
+      description: Supplementary responses for diversity
+    - type: human_annotation
+      platform: Scale AI
+      annotators: 50
+      description: Quality verification and seed examples
+
+cost:
+  estimated_total_usd: 75000
+  breakdown:
+    api_calls: 50000
+    human_annotation: 20000
+    compute: 5000
+  confidence: medium
+
+reproducibility:
+  score: 7
+  available:
+    - source_data_references
+    - teacher_model_names
+    - general_methodology
+    - dataset_statistics
+  missing:
+    - exact_prompts
+    - filtering_criteria
+    - quality_thresholds
+    - random_seeds
+  notes: |
+    The dataset methodology is well-documented but exact prompts and
+    filtering criteria are not publicly available. Teacher model versions
+    are specified but API parameters are not disclosed.
+
+metadata:
+  num_examples: 500000
+  languages:
+    - en
+  license: apache-2.0
+  tags:
+    - instruction-following
+    - synthetic
+    - distillation
+    - chat
+  authors:
+    - Allen Institute for AI
+  paper_url: https://arxiv.org/abs/example
