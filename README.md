@@ -232,9 +232,9 @@ MIT License
 ## Citation
 
 ```bibtex
-@software{datarecipe2024,
+@software{datarecipe2026,
   title={DataRecipe: A Framework for Dataset Provenance Analysis},
-  year={2024},
+  year={2026},
   url={https://github.com/yourusername/data-recipe}
 }
 ```
@@ -476,9 +476,9 @@ MIT 许可证
 ## 引用
 
 ```bibtex
-@software{datarecipe2024,
+@software{datarecipe2026,
   title={DataRecipe: A Framework for Dataset Provenance Analysis},
-  year={2024},
+  year={2026},
   url={https://github.com/yourusername/data-recipe}
 }
 ```
