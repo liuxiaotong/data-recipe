@@ -18,6 +18,7 @@ class SourceType(Enum):
     """Type of data source."""
 
     HUGGINGFACE = "huggingface"
+    GITHUB = "github"
     OPENAI = "openai"
     LOCAL = "local"
     WEB = "web"

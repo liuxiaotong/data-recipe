@@ -8,6 +8,8 @@ import yaml
 
 from datarecipe.schema import Recipe, SourceType
 from datarecipe.sources.huggingface import HuggingFaceExtractor
+from datarecipe.sources.github import GitHubExtractor
+from datarecipe.sources.web import WebExtractor
 
 
 class DatasetAnalyzer:
@@ -17,6 +19,8 @@ class DatasetAnalyzer:
         """Initialize the analyzer with source extractors."""
         self.extractors = {
             SourceType.HUGGINGFACE: HuggingFaceExtractor(),
+            SourceType.GITHUB: GitHubExtractor(),
+            SourceType.WEB: WebExtractor(),
         }
 
     def analyze(
@@ -65,6 +69,23 @@ class DatasetAnalyzer:
             match = re.match(pattern, dataset_input)
             if match:
                 return match.group(1), SourceType.HUGGINGFACE
+
+        # GitHub URL patterns
+        gh_patterns = [
+            r"https?://github\.com/([^/]+/[^/\s?#]+)",
+        ]
+
+        for pattern in gh_patterns:
+            match = re.match(pattern, dataset_input)
+            if match:
+                repo_id = match.group(1)
+                # Remove trailing slashes or .git
+                repo_id = repo_id.rstrip("/").removesuffix(".git")
+                return repo_id, SourceType.GITHUB
+
+        # Generic URL - use web extractor
+        if dataset_input.startswith("http://") or dataset_input.startswith("https://"):
+            return dataset_input, SourceType.WEB
 
         # Not a URL, return as-is
         return dataset_input, None
