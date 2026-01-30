@@ -1,0 +1,86 @@
+# Recipe for τ²-Bench (Tau-squared Bench)
+# A benchmark for evaluating conversational AI agents in dual-control environments
+
+name: τ²-Bench
+version: "1.0"
+
+source:
+  type: arxiv
+  id: "2506.07982"
+  paper_url: https://arxiv.org/abs/2506.07982
+  pdf_url: https://arxiv.org/pdf/2506.07982
+
+description: |
+  τ²-Bench is a benchmark designed to evaluate conversational AI agents in
+  "dual-control environments" where both the user and the AI agent can use
+  tools to interact with a shared world. Unlike existing benchmarks that
+  simulate single-control settings (where only the AI agent uses tools),
+  τ²-Bench models realistic scenarios like technical support where users
+  must take active roles.
+
+  Key features:
+  - Models telecom domain as Dec-POMDP (Decentralized Partially Observable MDP)
+  - Includes user simulator tightly coupled with the environment
+  - Supports fine-grained error analysis for reasoning vs communication/coordination
+  - Uses compositional task generator for diverse, verifiable tasks
+
+generation:
+  synthetic_ratio: 1.0
+  human_ratio: 0.0
+  teacher_models: []
+  methods:
+    - type: procedural_generation
+      description: |
+        Compositional task generator that programmatically creates diverse,
+        verifiable tasks from atomic components
+    - type: simulation
+      description: |
+        User simulator tightly coupled with environment, with behavior
+        constrained by tools and observable state
+
+domain:
+  primary: telecommunications
+  task_type: conversational_agent_evaluation
+  modeling: Dec-POMDP
+
+key_findings:
+  - Agent performance drops significantly when moving from no-user to dual-control scenarios
+  - Highlights challenges in guiding user actions
+  - Reveals gaps in current agent capabilities for collaborative tasks
+
+cost:
+  estimated_total_usd: null
+  confidence: low
+  notes: Cost information not available in paper
+
+reproducibility:
+  score: 7
+  available:
+    - paper_reference
+    - methodology_description
+    - evaluation_metrics
+    - benchmark_framework
+  missing:
+    - exact_task_templates
+    - user_simulator_details
+    - full_source_code
+  notes: |
+    Paper provides detailed methodology but implementation details
+    may require accessing supplementary materials or code release.
+
+metadata:
+  task_type: agent_evaluation
+  languages:
+    - en
+  license: unknown
+  tags:
+    - benchmark
+    - conversational-ai
+    - multi-agent
+    - dual-control
+    - dec-pomdp
+    - telecom
+    - synthetic
+  authors:
+    - arXiv authors
+  publication_date: "2025-06"
