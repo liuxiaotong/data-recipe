@@ -1,5 +1,6 @@
 """Main analysis logic for dataset recipes."""
 
+import re
 from pathlib import Path
 from typing import Optional, Union
 
@@ -26,21 +27,47 @@ class DatasetAnalyzer:
         """Analyze a dataset and extract its recipe.
 
         Args:
-            dataset_id: The dataset identifier
+            dataset_id: The dataset identifier or URL
             source_type: The source type (auto-detected if not provided)
 
         Returns:
             Recipe object with extracted information
         """
+        # Parse URL to extract dataset ID if needed
+        dataset_id, detected_source = self._parse_dataset_input(dataset_id)
+
         # Auto-detect source type if not provided
         if source_type is None:
-            source_type = self._detect_source_type(dataset_id)
+            source_type = detected_source or self._detect_source_type(dataset_id)
 
         if source_type not in self.extractors:
             raise ValueError(f"Unsupported source type: {source_type}")
 
         extractor = self.extractors[source_type]
         return extractor.extract(dataset_id)
+
+    def _parse_dataset_input(self, dataset_input: str) -> tuple[str, Optional[SourceType]]:
+        """Parse dataset input which can be an ID or URL.
+
+        Args:
+            dataset_input: Dataset ID or URL
+
+        Returns:
+            Tuple of (dataset_id, detected_source_type)
+        """
+        # HuggingFace URL patterns
+        hf_patterns = [
+            r"https?://huggingface\.co/datasets/([^/]+/[^/\s?#]+)",
+            r"https?://hf\.co/datasets/([^/]+/[^/\s?#]+)",
+        ]
+
+        for pattern in hf_patterns:
+            match = re.match(pattern, dataset_input)
+            if match:
+                return match.group(1), SourceType.HUGGINGFACE
+
+        # Not a URL, return as-is
+        return dataset_input, None
 
     def analyze_from_yaml(self, yaml_path: Union[str, Path]) -> Recipe:
         """Load a recipe from a YAML file.
