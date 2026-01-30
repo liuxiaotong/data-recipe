@@ -52,6 +52,26 @@ Our analysis of existing dataset documentation reveals several systematic defici
 4. **Reproducibility Barriers**: Critical information for reconstruction is frequently omitted
 5. **No Actionable Guidance**: Even when methodologies are described, step-by-step production guides are absent
 
+### 2.3 How DataRecipe Solves These Problems
+
+DataRecipe v0.2 provides comprehensive solutions for each deficiency:
+
+| Problem | Solution | Command |
+|---------|----------|---------|
+| **Inconsistent Metadata Standards** | Unified Recipe YAML schema with standardized fields for provenance, generation methods, costs, and reproducibility | `datarecipe analyze` |
+| **Missing Generation Details** | Deep analysis extracts prompts, filtering criteria, and methodology from papers and documentation | `datarecipe deep-guide --llm` |
+| **Opaque Cost Structures** | Precise cost calculator with multi-provider LLM pricing, human annotation rates, and compute costs | `datarecipe cost` |
+| **Reproducibility Barriers** | 10-point reproducibility scoring plus complete workflow generation with all dependencies | `datarecipe workflow` |
+| **No Actionable Guidance** | Generates executable project structure with scripts, checklists, timelines, and configuration | `datarecipe workflow -o ./project` |
+
+**Additional capabilities in v0.2:**
+
+| Capability | Description | Command |
+|------------|-------------|---------|
+| **Quality Assessment** | Diversity, consistency, complexity metrics with AI detection | `datarecipe quality` |
+| **Batch Processing** | Parallel analysis of multiple datasets | `datarecipe batch` |
+| **Dataset Comparison** | Side-by-side comparison with recommendations | `datarecipe compare` |
+
 ---
 
 ## 3. Methodology
@@ -564,6 +584,26 @@ DataRecipe 旨在填补这一空白，通过提供一套系统性框架对数据
 3. **成本结构不透明**：真实的创建成本几乎从不报告
 4. **可复现性障碍**：重建所需的关键信息经常被遗漏
 5. **缺乏可操作指导**：即使描述了方法论，也缺少逐步的生产指南
+
+### 2.3 DataRecipe 如何解决这些问题
+
+DataRecipe v0.2 为每个缺陷提供了全面的解决方案：
+
+| 问题 | 解决方案 | 命令 |
+|------|---------|------|
+| **元数据标准不一致** | 统一的 Recipe YAML 模式，包含溯源、生成方法、成本和可复现性的标准化字段 | `datarecipe analyze` |
+| **生成细节缺失** | 深度分析从论文和文档中提取提示词、过滤标准和方法论 | `datarecipe deep-guide --llm` |
+| **成本结构不透明** | 精确的成本计算器，支持多家 LLM 定价、人工标注费率和计算成本 | `datarecipe cost` |
+| **可复现性障碍** | 10 分制可复现性评分，加上包含所有依赖的完整工作流生成 | `datarecipe workflow` |
+| **缺乏可操作指导** | 生成可执行的项目结构，包含脚本、清单、时间线和配置文件 | `datarecipe workflow -o ./project` |
+
+**v0.2 新增能力：**
+
+| 能力 | 描述 | 命令 |
+|------|------|------|
+| **质量评估** | 多样性、一致性、复杂度指标，含 AI 检测 | `datarecipe quality` |
+| **批量处理** | 并行分析多个数据集 | `datarecipe batch` |
+| **数据集对比** | 横向对比并给出推荐 | `datarecipe compare` |
 
 ---
 
