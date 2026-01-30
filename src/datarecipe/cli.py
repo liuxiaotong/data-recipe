@@ -386,6 +386,83 @@ def list_sources():
 
 
 @main.command()
+@click.argument("dataset_id")
+@click.option("--output", "-o", type=click.Path(), help="Output file path for production guide")
+@click.option("--target-size", "-n", type=int, help="Target dataset size")
+def guide(dataset_id: str, output: str, target_size: int):
+    """Generate a production guide for recreating a dataset.
+
+    Analyzes a dataset and outputs a step-by-step guide for producing
+    similar data, including code snippets, tools, and best practices.
+
+    DATASET_ID can be a HuggingFace ID, GitHub URL, or any web URL.
+    """
+    from datarecipe.pipeline import get_pipeline_template, pipeline_to_markdown
+
+    analyzer = DatasetAnalyzer()
+
+    with console.status(f"[cyan]Analyzing {dataset_id}...[/cyan]"):
+        try:
+            recipe = analyzer.analyze(dataset_id)
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        except Exception as e:
+            console.print(f"[red]Error analyzing dataset:[/red] {e}")
+            sys.exit(1)
+
+    # Get appropriate pipeline template
+    pipeline = get_pipeline_template(
+        recipe.generation_type.value if recipe.generation_type else "unknown",
+        recipe.synthetic_ratio
+    )
+
+    # Customize pipeline with dataset info
+    if target_size:
+        pipeline.target_size = target_size
+
+    if recipe.cost and recipe.cost.estimated_total_usd:
+        pipeline.estimated_total_cost = recipe.cost.estimated_total_usd
+
+    # Generate guide
+    guide_content = pipeline_to_markdown(pipeline, recipe.name)
+
+    # Add dataset-specific info at the top
+    header = f"""# 数据生产指南：{recipe.name}
+
+## 参考数据集分析
+
+| 属性 | 值 |
+|------|-----|
+| **数据集名称** | {recipe.name} |
+| **来源** | {recipe.source_type.value} |
+| **合成数据比例** | {recipe.synthetic_ratio * 100 if recipe.synthetic_ratio else 'N/A'}% |
+| **人工数据比例** | {recipe.human_ratio * 100 if recipe.human_ratio else 'N/A'}% |
+| **教师模型** | {', '.join(recipe.teacher_models) if recipe.teacher_models else '无'} |
+| **可复现性评分** | {recipe.reproducibility.score}/10 |
+
+---
+
+"""
+    full_guide = header + guide_content.split("# ", 1)[-1]  # Remove duplicate title
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(full_guide, encoding="utf-8")
+        console.print(f"[green]✓ 生产指南已保存到:[/green] {output}")
+    else:
+        print(full_guide)
+
+    # Also display summary
+    console.print("\n[bold cyan]生产指南概要:[/bold cyan]")
+    console.print(f"  流程类型: {pipeline.name}")
+    console.print(f"  步骤数量: {len(pipeline.steps)}")
+    if pipeline.estimated_total_cost:
+        console.print(f"  预估成本: ${pipeline.estimated_total_cost:,.0f}")
+
+
+@main.command()
 @click.option("--output", "-o", type=click.Path(), help="Output YAML file path")
 def create(output: str):
     """Interactively create a dataset recipe.
