@@ -150,3 +150,6 @@ Thumbs.db
 # Project specific
 *.cache
 .datarecipe/
+
+# Output files
+output/
