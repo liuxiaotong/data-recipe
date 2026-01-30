@@ -353,10 +353,12 @@ MIT License
 ## Citation
 
 ```bibtex
-@software{datarecipe2026,
-  title={DataRecipe: A Framework for Dataset Provenance Analysis},
-  year={2026},
-  url={https://github.com/yourusername/data-recipe}
+@software{liu2026datarecipe,
+  author       = {Liu, Kai},
+  title        = {DataRecipe: A Framework for Dataset Provenance Analysis},
+  year         = {2026},
+  url          = {https://github.com/liuxiaotong/data-recipe},
+  email        = {mrliukai@gmail.com}
 }
 ```
 
@@ -718,9 +720,11 @@ MIT 许可证
 ## 引用
 
 ```bibtex
-@software{datarecipe2026,
-  title={DataRecipe: A Framework for Dataset Provenance Analysis},
-  year={2026},
-  url={https://github.com/yourusername/data-recipe}
+@software{liu2026datarecipe,
+  author       = {Liu, Kai},
+  title        = {DataRecipe: A Framework for Dataset Provenance Analysis},
+  year         = {2026},
+  url          = {https://github.com/liuxiaotong/data-recipe},
+  email        = {mrliukai@gmail.com}
 }
 ```
