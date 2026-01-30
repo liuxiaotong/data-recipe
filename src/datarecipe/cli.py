@@ -55,14 +55,16 @@ def recipe_to_markdown(recipe: Recipe) -> str:
         synthetic_pct = (recipe.synthetic_ratio or 0) * 100
         human_pct = (recipe.human_ratio or 0) * 100
 
-        # Progress bar visualization
-        synthetic_bar = "█" * int(synthetic_pct / 5) + "░" * (20 - int(synthetic_pct / 5))
-        human_bar = "█" * int(human_pct / 5) + "░" * (20 - int(human_pct / 5))
+        # Progress bar visualization (PDF-safe format)
+        synthetic_filled = int(synthetic_pct / 5)
+        human_filled = int(human_pct / 5)
+        synthetic_bar = "[" + "=" * synthetic_filled + "-" * (20 - synthetic_filled) + "]"
+        human_bar = "[" + "=" * human_filled + "-" * (20 - human_filled) + "]"
 
         lines.append("| 类型 | 占比 | 分布 |")
         lines.append("|------|------|------|")
-        lines.append(f"| 🤖 合成数据 | {synthetic_pct:.0f}% | `{synthetic_bar}` |")
-        lines.append(f"| 👤 人工标注 | {human_pct:.0f}% | `{human_bar}` |")
+        lines.append(f"| 合成数据 | {synthetic_pct:.0f}% | `{synthetic_bar}` |")
+        lines.append(f"| 人工标注 | {human_pct:.0f}% | `{human_bar}` |")
     else:
         lines.append("*无法从现有元数据中确定生成方式。*")
     lines.append("")
@@ -136,10 +138,10 @@ def recipe_to_markdown(recipe: Recipe) -> str:
 
     if recipe.reproducibility:
         score = recipe.reproducibility.score
-        score_bar = "🟩" * score + "⬜" * (10 - score)
+        score_bar = "[" + "#" * score + "-" * (10 - score) + "]"
         lines.append(f"### 评分：{score}/10")
         lines.append("")
-        lines.append(f"`{score_bar}`")
+        lines.append(f"**{score_bar}**")
         lines.append("")
 
         # Translation map for reproducibility items
