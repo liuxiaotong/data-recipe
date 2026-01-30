@@ -34,10 +34,15 @@ class Cost:
     human_annotation_usd: Optional[float] = None
     compute_usd: Optional[float] = None
     confidence: str = "low"  # low, medium, high
+    # New fields for detailed estimation
+    low_estimate_usd: Optional[float] = None
+    high_estimate_usd: Optional[float] = None
+    assumptions: list[str] = field(default_factory=list)
+    tokens_estimated: Optional[int] = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
-        return {
+        result = {
             "estimated_total_usd": self.estimated_total_usd,
             "breakdown": {
                 "api_calls": self.api_calls_usd,
@@ -46,6 +51,15 @@ class Cost:
             },
             "confidence": self.confidence,
         }
+        if self.low_estimate_usd is not None:
+            result["low_estimate_usd"] = self.low_estimate_usd
+        if self.high_estimate_usd is not None:
+            result["high_estimate_usd"] = self.high_estimate_usd
+        if self.assumptions:
+            result["assumptions"] = self.assumptions
+        if self.tokens_estimated is not None:
+            result["tokens_estimated"] = self.tokens_estimated
+        return result
 
 
 @dataclass
@@ -124,6 +138,9 @@ class Recipe:
     authors: list[str] = field(default_factory=list)
     paper_url: Optional[str] = None
     homepage_url: Optional[str] = None
+
+    # Quality metrics (populated by quality analyzer)
+    quality_metrics: Optional[dict] = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for YAML export."""
