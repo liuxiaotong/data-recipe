@@ -465,7 +465,9 @@ def guide(dataset_id: str, output: str, target_size: int):
 @main.command("deep-guide")
 @click.argument("url")
 @click.option("--output", "-o", type=click.Path(), help="Output file path for production guide")
-def deep_guide(url: str, output: str):
+@click.option("--llm/--no-llm", default=False, help="Use LLM for enhanced analysis (requires API key)")
+@click.option("--provider", type=click.Choice(["anthropic", "openai"]), default="anthropic", help="LLM provider")
+def deep_guide(url: str, output: str, llm: bool, provider: str):
     """Generate a customized production guide using deep analysis.
 
     This command performs deep analysis on a paper or dataset page and
@@ -475,12 +477,28 @@ def deep_guide(url: str, output: str):
     URL can be an arXiv paper, dataset page, or any web URL describing
     a dataset's construction methodology.
 
-    Example:
-        datarecipe deep-guide https://arxiv.org/abs/2506.07982
-    """
-    from datarecipe.deep_analyzer import DeepAnalyzer, deep_analysis_to_markdown
+    Use --llm flag to enable LLM-enhanced analysis for better results.
+    Requires ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable.
 
-    analyzer = DeepAnalyzer()
+    Examples:
+        datarecipe deep-guide https://arxiv.org/abs/2506.07982
+        datarecipe deep-guide https://arcprize.org/arc-agi/2/ --llm
+    """
+    from datarecipe.deep_analyzer import deep_analysis_to_markdown
+
+    if llm:
+        try:
+            from datarecipe.llm_analyzer import LLMAnalyzer
+            analyzer = LLMAnalyzer(use_llm=True, llm_provider=provider, parse_pdf=True)
+            console.print(f"[cyan]使用 LLM 增强分析 (provider: {provider})...[/cyan]")
+        except ImportError as e:
+            console.print(f"[yellow]Warning:[/yellow] {e}")
+            console.print("[yellow]Falling back to pattern-based analysis...[/yellow]")
+            from datarecipe.deep_analyzer import DeepAnalyzer
+            analyzer = DeepAnalyzer()
+    else:
+        from datarecipe.deep_analyzer import DeepAnalyzer
+        analyzer = DeepAnalyzer()
 
     with console.status(f"[cyan]Performing deep analysis on {url}...[/cyan]"):
         try:

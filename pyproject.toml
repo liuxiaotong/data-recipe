@@ -41,6 +41,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+llm = [
+    "anthropic>=0.18.0",
+    "openai>=1.0.0",
+]
+pdf = [
+    "pymupdf>=1.23.0",
+]
+all = [
+    "anthropic>=0.18.0",
+    "openai>=1.0.0",
+    "pymupdf>=1.23.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
