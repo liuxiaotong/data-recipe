@@ -56,6 +56,7 @@ class DeepAnalysisResult:
     code_url: Optional[str] = None
     data_available: bool = False
     data_url: Optional[str] = None
+    paper_url: Optional[str] = None  # Auto-discovered paper URL
 
     # Cost and resources
     estimated_cost: Optional[float] = None
@@ -109,19 +110,80 @@ class DeepAnalyzer:
         r"completion.?rate", r"efficiency", r"human.?eval",
     ]
 
-    def __init__(self):
-        """Initialize the deep analyzer."""
-        pass
+    def __init__(self, auto_search_paper: bool = True):
+        """Initialize the deep analyzer.
 
-    def analyze(self, url: str) -> DeepAnalysisResult:
+        Args:
+            auto_search_paper: If True, automatically search for related papers
+                              when the initial analysis lacks methodology details.
+        """
+        self.auto_search_paper = auto_search_paper
+
+    def search_related_paper(self, dataset_name: str) -> Optional[str]:
+        """Search for related papers on arXiv.
+
+        Args:
+            dataset_name: Name of the dataset to search for
+
+        Returns:
+            URL of the most relevant paper, or None if not found
+        """
+        try:
+            # Clean up dataset name for search - use quotes for exact phrase
+            clean_name = dataset_name.replace("-", " ").replace("_", " ").strip()
+
+            # Try multiple search strategies
+            search_queries = [
+                f'ti:"{clean_name}"',  # Title search with quotes
+                f'all:"{clean_name}" AND (cat:cs.CL OR cat:cs.AI OR cat:cs.LG)',
+                f'all:{clean_name.replace(" ", "+")}+dataset',  # With dataset keyword
+            ]
+
+            arxiv_api = "http://export.arxiv.org/api/query"
+
+            for query in search_queries:
+                params = {
+                    "search_query": query,
+                    "start": 0,
+                    "max_results": 5,
+                    "sortBy": "relevance",
+                    "sortOrder": "descending",
+                }
+
+                response = requests.get(arxiv_api, params=params, timeout=10)
+                if response.status_code != 200:
+                    continue
+
+                content = response.text
+
+                # Extract arXiv IDs from the response (format: 2312.11456v4)
+                arxiv_ids = re.findall(r"<id>http://arxiv.org/abs/(\d+\.\d+(?:v\d+)?)</id>", content)
+
+                if arxiv_ids:
+                    # Return the first (most relevant) result, strip version
+                    arxiv_id = arxiv_ids[0].split('v')[0]  # Remove version suffix
+                    return f"https://arxiv.org/abs/{arxiv_id}"
+
+            return None
+
+        except Exception:
+            return None
+
+    def analyze(self, url: str, search_paper_if_needed: bool = None) -> DeepAnalysisResult:
         """Perform deep analysis on a URL.
 
         Args:
             url: URL of the paper or dataset page
+            search_paper_if_needed: If True, search for related papers when
+                                   methodology details are lacking. Defaults to
+                                   self.auto_search_paper.
 
         Returns:
             DeepAnalysisResult with extracted information
         """
+        if search_paper_if_needed is None:
+            search_paper_if_needed = self.auto_search_paper
+
         content = self._fetch_content(url)
         if not content:
             raise ValueError(f"Could not fetch content from: {url}")
@@ -156,6 +218,58 @@ class DeepAnalyzer:
         result.data_available, result.data_url = self._extract_data_info(content)
         result.limitations = self._extract_limitations(content)
         result.use_cases = self._extract_use_cases(content)
+
+        # Check if methodology details are lacking and search for paper if needed
+        methodology_lacking = (
+            result.methodology in ["", "未知"] and
+            not result.generation_steps
+        )
+
+        if methodology_lacking and search_paper_if_needed and name:
+            paper_url = self.search_related_paper(name)
+            if paper_url:
+                # Store the found paper URL
+                result.paper_url = paper_url
+
+                # Fetch and analyze the paper
+                paper_content = self._fetch_content(paper_url)
+                if paper_content:
+                    # Merge paper information into result
+                    paper_category = self._detect_category(paper_content)
+                    if paper_category != DatasetCategory.UNKNOWN:
+                        result.category = paper_category
+
+                    paper_methodology = self._extract_methodology(paper_content)
+                    if paper_methodology and paper_methodology != "未知":
+                        result.methodology = paper_methodology
+
+                    paper_innovations = self._extract_innovations(paper_content)
+                    if paper_innovations:
+                        result.key_innovations = list(set(result.key_innovations + paper_innovations))
+
+                    paper_steps = self._extract_generation_steps(paper_content, result.category)
+                    if paper_steps:
+                        result.generation_steps = paper_steps
+
+                    paper_quality = self._extract_quality_methods(paper_content)
+                    if paper_quality:
+                        result.quality_methods = list(set(result.quality_methods + paper_quality))
+
+                    if not result.modeling_approach:
+                        result.modeling_approach = self._extract_modeling_approach(paper_content)
+
+                    if not result.domain or result.domain == "通用":
+                        result.domain = self._extract_domain(paper_content)
+
+                    paper_metrics = self._extract_metrics(paper_content)
+                    if paper_metrics:
+                        result.evaluation_metrics = list(set(result.evaluation_metrics + paper_metrics))
+
+                    # Check for code/data in paper
+                    if not result.code_available:
+                        result.code_available, result.code_url = self._extract_code_info(paper_content)
+                    if not result.data_available:
+                        result.data_available, result.data_url = self._extract_data_info(paper_content)
 
         return result
 
@@ -487,6 +601,8 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
     lines.append("| 属性 | 值 |")
     lines.append("|------|-----|")
     lines.append(f"| **名称** | {result.name} |")
+    if hasattr(result, 'paper_url') and result.paper_url:
+        lines.append(f"| **论文** | {result.paper_url} |")
     if result.domain:
         lines.append(f"| **领域** | {result.domain} |")
     lines.append(f"| **分类** | {result.category.value.replace('_', ' ').title()} |")

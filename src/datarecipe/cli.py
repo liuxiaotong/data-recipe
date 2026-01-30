@@ -518,6 +518,8 @@ def deep_guide(url: str, output: str):
         console.print(f"  代码可用: ✓ {result.code_url or ''}")
     if result.data_available:
         console.print(f"  数据可用: ✓ {result.data_url or ''}")
+    if hasattr(result, 'paper_url') and result.paper_url:
+        console.print(f"  [green]自动发现论文:[/green] {result.paper_url}")
 
 
 @main.command()
