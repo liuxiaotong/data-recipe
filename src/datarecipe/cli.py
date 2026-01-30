@@ -486,17 +486,19 @@ def deep_guide(url: str, output: str, llm: bool, provider: str):
     """
     from datarecipe.deep_analyzer import deep_analysis_to_markdown
 
-    if llm:
-        try:
-            from datarecipe.llm_analyzer import LLMAnalyzer
-            analyzer = LLMAnalyzer(use_llm=True, llm_provider=provider, parse_pdf=True)
+    # Try to use LLMAnalyzer with PDF parsing (even without LLM)
+    try:
+        from datarecipe.llm_analyzer import LLMAnalyzer
+        if llm:
             console.print(f"[cyan]使用 LLM 增强分析 (provider: {provider})...[/cyan]")
-        except ImportError as e:
+            analyzer = LLMAnalyzer(use_llm=True, llm_provider=provider, parse_pdf=True)
+        else:
+            console.print("[cyan]使用 PDF 解析和多源聚合分析...[/cyan]")
+            analyzer = LLMAnalyzer(use_llm=False, parse_pdf=True)
+    except ImportError as e:
+        if llm:
             console.print(f"[yellow]Warning:[/yellow] {e}")
-            console.print("[yellow]Falling back to pattern-based analysis...[/yellow]")
-            from datarecipe.deep_analyzer import DeepAnalyzer
-            analyzer = DeepAnalyzer()
-    else:
+        console.print("[yellow]使用基础模式匹配分析...[/yellow]")
         from datarecipe.deep_analyzer import DeepAnalyzer
         analyzer = DeepAnalyzer()
 

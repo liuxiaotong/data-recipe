@@ -335,14 +335,42 @@ class DeepAnalyzer:
         """Extract methodology description."""
         content_lower = content.lower()
 
-        if "compositional" in content_lower and "generator" in content_lower:
-            return "组合式任务生成器，从原子组件程序化创建多样化任务"
-        elif "distill" in content_lower:
-            return "知识蒸馏，使用大模型生成训练数据"
-        elif "crowdsourc" in content_lower or "human annot" in content_lower:
-            return "众包/人工标注"
-        elif "simulat" in content_lower:
-            return "模拟器驱动的数据生成"
+        # More comprehensive methodology patterns
+        methodology_patterns = [
+            # Programmatic/Procedural
+            (r"compositional.{0,20}generat", "组合式任务生成器，从原子组件程序化创建多样化任务"),
+            (r"procedural.{0,20}generat", "程序化生成，通过算法自动创建任务"),
+            (r"rule.?based.{0,20}generat", "基于规则的生成方法"),
+            (r"programmat.{0,20}creat", "程序化创建数据集"),
+            # Human design
+            (r"human.?design", "人工设计的任务和谜题"),
+            (r"manually.{0,20}creat", "人工创建的数据集"),
+            (r"expert.{0,20}design", "专家设计的任务"),
+            (r"hand.?craft", "手工构建的数据"),
+            # Abstraction/Reasoning specific
+            (r"abstract.{0,20}reason", "抽象推理任务，测试归纳和泛化能力"),
+            (r"visual.{0,20}puzzle", "视觉谜题，需要模式识别和推理"),
+            (r"grid.?based.{0,20}task", "基于网格的任务"),
+            (r"few.?shot.{0,20}learn", "少样本学习任务"),
+            # Distillation
+            (r"distill", "知识蒸馏，使用大模型生成训练数据"),
+            (r"teacher.{0,20}model", "教师模型生成数据"),
+            (r"synthetic.{0,20}data.{0,20}generat", "合成数据生成"),
+            # Human annotation
+            (r"crowdsourc", "众包标注"),
+            (r"human.{0,20}annot", "人工标注"),
+            (r"mturk|mechanical.?turk", "Amazon MTurk 众包标注"),
+            # Simulation
+            (r"simulat.{0,20}environ", "模拟环境驱动的数据生成"),
+            (r"interactive.{0,20}environ", "交互式环境"),
+            # Collection
+            (r"web.?scrap|crawl", "网络爬取收集"),
+            (r"curated.{0,20}from", "从现有资源筛选整理"),
+        ]
+
+        for pattern, description in methodology_patterns:
+            if re.search(pattern, content_lower):
+                return description
 
         return "未知"
 
@@ -352,12 +380,34 @@ class DeepAnalyzer:
         content_lower = content.lower()
 
         innovation_indicators = [
+            # Environment/Control
             ("dual.?control", "双控制环境：用户和代理都能使用工具"),
             ("dec.?pomdp", "Dec-POMDP 建模：分布式部分可观测马尔可夫决策过程"),
             ("user.?simulator", "用户模拟器：模拟真实用户行为"),
+            # Generation
             ("compositional", "组合式生成：从原子组件构建复杂任务"),
+            ("procedural.{0,10}generat", "程序化生成：算法自动创建任务"),
+            # Evaluation
             ("efficiency.?scor", "效率评分：同时考虑成本和能力"),
             ("fine.?grain", "细粒度分析：区分推理和协调能力"),
+            # Reasoning
+            ("abstract.{0,10}reason", "抽象推理：测试泛化和归纳能力"),
+            ("few.?shot", "少样本学习：用极少示例推断规则"),
+            ("novel.{0,10}task", "新颖任务：评估时使用训练中未见的任务"),
+            ("out.?of.?distribution", "分布外泛化：测试对新情况的适应"),
+            # Task design
+            ("grid.?based", "网格任务：基于二维网格的视觉推理"),
+            ("input.?output.{0,10}pair", "输入输出对：从示例中学习转换规则"),
+            ("transformation.{0,10}rule", "转换规则：发现并应用抽象规则"),
+            # Difficulty
+            ("difficult.{0,10}for.{0,10}(ai|llm|model)", "AI难题：对当前模型具有挑战性"),
+            ("human.{0,10}baseline", "人类基准：与人类表现对比"),
+            ("unsolved", "未解决：目前没有系统能完全解决"),
+            # Scale
+            ("private.{0,10}test", "私有测试集：防止过拟合"),
+            ("held.?out", "保留集：用于公平评估"),
+            # Prize/Competition
+            ("prize|competition|challenge", "竞赛/挑战：设有奖金激励研究"),
         ]
 
         for pattern, description in innovation_indicators:
@@ -448,6 +498,15 @@ class DeepAnalyzer:
                 {"step": 5, "name": "质量控制", "description": "一致性检查"},
                 {"step": 6, "name": "仲裁发布", "description": "处理争议并发布"},
             ]
+        elif category == DatasetCategory.BENCHMARK:
+            return [
+                {"step": 1, "name": "定义评估目标", "description": "明确要测试的能力维度"},
+                {"step": 2, "name": "设计任务格式", "description": "确定输入输出格式和难度级别"},
+                {"step": 3, "name": "创建任务实例", "description": "人工设计或程序生成任务"},
+                {"step": 4, "name": "人类基准测试", "description": "收集人类表现数据"},
+                {"step": 5, "name": "数据集划分", "description": "划分公开/私有测试集"},
+                {"step": 6, "name": "发布与维护", "description": "建立排行榜和评估协议"},
+            ]
         else:
             return []
 
@@ -523,10 +582,11 @@ class DeepAnalyzer:
 
     def _extract_code_info(self, content: str) -> tuple[bool, Optional[str]]:
         """Extract code availability info."""
-        # Look for GitHub links
-        match = re.search(r"github\.com/([^/\s\"'<>]+/[^/\s\"'<>]+)", content)
+        # Look for GitHub links - clean up any trailing punctuation
+        match = re.search(r"github\.com/([^/\s\"'<>]+/[a-zA-Z0-9_.-]+)", content)
         if match:
-            return True, f"https://github.com/{match.group(1)}"
+            repo_path = match.group(1).rstrip(".,;:!?)]}")
+            return True, f"https://github.com/{repo_path}"
 
         if "code" in content.lower() and "available" in content.lower():
             return True, None

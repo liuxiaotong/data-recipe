@@ -319,9 +319,12 @@ class LLMAnalyzer(DeepAnalyzer):
         # Use LLM if enabled and content is available
         llm_result = {}
         if self.use_llm and combined_content:
-            llm_result = self._analyze_with_llm(name, url, combined_content)
+            try:
+                llm_result = self._analyze_with_llm(name, url, combined_content)
+            except Exception as e:
+                print(f"LLM analysis failed: {e}")
 
-        # Create result with basic extraction
+        # Create result with basic extraction using combined content (including PDF)
         category = self._detect_category(combined_content)
         if llm_result.get("category"):
             category_map = {
