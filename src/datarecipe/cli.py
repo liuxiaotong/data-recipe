@@ -1043,7 +1043,7 @@ def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdow
 
 @main.command()
 @click.argument("dataset_id")
-@click.option("--output", "-o", type=click.Path(), required=True, help="Output directory for project")
+@click.option("--output", "-o", type=click.Path(), help="Output directory (default: ./projects/<dataset_name>)")
 @click.option("--provider", "-p", default="local", help="Deployment provider (local, judgeguild, etc.)")
 @click.option("--region", "-r", default="china", help="Region for cost estimation")
 @click.option("--submit", is_flag=True, help="Submit to provider after generating config")
@@ -1054,10 +1054,18 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
     quality rules, acceptance criteria, and timeline for data production.
 
     DATASET_ID is the identifier of the dataset to analyze.
+
+    If --output is not specified, files are saved to ./projects/<dataset_name>/
     """
     from datarecipe.deployer import ProductionDeployer
     from datarecipe.profiler import AnnotatorProfiler
     from datarecipe.schema import DataRecipe
+
+    # 默认输出目录
+    if not output:
+        safe_name = dataset_id.replace("/", "_").replace(" ", "_").lower()
+        output = f"./projects/{safe_name}"
+        console.print(f"[dim]Output directory: {output}[/dim]")
 
     analyzer = DatasetAnalyzer()
     deployer = ProductionDeployer()
