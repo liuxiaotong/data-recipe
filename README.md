@@ -112,27 +112,51 @@ my_project/
 
 DataRecipe 支持两种方式与 Claude 集成：
 
-### 方式 1: MCP Server (Claude Desktop)
+### 方式 1: MCP Server (Claude Desktop) ⭐推荐
 
 让 Claude 直接调用 DataRecipe 分析数据集。
 
-**配置** `~/Library/Application Support/Claude/claude_desktop_config.json`:
+**第一步：配置 Claude Desktop**
+
+编辑配置文件：
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "datarecipe": {
-      "command": "uvx",
-      "args": ["--from", "datarecipe", "datarecipe-mcp"]
+      "command": "uv",
+      "args": ["--directory", "/path/to/data-recipe", "run", "datarecipe-mcp"]
     }
   }
 }
 ```
 
-**然后在 Claude 中：**
+> 将 `/path/to/data-recipe` 替换为实际路径
+
+**第二步：重启 Claude Desktop**
+
+完全退出（Cmd+Q / Alt+F4）后重新打开。
+
+**第三步：验证安装**
+
+点击对话框左下角的工具图标（🔧），应该能看到 5 个 DataRecipe 工具：
+
+| 工具 | 功能 |
+|------|------|
+| `analyze_dataset` | 分析数据集元数据、生成方法、可复现性 |
+| `profile_annotators` | 生成标注团队画像和成本估算 |
+| `deploy_project` | 创建完整标注项目 |
+| `estimate_cost` | 估算 API/人工/计算成本 |
+| `list_providers` | 列出可用 Provider |
+
+**第四步：开始使用**
+
+直接用自然语言对话：
 - "分析 Anthropic/hh-rlhf 数据集"
 - "nguha/legalbench 需要什么技能的标注员？成本多少？"
-- "为 AI-MO/NuminaMath-CoT 创建标注项目"
+- "为 AI-MO/NuminaMath-CoT 创建标注项目，输出到 ~/Desktop/math_project"
 
 ### 方式 2: Claude Code (CLI)
 
