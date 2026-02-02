@@ -338,6 +338,38 @@ class MyProvider(DeploymentProvider):
 
 </details>
 
+<details>
+<summary><b>Claude Code Integration</b></summary>
+
+DataRecipe includes built-in skills for [Claude Code](https://claude.ai/claude-code), enabling AI-assisted dataset analysis.
+
+**Available Slash Commands:**
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/datarecipe` | General DataRecipe operations | `/datarecipe analyze Anthropic/hh-rlhf` |
+| `/analyze-dataset` | Quick dataset analysis | `/analyze-dataset AI-MO/NuminaMath-CoT` |
+| `/profile-annotators` | Generate annotator requirements | `/profile-annotators nguha/legalbench --region us` |
+| `/deploy-project` | Generate full annotation project | `/deploy-project openlifescienceai/MedMCQA` |
+
+**Installation:**
+
+Skills are included in `.claude/commands/`. To use in other projects:
+
+```bash
+# Copy skills to your global Claude commands
+cp -r .claude/commands/* ~/.claude/commands/
+
+# Or symlink
+ln -s $(pwd)/.claude/commands/datarecipe.md ~/.claude/commands/
+```
+
+**CLAUDE.md:**
+
+The repository includes a `CLAUDE.md` file that helps Claude understand the project structure and available commands automatically.
+
+</details>
+
 ---
 
 ## Why DataRecipe?
@@ -371,6 +403,7 @@ class MyProvider(DeploymentProvider):
 - [x] Annotator profiler with regional labor costs
 - [x] Production deployer with quality rules
 - [x] Plugin-based provider system
+- [x] Claude Code integration with slash commands
 - [ ] Community recipe repository
 - [ ] Web UI for interactive analysis
 - [ ] API service
