@@ -462,3 +462,329 @@ class CostCalculator:
                     lines.append(f"  {key}: {value}")
 
         return "\n".join(lines)
+
+
+# =============================================================================
+# V2 增强：人力成本计算
+# =============================================================================
+
+# 人力成本基准数据（美元/小时）
+LABOR_COST_RATES = {
+    # 经验等级 → 基础小时费率
+    "junior": {"base": 12, "annotation": 10, "review": 15},
+    "mid": {"base": 25, "annotation": 20, "review": 30},
+    "senior": {"base": 45, "annotation": 35, "review": 55},
+    "expert": {"base": 80, "annotation": 60, "review": 100},
+}
+
+# 地区费率系数
+REGION_COST_MULTIPLIERS = {
+    "us": 1.0,
+    "uk": 0.9,
+    "eu": 0.85,
+    "cn": 0.4,      # 中国
+    "china": 0.4,
+    "in": 0.25,     # 印度
+    "india": 0.25,
+    "sea": 0.3,     # 东南亚
+    "latam": 0.35,  # 拉美
+}
+
+# 标注类型 → 每条平均时间（分钟）
+ANNOTATION_TIME_ESTIMATES = {
+    "simple_label": 1,
+    "text_classification": 2,
+    "preference_ranking": 5,
+    "text_generation": 15,
+    "complex_annotation": 20,
+    "expert_annotation": 30,
+    "code_review": 20,
+    "quality_check": 3,
+}
+
+
+@dataclass
+class EnhancedCostBreakdown:
+    """增强的成本分解"""
+
+    # API 成本
+    api_cost: CostEstimate
+
+    # 人力成本
+    labor_cost: CostEstimate
+    labor_breakdown: dict = field(default_factory=dict)
+
+    # 算力成本
+    compute_cost: CostEstimate
+
+    # 总成本
+    total: CostEstimate
+
+    # 元信息
+    region: str = "us"
+    region_multiplier: float = 1.0
+    assumptions: list[str] = field(default_factory=list)
+    details: dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            "api_cost": {
+                "low": self.api_cost.low,
+                "expected": self.api_cost.expected,
+                "high": self.api_cost.high,
+            },
+            "labor_cost": {
+                "low": self.labor_cost.low,
+                "expected": self.labor_cost.expected,
+                "high": self.labor_cost.high,
+                "breakdown": self.labor_breakdown,
+            },
+            "compute_cost": {
+                "low": self.compute_cost.low,
+                "expected": self.compute_cost.expected,
+                "high": self.compute_cost.high,
+            },
+            "total": {
+                "low": self.total.low,
+                "expected": self.total.expected,
+                "high": self.total.high,
+            },
+            "region": self.region,
+            "region_multiplier": self.region_multiplier,
+            "assumptions": self.assumptions,
+            "details": self.details,
+        }
+
+
+class EnhancedCostCalculator(CostCalculator):
+    """增强的成本计算器——包含人力成本"""
+
+    def calculate_labor_cost(
+        self,
+        num_examples: int,
+        annotation_type: str,
+        experience_level: str = "mid",
+        region: str = "us",
+        review_rate: float = 0.2,
+    ) -> dict:
+        """计算人力成本
+
+        Args:
+            num_examples: 数据量
+            annotation_type: 标注类型
+            experience_level: 经验等级 (junior/mid/senior/expert)
+            region: 地区
+            review_rate: 审核比例
+
+        Returns:
+            人力成本详情
+        """
+        # 获取基础费率
+        rates = LABOR_COST_RATES.get(experience_level, LABOR_COST_RATES["mid"])
+        region_mult = REGION_COST_MULTIPLIERS.get(region, 1.0)
+
+        # 计算标注时间
+        minutes_per_item = ANNOTATION_TIME_ESTIMATES.get(
+            annotation_type,
+            ANNOTATION_TIME_ESTIMATES["text_classification"]
+        )
+
+        # 标注成本
+        annotation_hours = (num_examples * minutes_per_item) / 60
+        annotation_cost = annotation_hours * rates["annotation"] * region_mult
+
+        # 审核成本
+        review_items = int(num_examples * review_rate)
+        review_hours = (review_items * minutes_per_item * 1.5) / 60  # 审核慢1.5倍
+        review_cost = review_hours * rates["review"] * region_mult
+
+        # 项目管理成本（估算为总成本的10%）
+        pm_cost = (annotation_cost + review_cost) * 0.1
+
+        total = annotation_cost + review_cost + pm_cost
+
+        return {
+            "annotation_cost": round(annotation_cost, 2),
+            "review_cost": round(review_cost, 2),
+            "pm_cost": round(pm_cost, 2),
+            "total": round(total, 2),
+            "details": {
+                "annotation_hours": round(annotation_hours, 1),
+                "review_hours": round(review_hours, 1),
+                "effective_hourly_rate": round(rates["annotation"] * region_mult, 2),
+                "region": region,
+                "region_multiplier": region_mult,
+                "experience_level": experience_level,
+            },
+        }
+
+    def calculate_enhanced_cost(
+        self,
+        recipe: Recipe,
+        target_size: Optional[int] = None,
+        model: Optional[str] = None,
+        region: str = "us",
+        include_labor: bool = True,
+    ) -> EnhancedCostBreakdown:
+        """计算增强的总成本（API + 算力 + 人力）
+
+        Args:
+            recipe: 数据配方
+            target_size: 目标数据量
+            model: LLM 模型
+            region: 地区
+            include_labor: 是否包含人力成本
+
+        Returns:
+            EnhancedCostBreakdown 增强的成本分解
+        """
+        num_examples = target_size or recipe.num_examples or 10000
+        assumptions = [f"目标数据量: {num_examples:,}"]
+
+        # 1. API 成本（现有逻辑）
+        api_breakdown = self.estimate_from_recipe(recipe, num_examples, model)
+        api_cost = api_breakdown.api_cost
+
+        # 2. 算力成本
+        compute_cost = api_breakdown.compute_cost
+
+        # 3. 人力成本
+        labor_cost = CostEstimate(0, 0, 0)
+        labor_breakdown = {}
+
+        if include_labor and recipe.human_ratio and recipe.human_ratio > 0:
+            annotation_type = self._infer_annotation_type(recipe) or "text_classification"
+            human_examples = int(num_examples * recipe.human_ratio)
+
+            labor_result = self.calculate_labor_cost(
+                num_examples=human_examples,
+                annotation_type=annotation_type,
+                experience_level="mid",
+                region=region,
+            )
+
+            labor_cost = CostEstimate(
+                low=labor_result["total"] * 0.7,
+                expected=labor_result["total"],
+                high=labor_result["total"] * 1.5,
+            )
+
+            labor_breakdown = {
+                "annotation": labor_result["annotation_cost"],
+                "review": labor_result["review_cost"],
+                "project_management": labor_result["pm_cost"],
+            }
+
+            assumptions.append(f"人力成本基于 {region} 地区费率")
+            assumptions.append(f"标注类型: {annotation_type}")
+            assumptions.append(f"人工数据量: {human_examples:,} ({recipe.human_ratio*100:.0f}%)")
+
+        # 4. 总成本
+        total = CostEstimate(
+            low=api_cost.low + compute_cost.low + labor_cost.low,
+            expected=api_cost.expected + compute_cost.expected + labor_cost.expected,
+            high=api_cost.high + compute_cost.high + labor_cost.high,
+        )
+
+        # 合并假设
+        assumptions.extend(api_breakdown.assumptions)
+
+        return EnhancedCostBreakdown(
+            api_cost=api_cost,
+            labor_cost=labor_cost,
+            labor_breakdown=labor_breakdown,
+            compute_cost=compute_cost,
+            total=total,
+            region=region,
+            region_multiplier=REGION_COST_MULTIPLIERS.get(region, 1.0),
+            assumptions=assumptions,
+            details={
+                "num_examples": num_examples,
+                "model": model or "auto-detected",
+                "synthetic_ratio": recipe.synthetic_ratio,
+                "human_ratio": recipe.human_ratio,
+            },
+        )
+
+    def calculate_roi(
+        self,
+        production_cost: float,
+        comparable_dataset_price: Optional[float] = None,
+        usage_scenarios: int = 1,
+    ) -> dict:
+        """计算投资回报率
+
+        Args:
+            production_cost: 生产成本
+            comparable_dataset_price: 可比数据集价格
+            usage_scenarios: 预期使用场景数
+
+        Returns:
+            ROI 分析结果
+        """
+        result = {
+            "production_cost": production_cost,
+            "comparable_price": comparable_dataset_price,
+            "roi_ratio": None,
+            "break_even_uses": None,
+            "recommendation": "",
+        }
+
+        if comparable_dataset_price and comparable_dataset_price > 0:
+            # 计算 ROI
+            result["roi_ratio"] = (comparable_dataset_price - production_cost) / production_cost
+
+            # 盈亏平衡使用次数
+            if production_cost > 0:
+                result["break_even_uses"] = production_cost / comparable_dataset_price
+
+            # 推荐
+            if result["roi_ratio"] > 0.5:
+                result["recommendation"] = "强烈建议自建，预期回报率高"
+            elif result["roi_ratio"] > 0:
+                result["recommendation"] = "建议自建，有一定回报"
+            else:
+                result["recommendation"] = "建议购买现有数据集，自建成本过高"
+
+        return result
+
+    def format_enhanced_report(self, breakdown: EnhancedCostBreakdown) -> str:
+        """格式化增强的成本报告"""
+        lines = []
+        lines.append("=" * 60)
+        lines.append("增强成本估算报告")
+        lines.append("=" * 60)
+        lines.append("")
+
+        lines.append("## 成本分解")
+        lines.append("")
+        lines.append(f"| 类别 | 最低 | 预期 | 最高 |")
+        lines.append(f"|------|------|------|------|")
+        lines.append(f"| API 成本 | ${breakdown.api_cost.low:,.0f} | ${breakdown.api_cost.expected:,.0f} | ${breakdown.api_cost.high:,.0f} |")
+        lines.append(f"| 人力成本 | ${breakdown.labor_cost.low:,.0f} | ${breakdown.labor_cost.expected:,.0f} | ${breakdown.labor_cost.high:,.0f} |")
+        lines.append(f"| 算力成本 | ${breakdown.compute_cost.low:,.0f} | ${breakdown.compute_cost.expected:,.0f} | ${breakdown.compute_cost.high:,.0f} |")
+        lines.append(f"| **总计** | **${breakdown.total.low:,.0f}** | **${breakdown.total.expected:,.0f}** | **${breakdown.total.high:,.0f}** |")
+        lines.append("")
+
+        if breakdown.labor_breakdown:
+            lines.append("## 人力成本细分")
+            lines.append("")
+            for key, value in breakdown.labor_breakdown.items():
+                key_zh = {"annotation": "标注", "review": "审核", "project_management": "项目管理"}.get(key, key)
+                lines.append(f"- {key_zh}: ${value:,.2f}")
+            lines.append("")
+
+        lines.append(f"## 地区信息")
+        lines.append("")
+        lines.append(f"- 地区: {breakdown.region}")
+        lines.append(f"- 地区系数: {breakdown.region_multiplier}")
+        lines.append("")
+
+        lines.append("## 假设")
+        lines.append("")
+        for assumption in breakdown.assumptions:
+            lines.append(f"- {assumption}")
+        lines.append("")
+
+        return "\n".join(lines)

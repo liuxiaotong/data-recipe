@@ -93,6 +93,9 @@ dev = [
 [project.scripts]
 datarecipe = "datarecipe.cli:main"
 
+[project.entry-points."datarecipe.providers"]
+local = "datarecipe.providers.local:LocalFilesProvider"
+
 [project.urls]
 Homepage = "https://github.com/liuxiaotong/data-recipe"
 Documentation = "https://github.com/liuxiaotong/data-recipe#readme"

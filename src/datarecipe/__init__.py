@@ -2,7 +2,18 @@
 
 __version__ = "0.2.0"
 
-from datarecipe.schema import Recipe, Cost, Reproducibility, GenerationMethod
+from datarecipe.schema import (
+    Recipe,
+    Cost,
+    Reproducibility,
+    GenerationMethod,
+    # v2 additions
+    AnnotatorProfile,
+    ProductionConfig,
+    EnhancedCost,
+    DataRecipe,
+    DeploymentProvider,
+)
 from datarecipe.analyzer import DatasetAnalyzer
 
 # Lazy imports for optional modules to avoid requiring all dependencies
@@ -11,6 +22,9 @@ def __getattr__(name):
     if name == "CostCalculator":
         from datarecipe.cost_calculator import CostCalculator
         return CostCalculator
+    if name == "EnhancedCostCalculator":
+        from datarecipe.cost_calculator import EnhancedCostCalculator
+        return EnhancedCostCalculator
     if name == "QualityAnalyzer":
         from datarecipe.quality_metrics import QualityAnalyzer
         return QualityAnalyzer
@@ -23,18 +37,48 @@ def __getattr__(name):
     if name == "WorkflowGenerator":
         from datarecipe.workflow import WorkflowGenerator
         return WorkflowGenerator
+    if name == "AnnotatorProfiler":
+        from datarecipe.profiler import AnnotatorProfiler
+        return AnnotatorProfiler
+    if name == "ProductionDeployer":
+        from datarecipe.deployer import ProductionDeployer
+        return ProductionDeployer
+    # Provider-related
+    if name == "get_provider":
+        from datarecipe.providers import get_provider
+        return get_provider
+    if name == "list_providers":
+        from datarecipe.providers import list_providers
+        return list_providers
+    if name == "discover_providers":
+        from datarecipe.providers import discover_providers
+        return discover_providers
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
+    # Core schema
     "Recipe",
     "Cost",
     "Reproducibility",
     "GenerationMethod",
     "DatasetAnalyzer",
+    # v2 schema additions
+    "AnnotatorProfile",
+    "ProductionConfig",
+    "EnhancedCost",
+    "DataRecipe",
+    "DeploymentProvider",
     # Optional modules (lazy loaded)
     "CostCalculator",
+    "EnhancedCostCalculator",
     "QualityAnalyzer",
     "BatchAnalyzer",
     "DatasetComparator",
     "WorkflowGenerator",
+    "AnnotatorProfiler",
+    "ProductionDeployer",
+    # Provider functions (lazy loaded)
+    "get_provider",
+    "list_providers",
+    "discover_providers",
 ]

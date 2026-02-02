@@ -947,6 +947,185 @@ def compare(dataset_ids: tuple, fmt: str, include_quality: bool, output: str):
 
 @main.command()
 @click.argument("dataset_id")
+@click.option("--output", "-o", type=click.Path(), help="Output file for profile")
+@click.option("--region", "-r", default="china", help="Region for cost estimation (china, us, europe, india, sea)")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--markdown", "--md", "as_markdown", is_flag=True, help="Output as Markdown")
+def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdown: bool):
+    """Generate annotator profile for a dataset.
+
+    Analyzes a dataset and generates requirements for annotation team,
+    including skills, experience level, education, and workload estimation.
+
+    DATASET_ID is the identifier of the dataset to analyze.
+    """
+    from datarecipe.profiler import AnnotatorProfiler, profile_to_markdown
+
+    analyzer = DatasetAnalyzer()
+    profiler = AnnotatorProfiler()
+
+    with console.status(f"[cyan]Analyzing {dataset_id}...[/cyan]"):
+        try:
+            recipe = analyzer.analyze(dataset_id)
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+
+    with console.status("[cyan]Generating annotator profile...[/cyan]"):
+        annotator_profile = profiler.generate_profile(recipe, region=region)
+
+    if as_json:
+        import json
+        console.print(json.dumps(annotator_profile.to_dict(), indent=2))
+    elif as_markdown:
+        md_content = profile_to_markdown(annotator_profile, recipe.name)
+        print(md_content)
+    else:
+        # Display as formatted table
+        console.print(f"\n[bold cyan]Annotator Profile for {dataset_id}[/bold cyan]")
+        console.print("")
+
+        # Skills table
+        table = Table(title="Required Skills")
+        table.add_column("Skill", style="cyan")
+        table.add_column("Level", justify="center")
+        table.add_column("Priority", justify="center")
+
+        for skill in annotator_profile.skills:
+            priority_color = {"required": "red", "preferred": "yellow", "nice_to_have": "dim"}.get(skill.priority, "white")
+            table.add_row(
+                skill.name,
+                skill.level,
+                f"[{priority_color}]{skill.priority}[/{priority_color}]"
+            )
+        console.print(table)
+        console.print("")
+
+        # Requirements summary
+        console.print("[bold]Requirements:[/bold]")
+        console.print(f"  Experience Level: {annotator_profile.experience_level.value}")
+        console.print(f"  Education: {annotator_profile.education_level.value}")
+        if annotator_profile.domain_expertise:
+            console.print(f"  Domain Expertise: {', '.join(annotator_profile.domain_expertise)}")
+        if annotator_profile.language_requirements:
+            console.print(f"  Languages: {', '.join(annotator_profile.language_requirements)}")
+        console.print("")
+
+        # Workload estimation
+        console.print("[bold]Workload Estimation:[/bold]")
+        console.print(f"  Team Size: {annotator_profile.team_size} annotators")
+        console.print(f"  Person-Days: {annotator_profile.person_days}")
+        console.print(f"  Hours per Example: {annotator_profile.hours_per_example:.2f}")
+        console.print(f"  Hourly Rate: ${annotator_profile.hourly_rate:.2f}")
+        console.print(f"  Estimated Labor Cost: ${annotator_profile.estimated_labor_cost:,.0f}")
+
+    # Export if requested
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if output.endswith(".md"):
+            md_content = profile_to_markdown(annotator_profile, recipe.name)
+            output_path.write_text(md_content, encoding="utf-8")
+            console.print(f"\n[green]Profile exported to:[/green] {output}")
+        elif output.endswith(".json"):
+            import json
+            output_path.write_text(json.dumps(annotator_profile.to_dict(), indent=2), encoding="utf-8")
+            console.print(f"\n[green]Profile exported to:[/green] {output}")
+        else:
+            # Default to YAML
+            import yaml
+            output_path.write_text(yaml.dump(annotator_profile.to_dict(), allow_unicode=True, default_flow_style=False), encoding="utf-8")
+            console.print(f"\n[green]Profile exported to:[/green] {output}")
+
+
+@main.command()
+@click.argument("dataset_id")
+@click.option("--output", "-o", type=click.Path(), required=True, help="Output directory for project")
+@click.option("--provider", "-p", default="local", help="Deployment provider (local, judgeguild, etc.)")
+@click.option("--region", "-r", default="china", help="Region for cost estimation")
+@click.option("--submit", is_flag=True, help="Submit to provider after generating config")
+def deploy(dataset_id: str, output: str, provider: str, region: str, submit: bool):
+    """Generate production deployment for a dataset.
+
+    Creates a complete project structure with annotation guidelines,
+    quality rules, acceptance criteria, and timeline for data production.
+
+    DATASET_ID is the identifier of the dataset to analyze.
+    """
+    from datarecipe.deployer import ProductionDeployer
+
+    analyzer = DatasetAnalyzer()
+    deployer = ProductionDeployer()
+
+    with console.status(f"[cyan]Analyzing {dataset_id}...[/cyan]"):
+        try:
+            recipe = analyzer.analyze(dataset_id)
+        except Exception as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+
+    with console.status("[cyan]Generating production config...[/cyan]"):
+        config = deployer.generate_config(recipe, region=region)
+
+    # Deploy to provider
+    with console.status(f"[cyan]Deploying to {provider}...[/cyan]"):
+        result = deployer.deploy(config, provider, output, submit=submit)
+
+    if result.success:
+        console.print(f"\n[bold green]Deployment successful![/bold green]")
+        console.print(f"  Project ID: {result.project_id}")
+        console.print(f"  Output: {output}")
+        if result.message:
+            console.print(f"  Message: {result.message}")
+
+        # Show created files
+        output_path = Path(output)
+        if output_path.exists():
+            files = list(output_path.rglob("*"))
+            files = [f for f in files if f.is_file()]
+            console.print(f"\n[bold]Created files ({len(files)}):[/bold]")
+            for f in files[:10]:
+                console.print(f"  - {f.relative_to(output_path)}")
+            if len(files) > 10:
+                console.print(f"  ... and {len(files) - 10} more")
+
+        console.print(f"\n[bold cyan]Next steps:[/bold cyan]")
+        console.print(f"  1. cd {output}")
+        console.print(f"  2. Review annotation_guide.md")
+        console.print(f"  3. Review quality_rules.yaml")
+        console.print(f"  4. See README.md for detailed instructions")
+    else:
+        console.print(f"\n[red]Deployment failed:[/red] {result.message}")
+        sys.exit(1)
+
+
+@main.group()
+def providers():
+    """Manage deployment providers."""
+    pass
+
+
+@providers.command("list")
+def providers_list():
+    """List available deployment providers."""
+    from datarecipe.providers import list_providers
+
+    provider_list = list_providers()
+
+    table = Table(title="Available Providers")
+    table.add_column("Name", style="cyan")
+    table.add_column("Description")
+
+    for p in provider_list:
+        table.add_row(p["name"], p["description"])
+
+    console.print(table)
+
+    console.print("\n[dim]Install additional providers with: pip install datarecipe-<provider>[/dim]")
+
+
+@main.command()
+@click.argument("dataset_id")
 @click.option("--output", "-o", type=click.Path(), required=True, help="Output directory for project")
 @click.option("--target-size", "-n", type=int, help="Target number of examples")
 @click.option("--format", "fmt", type=click.Choice(["huggingface", "jsonl", "parquet"]), default="huggingface", help="Output format")

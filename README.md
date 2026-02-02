@@ -39,6 +39,9 @@ Dataset → DataRecipe → Recipe (provenance, methods, costs, reproducibility s
 | **Batch Process** | Parallel analysis of multiple datasets | `datarecipe batch` |
 | **Compare** | Side-by-side dataset comparison with recommendations | `datarecipe compare` |
 | **Workflow** | Generate complete reproduction projects with scripts | `datarecipe workflow` |
+| **Annotator Profile** | Generate team requirements, skills, and labor cost estimates | `datarecipe profile` |
+| **Production Deploy** | Create deployment packages with guidelines and quality rules | `datarecipe deploy` |
+| **Provider System** | Pluggable deployment providers (local, custom integrations) | `datarecipe providers` |
 
 ---
 
@@ -127,6 +130,51 @@ my_project/
     ├── 03_quality_filtering.py
     ├── 04_deduplication.py
     └── 05_validation.py
+```
+
+### Generate Annotator Profile
+
+```bash
+# Generate annotator requirements and labor cost estimate
+datarecipe profile Anthropic/hh-rlhf
+
+# Specify region for cost calculation
+datarecipe profile Anthropic/hh-rlhf --region china
+
+# Export as Markdown
+datarecipe profile Anthropic/hh-rlhf -o profile.md
+```
+
+### Production Deployment
+
+```bash
+# Generate deployment package with guidelines and quality rules
+datarecipe deploy Anthropic/hh-rlhf -o ./annotation_project
+
+# Use specific provider
+datarecipe deploy Anthropic/hh-rlhf -o ./project --provider local
+```
+
+This creates:
+```
+annotation_project/
+├── README.md
+├── recipe.yaml
+├── annotator_profile.yaml
+├── cost_estimate.yaml
+├── annotation_guide.md
+├── quality_rules.yaml
+├── acceptance_criteria.yaml
+├── timeline.md
+└── scripts/
+    └── validate.py
+```
+
+### Manage Providers
+
+```bash
+# List available deployment providers
+datarecipe providers list
 ```
 
 ---
@@ -221,17 +269,71 @@ reproducibility:
 <summary><b>All Commands</b></summary>
 
 ```bash
+# Analysis
 datarecipe analyze <dataset>           # Analyze dataset
 datarecipe guide <dataset>             # Generate production guide
 datarecipe deep-guide <url>            # Deep analysis with paper parsing
 datarecipe cost <dataset>              # Estimate costs
 datarecipe quality <dataset>           # Quality metrics
+
+# Batch Operations
 datarecipe batch <ds1> <ds2> ...       # Batch analysis
 datarecipe compare <ds1> <ds2> ...     # Compare datasets
-datarecipe workflow <dataset>          # Generate project
+
+# Production
+datarecipe workflow <dataset>          # Generate reproduction project
+datarecipe profile <dataset>           # Generate annotator profile
+datarecipe deploy <dataset>            # Deploy to annotation provider
+
+# Provider Management
+datarecipe providers list              # List available providers
+
+# Utilities
 datarecipe create                      # Interactive recipe creation
 datarecipe show <file>                 # Display recipe
 datarecipe list-sources                # List supported sources
+```
+
+</details>
+
+<details>
+<summary><b>Provider Plugin System</b></summary>
+
+DataRecipe uses a plugin system for deployment providers. The built-in `local` provider generates files locally.
+
+**Installing additional providers:**
+
+```bash
+pip install datarecipe-judgeguild    # Example: JudgeGuild integration
+pip install datarecipe-labelstudio   # Example: Label Studio integration
+```
+
+**Creating a custom provider:**
+
+Providers implement the `DeploymentProvider` protocol and register via entry points:
+
+```python
+# In your package's pyproject.toml
+[project.entry-points."datarecipe.providers"]
+myprovider = "mypackage.provider:MyProvider"
+```
+
+```python
+# mypackage/provider.py
+from datarecipe.schema import DeploymentProvider, ProductionConfig
+
+class MyProvider(DeploymentProvider):
+    @property
+    def name(self) -> str:
+        return "myprovider"
+
+    @property
+    def description(self) -> str:
+        return "My custom annotation provider"
+
+    def submit(self, config: ProductionConfig) -> DeploymentResult:
+        # Implementation
+        ...
 ```
 
 </details>
@@ -266,6 +368,9 @@ datarecipe list-sources                # List supported sources
 - [x] Quality metrics and AI detection
 - [x] Batch processing and comparison
 - [x] Workflow generation with executable scripts
+- [x] Annotator profiler with regional labor costs
+- [x] Production deployer with quality rules
+- [x] Plugin-based provider system
 - [ ] Community recipe repository
 - [ ] Web UI for interactive analysis
 - [ ] API service
