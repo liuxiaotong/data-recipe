@@ -370,6 +370,68 @@ The repository includes a `CLAUDE.md` file that helps Claude understand the proj
 
 </details>
 
+<details>
+<summary><b>MCP Server (Claude App Integration)</b></summary>
+
+DataRecipe provides an MCP (Model Context Protocol) Server, allowing Claude Desktop/App to call DataRecipe functions directly.
+
+**Installation:**
+
+```bash
+pip install datarecipe[mcp]
+```
+
+**Configure Claude Desktop:**
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "datarecipe": {
+      "command": "datarecipe-mcp"
+    }
+  }
+}
+```
+
+Or with uv (recommended):
+
+```json
+{
+  "mcpServers": {
+    "datarecipe": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/data-recipe",
+        "run",
+        "datarecipe-mcp"
+      ]
+    }
+  }
+}
+```
+
+**Available Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `analyze_dataset` | Analyze dataset metadata, generation methods, reproducibility |
+| `profile_annotators` | Generate annotator requirements and labor cost estimates |
+| `deploy_project` | Create complete annotation project with guidelines |
+| `estimate_cost` | Calculate API, annotation, and compute costs |
+| `list_providers` | List available deployment providers |
+
+**Usage in Claude:**
+
+Once configured, you can ask Claude:
+- "Analyze the Anthropic/hh-rlhf dataset"
+- "What skills are needed to annotate AI-MO/NuminaMath-CoT?"
+- "Create an annotation project for nguha/legalbench"
+
+</details>
+
 ---
 
 ## Why DataRecipe?
@@ -404,6 +466,7 @@ The repository includes a `CLAUDE.md` file that helps Claude understand the proj
 - [x] Production deployer with quality rules
 - [x] Plugin-based provider system
 - [x] Claude Code integration with slash commands
+- [x] MCP Server for Claude App integration
 - [ ] Community recipe repository
 - [ ] Web UI for interactive analysis
 - [ ] API service

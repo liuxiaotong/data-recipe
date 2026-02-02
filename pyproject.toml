@@ -61,6 +61,9 @@ quality = [
 workflow = [
     "jinja2>=3.1.0",
 ]
+mcp = [
+    "mcp>=1.0.0",
+]
 all = [
     "anthropic>=0.18.0",
     "openai>=1.0.0",
@@ -92,6 +95,7 @@ dev = [
 
 [project.scripts]
 datarecipe = "datarecipe.cli:main"
+datarecipe-mcp = "datarecipe.mcp_server:run"
 
 [project.entry-points."datarecipe.providers"]
 local = "datarecipe.providers.local:LocalFilesProvider"
