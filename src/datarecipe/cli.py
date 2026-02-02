@@ -991,12 +991,13 @@ def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdow
         table.add_column("Level", justify="center")
         table.add_column("Priority", justify="center")
 
-        for skill in annotator_profile.skills:
-            priority_color = {"required": "red", "preferred": "yellow", "nice_to_have": "dim"}.get(skill.priority, "white")
+        for skill in annotator_profile.skill_requirements:
+            priority = "required" if skill.required else "preferred"
+            priority_color = {"required": "red", "preferred": "yellow"}.get(priority, "white")
             table.add_row(
                 skill.name,
                 skill.level,
-                f"[{priority_color}]{skill.priority}[/{priority_color}]"
+                f"[{priority_color}]{priority}[/{priority_color}]"
             )
         console.print(table)
         console.print("")
@@ -1005,19 +1006,21 @@ def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdow
         console.print("[bold]Requirements:[/bold]")
         console.print(f"  Experience Level: {annotator_profile.experience_level.value}")
         console.print(f"  Education: {annotator_profile.education_level.value}")
-        if annotator_profile.domain_expertise:
-            console.print(f"  Domain Expertise: {', '.join(annotator_profile.domain_expertise)}")
+        if annotator_profile.domain_knowledge:
+            console.print(f"  Domain Expertise: {', '.join(annotator_profile.domain_knowledge)}")
         if annotator_profile.language_requirements:
             console.print(f"  Languages: {', '.join(annotator_profile.language_requirements)}")
         console.print("")
 
         # Workload estimation
+        hourly_rate = (annotator_profile.hourly_rate_range.get("min", 15) + annotator_profile.hourly_rate_range.get("max", 45)) / 2
+        estimated_labor_cost = annotator_profile.estimated_person_days * 8 * hourly_rate
         console.print("[bold]Workload Estimation:[/bold]")
         console.print(f"  Team Size: {annotator_profile.team_size} annotators")
-        console.print(f"  Person-Days: {annotator_profile.person_days}")
-        console.print(f"  Hours per Example: {annotator_profile.hours_per_example:.2f}")
-        console.print(f"  Hourly Rate: ${annotator_profile.hourly_rate:.2f}")
-        console.print(f"  Estimated Labor Cost: ${annotator_profile.estimated_labor_cost:,.0f}")
+        console.print(f"  Person-Days: {annotator_profile.estimated_person_days:.0f}")
+        console.print(f"  Hours per Example: {annotator_profile.estimated_hours_per_example:.2f}")
+        console.print(f"  Hourly Rate: ${hourly_rate:.2f}")
+        console.print(f"  Estimated Labor Cost: ${estimated_labor_cost:,.0f}")
 
     # Export if requested
     if output:
@@ -1053,9 +1056,12 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
     DATASET_ID is the identifier of the dataset to analyze.
     """
     from datarecipe.deployer import ProductionDeployer
+    from datarecipe.profiler import AnnotatorProfiler
+    from datarecipe.schema import DataRecipe
 
     analyzer = DatasetAnalyzer()
     deployer = ProductionDeployer()
+    profiler = AnnotatorProfiler()
 
     with console.status(f"[cyan]Analyzing {dataset_id}...[/cyan]"):
         try:
@@ -1064,19 +1070,41 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
             console.print(f"[red]Error:[/red] {e}")
             sys.exit(1)
 
+    with console.status("[cyan]Generating annotator profile...[/cyan]"):
+        profile = profiler.generate_profile(recipe, region=region)
+
+    # Convert Recipe to DataRecipe
+    data_recipe = DataRecipe(
+        name=recipe.name,
+        version=recipe.version,
+        source_type=recipe.source_type,
+        source_id=recipe.source_id,
+        num_examples=recipe.num_examples,
+        languages=recipe.languages or [],
+        license=recipe.license,
+        description=recipe.description,
+        generation_type=recipe.generation_type,
+        synthetic_ratio=recipe.synthetic_ratio,
+        human_ratio=recipe.human_ratio,
+        generation_methods=recipe.generation_methods or [],
+        teacher_models=recipe.teacher_models or [],
+        tags=recipe.tags or [],
+    )
+
     with console.status("[cyan]Generating production config...[/cyan]"):
-        config = deployer.generate_config(recipe, region=region)
+        config = deployer.generate_config(data_recipe, profile=profile)
 
     # Deploy to provider
     with console.status(f"[cyan]Deploying to {provider}...[/cyan]"):
-        result = deployer.deploy(config, provider, output, submit=submit)
+        result = deployer.deploy(data_recipe, output, provider=provider, config=config, profile=profile)
 
     if result.success:
         console.print(f"\n[bold green]Deployment successful![/bold green]")
-        console.print(f"  Project ID: {result.project_id}")
+        if result.project_handle:
+            console.print(f"  Project ID: {result.project_handle.project_id}")
         console.print(f"  Output: {output}")
-        if result.message:
-            console.print(f"  Message: {result.message}")
+        if result.details:
+            console.print(f"  Details: {result.details}")
 
         # Show created files
         output_path = Path(output)
@@ -1095,7 +1123,7 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
         console.print(f"  3. Review quality_rules.yaml")
         console.print(f"  4. See README.md for detailed instructions")
     else:
-        console.print(f"\n[red]Deployment failed:[/red] {result.message}")
+        console.print(f"\n[red]Deployment failed:[/red] {result.error}")
         sys.exit(1)
 
 

@@ -217,7 +217,9 @@ class ProductionDeployer:
         if recipe.synthetic_ratio is not None:
             lines.append(f"| 合成比例 | {recipe.synthetic_ratio * 100:.0f}% |")
         if recipe.languages:
-            lines.append(f"| 语言 | {', '.join(recipe.languages)} |")
+            valid_langs = [l for l in recipe.languages if l]
+            if valid_langs:
+                lines.append(f"| 语言 | {', '.join(valid_langs)} |")
         lines.append("")
 
         # 标注目标

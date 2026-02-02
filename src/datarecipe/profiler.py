@@ -316,6 +316,8 @@ class AnnotatorProfiler:
         """推导语言要求"""
         langs = []
         for lang in recipe.languages or ["en"]:
+            if not lang:
+                continue
             lang_lower = lang.lower()
             if lang_lower in ["zh", "zh-cn", "zh-tw", "chinese", "中文"]:
                 langs.append("zh-CN:native")
