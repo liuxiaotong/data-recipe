@@ -1705,6 +1705,19 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
     rubrics_examples = []  # Full rubric examples with context
     sample_items = []  # Complete sample items for reference
 
+    # RLHF preference dataset support
+    is_preference_dataset = False
+    preference_pairs = []  # List of {chosen, rejected, topic, turn_count}
+    preference_topics = {}  # topic -> count
+    preference_patterns = {
+        "chosen_longer": 0,
+        "rejected_longer": 0,
+        "same_length": 0,
+        "chosen_more_detailed": 0,
+        "chosen_more_helpful": 0,
+        "chosen_safer": 0,
+    }
+
     try:
         from datasets import load_dataset
         ds = load_dataset(dataset_id, split="train", streaming=True)
@@ -1820,6 +1833,114 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
                             contexts.append(content)
                             break
 
+            # RLHF preference dataset detection and analysis
+            if "chosen" in item and "rejected" in item:
+                is_preference_dataset = True
+                chosen = item.get("chosen", "")
+                rejected = item.get("rejected", "")
+
+                if isinstance(chosen, str) and isinstance(rejected, str):
+                    # Parse conversation turns
+                    def parse_conversation(text):
+                        """Parse Human/Assistant conversation from text."""
+                        turns = []
+                        # Handle different formats
+                        patterns = [
+                            (r'\n\nHuman:', r'\n\nAssistant:'),
+                            (r'\nHuman:', r'\nAssistant:'),
+                            (r'Human:', r'Assistant:'),
+                            (r'\n\nH:', r'\n\nA:'),
+                        ]
+                        for h_pat, a_pat in patterns:
+                            if h_pat.replace(r'\n', '\n') in text:
+                                import re
+                                parts = re.split(r'(' + h_pat + '|' + a_pat + ')', text)
+                                current_role = None
+                                current_content = ""
+                                for part in parts:
+                                    part_clean = part.strip()
+                                    if re.match(h_pat, part):
+                                        if current_role and current_content:
+                                            turns.append({"role": current_role, "content": current_content.strip()})
+                                        current_role = "human"
+                                        current_content = ""
+                                    elif re.match(a_pat, part):
+                                        if current_role and current_content:
+                                            turns.append({"role": current_role, "content": current_content.strip()})
+                                        current_role = "assistant"
+                                        current_content = ""
+                                    else:
+                                        current_content += part
+                                if current_role and current_content:
+                                    turns.append({"role": current_role, "content": current_content.strip()})
+                                break
+                        return turns
+
+                    chosen_turns = parse_conversation(chosen)
+                    rejected_turns = parse_conversation(rejected)
+
+                    # Extract first human message as topic
+                    topic = "unknown"
+                    for turn in chosen_turns:
+                        if turn.get("role") == "human":
+                            # Extract first 50 chars as topic indicator
+                            topic_text = turn.get("content", "")[:100].lower()
+                            # Simple topic classification
+                            if any(w in topic_text for w in ["code", "program", "python", "java", "function"]):
+                                topic = "coding"
+                            elif any(w in topic_text for w in ["write", "story", "poem", "essay", "creative"]):
+                                topic = "creative_writing"
+                            elif any(w in topic_text for w in ["explain", "what is", "how does", "why"]):
+                                topic = "explanation"
+                            elif any(w in topic_text for w in ["help", "advice", "suggest", "recommend"]):
+                                topic = "advice"
+                            elif any(w in topic_text for w in ["math", "calculate", "solve", "equation"]):
+                                topic = "math"
+                            elif any(w in topic_text for w in ["translate", "language", "chinese", "spanish"]):
+                                topic = "translation"
+                            else:
+                                topic = "general"
+                            break
+
+                    preference_topics[topic] = preference_topics.get(topic, 0) + 1
+
+                    # Analyze preference patterns
+                    chosen_len = len(chosen)
+                    rejected_len = len(rejected)
+                    if chosen_len > rejected_len * 1.2:
+                        preference_patterns["chosen_longer"] += 1
+                    elif rejected_len > chosen_len * 1.2:
+                        preference_patterns["rejected_longer"] += 1
+                    else:
+                        preference_patterns["same_length"] += 1
+
+                    # Check for safety-related rejections
+                    safety_words = ["sorry", "can't", "cannot", "won't", "inappropriate", "harmful", "illegal"]
+                    if any(w in rejected.lower() for w in safety_words) and not any(w in chosen.lower() for w in safety_words):
+                        preference_patterns["chosen_safer"] += 1
+
+                    # Save preference pair examples (first 20)
+                    if len(preference_pairs) < 20:
+                        # Get last assistant response for comparison
+                        chosen_response = ""
+                        rejected_response = ""
+                        for turn in reversed(chosen_turns):
+                            if turn.get("role") == "assistant":
+                                chosen_response = turn.get("content", "")[:500]
+                                break
+                        for turn in reversed(rejected_turns):
+                            if turn.get("role") == "assistant":
+                                rejected_response = turn.get("content", "")[:500]
+                                break
+
+                        preference_pairs.append({
+                            "topic": topic,
+                            "turn_count": len(chosen_turns),
+                            "chosen_response": chosen_response,
+                            "rejected_response": rejected_response,
+                            "human_query": chosen_turns[0].get("content", "")[:300] if chosen_turns else "",
+                        })
+
         if actual_size is None:
             actual_size = sample_count
 
@@ -1863,6 +1984,22 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             with open(os.path.join(dataset_output_dir, "context_strategy.json"), "w", encoding="utf-8") as f:
                 json.dump(detector.to_dict(strategy_result), f, indent=2, ensure_ascii=False)
             console.print(f"[green]✓ 策略检测: {strategy_result.primary_strategy.value} (置信度 {strategy_result.confidence:.1%})[/green]")
+
+        # 3.5 Preference Dataset Analysis
+        if is_preference_dataset and preference_pairs:
+            console.print("[dim]🔄 分析偏好模式...[/dim]")
+            preference_analysis = {
+                "is_preference_dataset": True,
+                "total_pairs": sample_count,
+                "topic_distribution": preference_topics,
+                "patterns": preference_patterns,
+                "examples": preference_pairs[:10],
+            }
+            with open(os.path.join(dataset_output_dir, "preference_analysis.json"), "w", encoding="utf-8") as f:
+                json.dump(preference_analysis, f, indent=2, ensure_ascii=False)
+
+            top_topic = max(preference_topics.items(), key=lambda x: x[1])[0] if preference_topics else "unknown"
+            console.print(f"[green]✓ 偏好分析: {sample_count} 对, 主要话题: {top_topic}[/green]")
 
         # 4. Human-Machine Allocation
         console.print("[dim]⚙️ 计算人机分配...[/dim]")
@@ -1915,6 +2052,11 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             rubrics_result=rubrics_result,
             prompt_library=prompt_library,
             allocation=allocation,
+            # RLHF preference dataset support
+            is_preference_dataset=is_preference_dataset,
+            preference_pairs=preference_pairs,
+            preference_topics=preference_topics,
+            preference_patterns=preference_patterns,
         )
 
         guide_path = os.path.join(dataset_output_dir, "REPRODUCTION_GUIDE.md")
@@ -2208,14 +2350,27 @@ def _generate_reproduction_guide(
     rubrics_result,
     prompt_library,
     allocation,
+    # RLHF preference dataset support
+    is_preference_dataset: bool = False,
+    preference_pairs: list = None,
+    preference_topics: dict = None,
+    preference_patterns: dict = None,
 ) -> str:
     """Generate a practical reproduction guide for recreating a similar dataset."""
     import json
 
+    preference_pairs = preference_pairs or []
+    preference_topics = preference_topics or {}
+    preference_patterns = preference_patterns or {}
+
     lines = []
     lines.append(f"# 📋 {dataset_id} 复刻指南")
     lines.append("")
-    lines.append("> **本指南提供可直接操作的模板和规范，帮助你从零开始构建类似风格的数据集。**")
+
+    if is_preference_dataset:
+        lines.append("> **这是一个 RLHF 偏好数据集。本指南提供偏好标注规范，帮助你构建类似的人类偏好数据。**")
+    else:
+        lines.append("> **本指南提供可直接操作的模板和规范，帮助你从零开始构建类似风格的数据集。**")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -2291,12 +2446,117 @@ def _generate_reproduction_guide(
             lines.append(f"- `{sub}`")
         lines.append("")
 
-    if not category_set and not sub_category_set:
+    if not category_set and not sub_category_set and not is_preference_dataset:
         lines.append("*未检测到分类体系*")
+        lines.append("")
+
+    # For preference datasets, show topic distribution
+    if is_preference_dataset and preference_topics:
+        lines.append("### 话题分布")
+        lines.append("")
+        lines.append("| 话题 | 数量 | 占比 |")
+        lines.append("|------|------|------|")
+        total = sum(preference_topics.values())
+        for topic, count in sorted(preference_topics.items(), key=lambda x: -x[1]):
+            pct = count / total * 100 if total > 0 else 0
+            lines.append(f"| {topic} | {count} | {pct:.1f}% |")
         lines.append("")
 
     lines.append("---")
     lines.append("")
+
+    # ==================== Section 2.5: Preference Dataset Guide (if applicable) ====================
+    if is_preference_dataset:
+        lines.append("## 🔄 偏好数据集专用指南")
+        lines.append("")
+        lines.append("这是一个 RLHF (Reinforcement Learning from Human Feedback) 偏好数据集。")
+        lines.append("每条数据包含一对回复：`chosen`（被选中的更好回复）和 `rejected`（被拒绝的较差回复）。")
+        lines.append("")
+
+        # Preference patterns analysis
+        lines.append("### 偏好模式分析")
+        lines.append("")
+        if preference_patterns:
+            total_patterns = sum(preference_patterns.values())
+            if total_patterns > 0:
+                lines.append("| 模式 | 数量 | 占比 | 说明 |")
+                lines.append("|------|------|------|------|")
+                pattern_desc = {
+                    "chosen_longer": "被选中回复更长",
+                    "rejected_longer": "被拒绝回复更长",
+                    "same_length": "长度相近",
+                    "chosen_safer": "被选中回复更安全（rejected 含拒绝词）",
+                }
+                for pattern, count in sorted(preference_patterns.items(), key=lambda x: -x[1]):
+                    if count > 0:
+                        pct = count / total_patterns * 100
+                        desc = pattern_desc.get(pattern, pattern)
+                        lines.append(f"| {pattern} | {count} | {pct:.1f}% | {desc} |")
+                lines.append("")
+
+        # Preference labeling guidelines
+        lines.append("### 偏好标注规范")
+        lines.append("")
+        lines.append("标注员需要比较两个回复，选择「更好」的那个。判断标准：")
+        lines.append("")
+        lines.append("| 维度 | 选择 chosen 的条件 |")
+        lines.append("|------|-------------------|")
+        lines.append("| **有用性** | 更直接地回答了问题，提供了更实用的信息 |")
+        lines.append("| **准确性** | 信息更准确，没有事实错误 |")
+        lines.append("| **安全性** | 不包含有害、违法、歧视性内容 |")
+        lines.append("| **完整性** | 覆盖了问题的各个方面，不遗漏关键信息 |")
+        lines.append("| **清晰度** | 表达更清晰，结构更好，易于理解 |")
+        lines.append("| **诚实性** | 承认不确定性，不编造信息 |")
+        lines.append("")
+
+        # Preference pair examples
+        if preference_pairs:
+            lines.append("### 偏好对示例")
+            lines.append("")
+            for i, pair in enumerate(preference_pairs[:3], 1):
+                lines.append(f"**示例 {i}** (话题: `{pair.get('topic', 'unknown')}`)")
+                lines.append("")
+                lines.append("**Human:**")
+                lines.append("```")
+                lines.append(pair.get("human_query", "")[:300] or "(无)")
+                lines.append("```")
+                lines.append("")
+                lines.append("**Chosen (被选中):**")
+                lines.append("```")
+                chosen_resp = pair.get("chosen_response", "")[:400]
+                lines.append(chosen_resp if chosen_resp else "(无)")
+                lines.append("```")
+                lines.append("")
+                lines.append("**Rejected (被拒绝):**")
+                lines.append("```")
+                rejected_resp = pair.get("rejected_response", "")[:400]
+                lines.append(rejected_resp if rejected_resp else "(无)")
+                lines.append("```")
+                lines.append("")
+
+        # SOP for preference dataset
+        lines.append("### 偏好数据生产 SOP")
+        lines.append("")
+        lines.append("```")
+        lines.append("Phase 1: 准备阶段")
+        lines.append("├─ 步骤 1.1: 收集用户问题（多样化话题）")
+        lines.append("├─ 步骤 1.2: 使用 LLM 生成多个候选回复（通常 2-4 个）")
+        lines.append("└─ 步骤 1.3: 准备标注界面和标注指南")
+        lines.append("")
+        lines.append("Phase 2: 标注阶段")
+        lines.append("├─ 步骤 2.1: 标注员阅读问题和所有候选回复")
+        lines.append("├─ 步骤 2.2: 根据标注规范选择最佳回复 (chosen)")
+        lines.append("├─ 步骤 2.3: 选择最差回复 (rejected)")
+        lines.append("└─ 步骤 2.4: 记录选择理由（可选，用于质检）")
+        lines.append("")
+        lines.append("Phase 3: 质量控制")
+        lines.append("├─ 步骤 3.1: 双人标注，计算一致性 (Cohen's Kappa)")
+        lines.append("├─ 步骤 3.2: 不一致样本由第三人仲裁")
+        lines.append("└─ 步骤 3.3: 抽样审核，确保标注质量")
+        lines.append("```")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
 
     # ==================== Section 3: System Prompt Templates ====================
     lines.append("## 3️⃣ System Prompt 模板库")
