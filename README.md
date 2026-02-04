@@ -87,6 +87,55 @@ datarecipe deploy AI-MO/NuminaMath-CoT -o ./my_project
 
 Extract actionable patterns from any dataset for reproduction at scale.
 
+### Comprehensive analysis (recommended)
+
+Run all analyses at once and generate a human-readable report:
+
+```bash
+datarecipe deep-analyze tencent/CL-bench -o ./output --size 1899
+```
+
+<details>
+<summary>Output</summary>
+
+```
+============================================================
+  DataRecipe 深度逆向分析
+============================================================
+
+数据集: tencent/CL-bench
+输出目录: ./output
+
+📥 加载数据集...
+✓ 加载完成: 300 样本
+
+📊 分析评分标准...
+✓ 评分标准: 4120 条, 2412 种模式
+📝 提取 Prompt 模板...
+✓ Prompt模板: 293 个独特模板
+🔍 检测上下文策略...
+✓ 策略检测: hybrid (置信度 40.1%)
+⚙️ 计算人机分配...
+✓ 人机分配: 人工 84%, 机器 16%
+
+📄 生成综合报告...
+✓ 综合报告已保存
+
+============================================================
+  分析完成
+============================================================
+
+生成的文件:
+  📊 prompt_templates.json (6.4MB)
+  📊 context_strategy.json (1.6KB)
+  📊 allocation.json (2.5KB)
+  📊 rubrics_analysis.json (63.2KB)
+  📑 rubric_templates.yaml / rubric_templates.md  ← 结构化 Rubric 模板库
+  📄 ANALYSIS_REPORT.md (4.6KB)   ← 人类可读报告
+```
+
+</details>
+
 ### Extract rubrics patterns
 
 ```bash
@@ -107,8 +156,19 @@ datarecipe extract-rubrics tencent/CL-bench
 │    - not: 71 (6.1%)                                          │
 │    - explain: 70 (6.0%)                                      │
 │    - provide: 58 (4.9%)                                      │
+│                                                              │
+│  Structured Templates (Top 3):                               │
+│    1. [list] should include → key evidence (≥3 items)        │
+│    2. [avoid] should not include → offensive language        │
+│    3. [explain] should explain → reasoning steps             │
 ╰──────────────────────────────────────────────────────────────╯
 ```
+
+同时使用 `-o rubrics.json` 可获得：
+
+- `rubrics.json`：详细统计 + 模式列表
+- `rubrics_templates.yaml`：可复用的结构化模板（action/target/condition）
+- `rubrics_templates.md`：面向非技术干系人的 Markdown 说明
 
 </details>
 
@@ -165,6 +225,7 @@ datarecipe generate --type rubrics --context "game rules" --count 10
 
 | Command | Description |
 |---------|-------------|
+| `deep-analyze` | **Run all analyses and generate comprehensive report** |
 | `extract-rubrics` | Extract evaluation criteria patterns (verbs, templates) |
 | `extract-prompts` | Extract and deduplicate system prompt templates |
 | `detect-strategy` | Detect context construction strategy (synthetic/modified/niche) |

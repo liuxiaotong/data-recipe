@@ -23,6 +23,9 @@ class RubricPattern:
     examples: list[str] = field(default_factory=list)  # Original examples
     template: str = ""              # Abstracted template
     category: str = "general"       # Category (define, list, explain, etc.)
+    action: str = ""                # Canonical action phrase (e.g., "should include")
+    target: str = ""                # Target object / focus of the rubric
+    condition: str = ""             # Additional conditions/constraints
     hash_id: str = ""               # Unique identifier
 
     def __post_init__(self):
@@ -38,6 +41,7 @@ class RubricsAnalysisResult:
     verb_distribution: dict[str, int] = field(default_factory=dict)
     category_distribution: dict[str, int] = field(default_factory=dict)
     top_templates: list[str] = field(default_factory=list)
+    structured_templates: list[dict] = field(default_factory=list)
 
     total_rubrics: int = 0
     unique_patterns: int = 0
@@ -171,6 +175,8 @@ class RubricsAnalyzer:
             template = self._abstract_template(rubric)
             pattern_key = template.lower()
 
+            action, target, condition = self._extract_structure(rubric, verb_phrase)
+
             if pattern_key in pattern_map:
                 pattern_map[pattern_key].frequency += 1
                 if len(pattern_map[pattern_key].examples) < 5:
@@ -182,6 +188,9 @@ class RubricsAnalyzer:
                     verb_phrase=verb_phrase or "",
                     template=template,
                     category=category,
+                    action=action,
+                    target=target,
+                    condition=condition,
                     examples=[rubric],
                 )
 
@@ -202,6 +211,9 @@ class RubricsAnalyzer:
 
         # Extract common phrases
         result.common_phrases = self._extract_common_phrases(rubrics)
+
+        # Structured template summaries
+        result.structured_templates = self._build_structured_templates(result.patterns)
 
         return result
 
@@ -267,6 +279,85 @@ class RubricsAnalyzer:
         )
 
         return template
+
+    def _extract_structure(
+        self,
+        rubric: str,
+        verb_phrase: Optional[str],
+    ) -> tuple[str, str, str]:
+        """Extract action/target/condition pieces from the rubric."""
+        action = (verb_phrase or "").strip()
+        text = rubric.strip()
+
+        remainder = text
+        if action:
+            lower = text.lower()
+            idx = lower.find(action.lower())
+            if idx != -1:
+                remainder = text[idx + len(action):]
+
+        remainder = remainder.strip(" .:;-\n")
+
+        target = remainder
+        condition = ""
+
+        if remainder:
+            # Split on connectors such as "if", "when", "so that", etc.
+            connector_split = re.split(
+                r"\b(if|when|unless|provided that|so that|because|to ensure|while)\b",
+                remainder,
+                maxsplit=1,
+                flags=re.IGNORECASE,
+            )
+
+            if len(connector_split) > 1:
+                target = connector_split[0].strip(" ,.;:()[]")
+                condition = " ".join(connector_split[1:]).strip(" ,.;:()[]")
+            else:
+                # Try splitting on comma
+                comma_split = remainder.split(",", 1)
+                if len(comma_split) > 1 and len(comma_split[0]) > 10:
+                    target = comma_split[0].strip(" ,.;:()[]")
+                    condition = comma_split[1].strip(" ,.;:()[]")
+                else:
+                    quantifier_match = re.search(
+                        r"\b(at least|at most|no more than|less than|greater than|minimum|maximum|must|should)\b",
+                        remainder,
+                        flags=re.IGNORECASE,
+                    )
+                    if quantifier_match and quantifier_match.start() > 0:
+                        q_index = quantifier_match.start()
+                        target = remainder[:q_index].strip(" ,.;:()[]")
+                        condition = remainder[q_index:].strip(" ,.;:()[]")
+                    else:
+                        target = remainder.strip(" ,.;:()[]")
+
+        if not target:
+            target = remainder.strip(" ,.;:()[]")
+
+        return action, target, condition
+
+    def _build_structured_templates(
+        self,
+        patterns: list[RubricPattern],
+        limit: int = 20,
+    ) -> list[dict]:
+        """Build structured template summaries for downstream consumption."""
+        summaries = []
+        for pattern in patterns[:limit]:
+            summaries.append(
+                {
+                    "id": pattern.hash_id,
+                    "category": pattern.category,
+                    "action": pattern.action or pattern.verb_phrase,
+                    "target": pattern.target,
+                    "condition": pattern.condition,
+                    "template": pattern.template,
+                    "frequency": pattern.frequency,
+                    "examples": pattern.examples[:2],
+                }
+            )
+        return summaries
 
     def _extract_common_phrases(
         self,
@@ -335,6 +426,7 @@ class RubricsAnalyzer:
             "category_distribution": result.category_distribution,
             "sentence_starters": result.sentence_starters,
             "top_templates": result.top_templates,
+            "structured_templates": result.structured_templates,
             "common_phrases": result.common_phrases,
             "patterns": [
                 {
@@ -345,7 +437,54 @@ class RubricsAnalyzer:
                     "template": p.template,
                     "category": p.category,
                     "examples": p.examples[:3],
+                    "action": p.action,
+                    "target": p.target,
+                    "condition": p.condition,
                 }
                 for p in result.patterns[:50]
             ],
         }
+
+    def to_yaml_templates(self, result: RubricsAnalysisResult) -> str:
+        """Export structured templates as YAML."""
+        import yaml
+
+        templates = [
+            {
+                "id": entry.get("id"),
+                "category": entry.get("category"),
+                "action": entry.get("action"),
+                "target": entry.get("target"),
+                "condition": entry.get("condition"),
+                "frequency": entry.get("frequency"),
+                "examples": entry.get("examples", []),
+            }
+            for entry in result.structured_templates
+        ]
+
+        return yaml.dump(
+            {"rubric_templates": templates},
+            allow_unicode=True,
+            sort_keys=False,
+        )
+
+    def to_markdown_templates(self, result: RubricsAnalysisResult) -> str:
+        """Render structured templates as Markdown for documentation."""
+        lines = []
+        lines.append("# Rubric 模板库")
+        lines.append("")
+        lines.append("| 类别 | 动作 | 目标 | 条件 | 频次 | 示例 |")
+        lines.append("|------|------|------|------|------|------|")
+
+        for entry in result.structured_templates:
+            action = entry.get("action") or "—"
+            target = entry.get("target") or "—"
+            condition = entry.get("condition") or "—"
+            freq = entry.get("frequency", 0)
+            examples = entry.get("examples", [])
+            example_text = "<br/>".join(examples)
+            lines.append(
+                f"| {entry.get('category', 'general')} | {action} | {target} | {condition} | {freq} | {example_text} |"
+            )
+
+        return "\n".join(lines)

@@ -16,6 +16,41 @@ from datarecipe.schema import Recipe
 console = Console()
 
 
+def validate_output_path(output: str, base_dir: Path = None) -> Path:
+    """Validate and resolve output path to prevent path traversal attacks.
+
+    Args:
+        output: User-provided output path
+        base_dir: Optional base directory to restrict outputs to
+
+    Returns:
+        Resolved Path object
+
+    Raises:
+        ValueError: If path is invalid or attempts traversal outside base_dir
+    """
+    output_path = Path(output).resolve()
+
+    # If base_dir specified, ensure output is within it
+    if base_dir:
+        base_resolved = base_dir.resolve()
+        try:
+            output_path.relative_to(base_resolved)
+        except ValueError:
+            raise ValueError(
+                f"Output path '{output}' is outside allowed directory '{base_dir}'"
+            )
+
+    # Block obviously dangerous paths
+    dangerous_patterns = ["/etc/", "/usr/", "/bin/", "/var/", "/root/"]
+    output_str = str(output_path)
+    for pattern in dangerous_patterns:
+        if output_str.startswith(pattern):
+            raise ValueError(f"Output path '{output}' is in a protected system directory")
+
+    return output_path
+
+
 def recipe_to_markdown(recipe: Recipe) -> str:
     """Generate a beautiful Markdown document for a recipe in Chinese."""
     lines = []
@@ -297,6 +332,8 @@ def analyze(dataset_id: str, output: str, as_json: bool, as_yaml: bool, as_markd
             sys.exit(1)
         except Exception as e:
             console.print(f"[red]Error analyzing dataset:[/red] {e}")
+            import traceback
+            console.print(f"[dim]{traceback.format_exc()}[/dim]")
             sys.exit(1)
 
     # Output format
@@ -363,6 +400,8 @@ def export(dataset_id: str, output_file: str):
             sys.exit(1)
         except Exception as e:
             console.print(f"[red]Error analyzing dataset:[/red] {e}")
+            import traceback
+            console.print(f"[dim]{traceback.format_exc()}[/dim]")
             sys.exit(1)
 
     analyzer.export_recipe(recipe, output_file)
@@ -409,6 +448,8 @@ def guide(dataset_id: str, output: str, target_size: int):
             sys.exit(1)
         except Exception as e:
             console.print(f"[red]Error analyzing dataset:[/red] {e}")
+            import traceback
+            console.print(f"[dim]{traceback.format_exc()}[/dim]")
             sys.exit(1)
 
     # Get appropriate pipeline template
@@ -428,6 +469,22 @@ def guide(dataset_id: str, output: str, target_size: int):
     guide_content = pipeline_to_markdown(pipeline, recipe.name)
 
     # Add dataset-specific info at the top
+    synthetic_pct = (
+        f"{recipe.synthetic_ratio * 100:.0f}%"
+        if recipe.synthetic_ratio is not None
+        else "N/A"
+    )
+    human_pct = (
+        f"{recipe.human_ratio * 100:.0f}%"
+        if recipe.human_ratio is not None
+        else "N/A"
+    )
+    repro_score = (
+        f"{recipe.reproducibility.score}/10"
+        if recipe.reproducibility
+        else "N/A"
+    )
+
     header = f"""# 数据生产指南：{recipe.name}
 
 ## 参考数据集分析
@@ -436,10 +493,10 @@ def guide(dataset_id: str, output: str, target_size: int):
 |------|-----|
 | **数据集名称** | {recipe.name} |
 | **来源** | {recipe.source_type.value} |
-| **合成数据比例** | {recipe.synthetic_ratio * 100 if recipe.synthetic_ratio else 'N/A'}% |
-| **人工数据比例** | {recipe.human_ratio * 100 if recipe.human_ratio else 'N/A'}% |
+| **合成数据比例** | {synthetic_pct} |
+| **人工数据比例** | {human_pct} |
 | **教师模型** | {', '.join(recipe.teacher_models) if recipe.teacher_models else '无'} |
-| **可复现性评分** | {recipe.reproducibility.score}/10 |
+| **可复现性评分** | {repro_score} |
 
 ---
 
@@ -1103,8 +1160,21 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
         config = deployer.generate_config(data_recipe, profile=profile)
 
     # Deploy to provider
-    with console.status(f"[cyan]Deploying to {provider}...[/cyan]"):
-        result = deployer.deploy(data_recipe, output, provider=provider, config=config, profile=profile)
+    submit_action = submit or provider == "local"
+    status_msg = (
+        f"[cyan]Deploying to {provider}...[/cyan]"
+        if submit_action
+        else f"[cyan]Generating deployment package for {provider} (no auto submission)...[/cyan]"
+    )
+    with console.status(status_msg):
+        result = deployer.deploy(
+            data_recipe,
+            output,
+            provider=provider,
+            config=config,
+            profile=profile,
+            submit=submit,
+        )
 
     if result.success:
         console.print(f"\n[bold green]Deployment successful![/bold green]")
@@ -1130,6 +1200,10 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
         console.print(f"  2. Review annotation_guide.md")
         console.print(f"  3. Review quality_rules.yaml")
         console.print(f"  4. See README.md for detailed instructions")
+        if provider != "local" and not submit:
+            console.print(
+                "  5. 使用 provider 平台手动提交项目 (本次未自动提交，需确认配置后再执行)"
+            )
     else:
         console.print(f"\n[red]Deployment failed:[/red] {result.error}")
         sys.exit(1)
@@ -1252,14 +1326,35 @@ def extract_rubrics(dataset_id: str, output: str, sample_size: int):
 
         # Display summary
         console.print(Panel(result.summary(), title="Rubrics Analysis"))
+        console.print("\n[bold]Top Structured Templates:[/bold]")
+        for entry in result.structured_templates[:5]:
+            console.print(
+                f"• [{entry.get('category', 'general')}] {entry.get('action') or ''} → {entry.get('target') or ''}" +
+                (f" | 条件: {entry.get('condition')}" if entry.get('condition') else "")
+            )
 
-        # Export if output specified
+        # Export if requested
         if output:
             import json
-            data = analyzer.to_dict(result)
-            with open(output, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            console.print(f"\n[green]Exported to {output}[/green]")
+            base = output
+            if output.endswith(".json"):
+                data_path = output
+                yaml_path = output.replace(".json", "_templates.yaml")
+                md_path = output.replace(".json", "_templates.md")
+            else:
+                data_path = f"{output}.json"
+                yaml_path = f"{output}_templates.yaml"
+                md_path = f"{output}_templates.md"
+
+            with open(data_path, "w", encoding="utf-8") as f:
+                json.dump(analyzer.to_dict(result), f, indent=2, ensure_ascii=False)
+            with open(yaml_path, "w", encoding="utf-8") as f:
+                f.write(analyzer.to_yaml_templates(result))
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write(analyzer.to_markdown_templates(result))
+
+            console.print(f"\n[green]Exported analysis to {data_path}[/green]")
+            console.print(f"[green]Exported templates to {yaml_path} & {md_path}[/green]")
 
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -1268,7 +1363,7 @@ def extract_rubrics(dataset_id: str, output: str, sample_size: int):
 @main.command("extract-prompts")
 @click.argument("dataset_id")
 @click.option("--output", "-o", default=None, help="Output file path (JSON)")
-@click.option("--sample-size", "-n", default=1000, help="Number of samples to analyze")
+@click.option("--sample-size", "-n", default=500, help="Number of samples to analyze")
 def extract_prompts(dataset_id: str, output: str, sample_size: int):
     """Extract system prompt templates from a dataset."""
     from datarecipe.extractors import PromptExtractor
@@ -1279,11 +1374,14 @@ def extract_prompts(dataset_id: str, output: str, sample_size: int):
         from datasets import load_dataset
         ds = load_dataset(dataset_id, split="train", streaming=True)
 
-        # Collect messages
+        # Collect messages with progress
         messages = []
+        console.print(f"[dim]Collecting messages from {sample_size} samples...[/dim]")
         for i, item in enumerate(ds):
             if i >= sample_size:
                 break
+            if i > 0 and i % 100 == 0:
+                console.print(f"[dim]  Processed {i}/{sample_size} samples ({len(messages)} messages)[/dim]")
             # Try common message field names
             for field in ["messages", "conversation", "turns"]:
                 if field in item and isinstance(item[field], list):
@@ -1293,9 +1391,12 @@ def extract_prompts(dataset_id: str, output: str, sample_size: int):
             console.print("[yellow]No messages found in dataset.[/yellow]")
             return
 
+        console.print(f"[dim]Collected {len(messages)} messages, deduplicating...[/dim]")
+
         # Extract
         extractor = PromptExtractor()
         library = extractor.extract(messages)
+        console.print(f"[green]✓ Deduplication complete[/green]")
 
         # Display summary
         console.print(Panel(library.summary(), title="Prompt Library"))
@@ -1463,9 +1564,10 @@ def enhanced_guide(dataset_id: str, output: str, size: int, region: str):
                 console.print(f"[green]✓ Analyzed {len(rubrics)} rubrics[/green]")
 
             if messages:
+                console.print(f"[dim]  Deduplicating {len(messages)} messages...[/dim]")
                 extractor = PromptExtractor()
                 prompt_library = extractor.extract(messages)
-                console.print(f"[green]✓ Extracted {prompt_library.unique_count} prompts[/green]")
+                console.print(f"[green]✓ Extracted {prompt_library.unique_count} unique prompts[/green]")
 
             if contexts:
                 detector = ContextStrategyDetector()
@@ -1553,6 +1655,446 @@ def generate(gen_type: str, count: int, context: str, output: str):
     if output:
         generator.export_jsonl(result, output)
         console.print(f"\n[green]Exported to {output}[/green]")
+
+
+@main.command("deep-analyze")
+@click.argument("dataset_id")
+@click.option("--output-dir", "-o", default="./analysis_output", help="Output directory")
+@click.option("--sample-size", "-n", default=500, help="Number of samples to analyze")
+@click.option("--size", "-s", default=None, type=int, help="Target dataset size (for cost estimation)")
+@click.option("--region", "-r", default="china", help="Region for cost calculation")
+def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, region: str):
+    """
+    Run comprehensive deep analysis on a dataset.
+
+    Generates both JSON data files and a human-readable Markdown report.
+
+    Example:
+        datarecipe deep-analyze tencent/CL-bench -o ./output
+    """
+    import json
+    import os
+    from datetime import datetime
+    from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
+    from datarecipe.analyzers import ContextStrategyDetector
+    from datarecipe.generators import HumanMachineSplitter, TaskType
+
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+
+    console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
+    console.print(f"[bold cyan]  DataRecipe 深度逆向分析[/bold cyan]")
+    console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+    console.print(f"数据集: [bold]{dataset_id}[/bold]")
+    console.print(f"输出目录: [bold]{output_dir}[/bold]\n")
+
+    # Initialize results
+    rubrics_result = None
+    prompt_library = None
+    strategy_result = None
+    actual_size = size
+
+    try:
+        from datasets import load_dataset
+        ds = load_dataset(dataset_id, split="train", streaming=True)
+
+        rubrics = []
+        messages = []
+        contexts = []
+        sample_count = 0
+
+        console.print("[dim]📥 加载数据集...[/dim]")
+        for i, item in enumerate(ds):
+            if i >= sample_size:
+                break
+            sample_count = i + 1
+
+            if i > 0 and i % 100 == 0:
+                console.print(f"[dim]   已处理 {i}/{sample_size} 样本[/dim]")
+
+            # Collect rubrics
+            for field in ["rubrics", "rubric", "criteria"]:
+                if field in item:
+                    value = item[field]
+                    if isinstance(value, list):
+                        rubrics.extend(value)
+                    elif isinstance(value, str):
+                        rubrics.append(value)
+
+            # Collect messages
+            if "messages" in item and isinstance(item["messages"], list):
+                messages.extend(item["messages"])
+
+            # Collect contexts from various fields
+            context_found = False
+            for field in ["context", "input", "text", "document", "passage", "content"]:
+                if field in item and isinstance(item[field], str) and len(item[field]) > 50:
+                    contexts.append(item[field])
+                    context_found = True
+                    break
+
+            # Also extract user messages as context
+            if not context_found and "messages" in item and isinstance(item["messages"], list):
+                for msg in item["messages"]:
+                    if isinstance(msg, dict) and msg.get("role") == "user":
+                        content = msg.get("content", "")
+                        if isinstance(content, str) and len(content) > 100:
+                            contexts.append(content)
+                            break
+
+        if actual_size is None:
+            actual_size = sample_count
+
+        console.print(f"[green]✓ 加载完成: {sample_count} 样本[/green]\n")
+
+        # 1. Rubrics Analysis
+        if rubrics:
+            console.print("[dim]📊 分析评分标准...[/dim]")
+            analyzer = RubricsAnalyzer()
+            rubrics_result = analyzer.analyze(rubrics, task_count=sample_count)
+
+            # Save JSON
+            with open(os.path.join(output_dir, "rubrics_analysis.json"), "w", encoding="utf-8") as f:
+                json.dump(analyzer.to_dict(rubrics_result), f, indent=2, ensure_ascii=False)
+
+            # Save structured templates (YAML + Markdown)
+            with open(os.path.join(output_dir, "rubric_templates.yaml"), "w", encoding="utf-8") as f:
+                f.write(analyzer.to_yaml_templates(rubrics_result))
+            with open(os.path.join(output_dir, "rubric_templates.md"), "w", encoding="utf-8") as f:
+                f.write(analyzer.to_markdown_templates(rubrics_result))
+            console.print(f"[green]✓ 评分标准: {len(rubrics)} 条, {rubrics_result.unique_patterns} 种模式[/green]")
+
+        # 2. Prompt Extraction
+        if messages:
+            console.print("[dim]📝 提取 Prompt 模板...[/dim]")
+            extractor = PromptExtractor()
+            prompt_library = extractor.extract(messages)
+
+            # Save JSON
+            with open(os.path.join(output_dir, "prompt_templates.json"), "w", encoding="utf-8") as f:
+                json.dump(extractor.to_dict(prompt_library), f, indent=2, ensure_ascii=False)
+            console.print(f"[green]✓ Prompt模板: {prompt_library.unique_count} 个独特模板[/green]")
+
+        # 3. Context Strategy
+        if contexts:
+            console.print("[dim]🔍 检测上下文策略...[/dim]")
+            detector = ContextStrategyDetector()
+            strategy_result = detector.analyze(contexts[:100])
+
+            # Save JSON
+            with open(os.path.join(output_dir, "context_strategy.json"), "w", encoding="utf-8") as f:
+                json.dump(detector.to_dict(strategy_result), f, indent=2, ensure_ascii=False)
+            console.print(f"[green]✓ 策略检测: {strategy_result.primary_strategy.value} (置信度 {strategy_result.confidence:.1%})[/green]")
+
+        # 4. Human-Machine Allocation
+        console.print("[dim]⚙️ 计算人机分配...[/dim]")
+        splitter = HumanMachineSplitter(region=region)
+        allocation = splitter.analyze(
+            dataset_size=actual_size,
+            task_types=[
+                TaskType.CONTEXT_CREATION,
+                TaskType.TASK_DESIGN,
+                TaskType.RUBRICS_WRITING,
+                TaskType.DATA_GENERATION,
+                TaskType.QUALITY_REVIEW,
+            ]
+        )
+
+        # Save JSON
+        allocation_dict = splitter.to_dict(allocation)
+        with open(os.path.join(output_dir, "allocation.json"), "w", encoding="utf-8") as f:
+            json.dump(allocation_dict, f, indent=2, ensure_ascii=False)
+        console.print(f"[green]✓ 人机分配: 人工 {allocation.human_work_percentage:.0f}%, 机器 {allocation.machine_work_percentage:.0f}%[/green]")
+
+        # 5. Generate Comprehensive Markdown Report
+        console.print("\n[dim]📄 生成综合报告...[/dim]")
+        report = _generate_analysis_report(
+            dataset_id=dataset_id,
+            sample_count=sample_count,
+            actual_size=actual_size,
+            rubrics_result=rubrics_result,
+            prompt_library=prompt_library,
+            strategy_result=strategy_result,
+            allocation=allocation,
+            region=region,
+        )
+
+        report_path = os.path.join(output_dir, "ANALYSIS_REPORT.md")
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(report)
+        console.print(f"[green]✓ 综合报告已保存[/green]")
+
+        # Summary
+        console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
+        console.print("[bold cyan]  分析完成[/bold cyan]")
+        console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+
+        console.print("生成的文件:")
+        for fname in os.listdir(output_dir):
+            fpath = os.path.join(output_dir, fname)
+            fsize = os.path.getsize(fpath)
+            if fsize > 1024 * 1024:
+                size_str = f"{fsize / 1024 / 1024:.1f}MB"
+            elif fsize > 1024:
+                size_str = f"{fsize / 1024:.1f}KB"
+            else:
+                size_str = f"{fsize}B"
+            icon = "📊" if fname.endswith(".json") else "📄"
+            console.print(f"  {icon} {fname} ({size_str})")
+
+        console.print(f"\n[bold]查看报告: [cyan]{report_path}[/cyan][/bold]")
+
+    except Exception as e:
+        console.print(f"[red]错误: {e}[/red]")
+        import traceback
+        traceback.print_exc()
+
+
+def _generate_analysis_report(
+    dataset_id: str,
+    sample_count: int,
+    actual_size: int,
+    rubrics_result,
+    prompt_library,
+    strategy_result,
+    allocation,
+    region: str,
+) -> str:
+    """Generate a comprehensive Markdown analysis report."""
+    from datetime import datetime
+
+    lines = []
+    lines.append(f"# 🔬 {dataset_id} 深度逆向分析报告")
+    lines.append("")
+    lines.append(f"> **分析日期**: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"> **数据集**: {dataset_id}")
+    lines.append(f"> **分析样本**: {sample_count} 条")
+    lines.append(f"> **目标规模**: {actual_size:,} 条")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # Executive Summary
+    lines.append("## 📊 执行摘要")
+    lines.append("")
+    lines.append("| 维度 | 发现 |")
+    lines.append("|------|------|")
+
+    if rubrics_result:
+        lines.append(f"| **评分标准** | {rubrics_result.total_rubrics:,} 条，{rubrics_result.unique_patterns:,} 种独特模式 |")
+    if prompt_library:
+        lines.append(f"| **Prompt模板** | {prompt_library.unique_count} 个去重后的系统提示模板 |")
+    if strategy_result:
+        lines.append(f"| **数据来源** | 混合策略（合成 {strategy_result.synthetic_score*100:.0f}% + 改编 {strategy_result.modified_score*100:.0f}% + 专业 {strategy_result.niche_score*100:.0f}%） |")
+
+    lines.append(f"| **复现成本** | 约 ${allocation.total_cost:,.0f}（人工 ${allocation.total_human_cost:,.0f} + API ${allocation.total_machine_cost:,.0f}） |")
+    lines.append(f"| **人机分配** | 人工 {allocation.human_work_percentage:.0f}%，机器 {allocation.machine_work_percentage:.0f}% |")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # Rubrics Analysis
+    if rubrics_result:
+        lines.append("## 1️⃣ 评分标准（Rubrics）模式分析")
+        lines.append("")
+        lines.append("### 1.1 总体统计")
+        lines.append("")
+        lines.append(f"- **总数**: {rubrics_result.total_rubrics:,} 条评分标准")
+        lines.append(f"- **独特模式**: {rubrics_result.unique_patterns:,} 种")
+        lines.append(f"- **平均每任务**: {rubrics_result.avg_rubrics_per_task:.1f} 条")
+        lines.append("")
+
+        lines.append("### 1.2 高频动词分布")
+        lines.append("")
+        lines.append("| 排名 | 动词 | 出现次数 | 占比 |")
+        lines.append("|------|------|----------|------|")
+
+        sorted_verbs = sorted(rubrics_result.verb_distribution.items(), key=lambda x: -x[1])[:10]
+        for i, (verb, count) in enumerate(sorted_verbs, 1):
+            pct = count / rubrics_result.total_rubrics * 100
+            lines.append(f"| {i} | **{verb}** | {count:,} | {pct:.1f}% |")
+        lines.append("")
+
+        lines.append("### 1.3 评分类别分布")
+        lines.append("")
+        sorted_cats = sorted(rubrics_result.category_distribution.items(), key=lambda x: -x[1])
+        for cat, count in sorted_cats[:5]:
+            pct = count / rubrics_result.total_rubrics * 100
+            bar_len = int(pct / 2.5)
+            bar = "█" * bar_len
+            lines.append(f"- **{cat}**: {bar} {pct:.1f}% ({count:,})")
+        lines.append("")
+
+        if rubrics_result.structured_templates:
+            lines.append("### 1.4 模板化结构（Top 5）")
+            lines.append("")
+            lines.append("| 类别 | 动作 | 目标 | 条件 | 频次 |")
+            lines.append("|------|------|------|------|------|")
+            for entry in rubrics_result.structured_templates[:5]:
+                action = entry.get("action") or "N/A"
+                target = entry.get("target") or "N/A"
+                condition = entry.get("condition") or "—"
+                freq = entry.get("frequency", 0)
+                lines.append(
+                    f"| {entry.get('category', 'general')} | {action} | {target} | {condition} | {freq} |"
+                )
+            lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    # Prompt Templates
+    if prompt_library:
+        lines.append("## 2️⃣ 系统提示（System Prompt）模板分析")
+        lines.append("")
+        lines.append("### 2.1 提取统计")
+        lines.append("")
+        lines.append(f"- **原始数量**: {prompt_library.total_extracted} 条")
+        lines.append(f"- **去重后**: {prompt_library.unique_count} 个独特模板")
+        lines.append(f"- **去重率**: {prompt_library.deduplication_ratio:.1%}")
+        lines.append(f"- **平均长度**: {prompt_library.avg_length:,.0f} 字符")
+        lines.append("")
+
+        lines.append("### 2.2 模板分类")
+        lines.append("")
+        lines.append("| 类别 | 数量 | 说明 |")
+        lines.append("|------|------|------|")
+        category_desc = {
+            "system": "系统角色设定",
+            "constraint": "约束条件",
+            "task": "任务说明",
+            "format": "格式要求",
+            "example": "示例说明",
+            "other": "其他类型",
+        }
+        for cat, count in sorted(prompt_library.category_counts.items(), key=lambda x: -x[1]):
+            desc = category_desc.get(cat, cat)
+            lines.append(f"| **{cat}** | {count} | {desc} |")
+        lines.append("")
+
+        if prompt_library.domain_counts:
+            lines.append("### 2.3 领域分布")
+            lines.append("")
+            for domain, count in sorted(prompt_library.domain_counts.items(), key=lambda x: -x[1])[:5]:
+                pct = count / prompt_library.unique_count * 100
+                lines.append(f"- **{domain}**: {count} ({pct:.0f}%)")
+            lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    # Context Strategy
+    if strategy_result:
+        lines.append("## 3️⃣ 上下文构造策略分析")
+        lines.append("")
+        lines.append("### 3.1 策略识别")
+        lines.append("")
+        lines.append(f"**主要策略**: {strategy_result.primary_strategy.value}")
+        lines.append(f"**置信度**: {strategy_result.confidence:.1%}")
+        lines.append("")
+
+        lines.append("### 3.2 策略得分")
+        lines.append("")
+        lines.append("| 策略 | 得分 | 说明 |")
+        lines.append("|------|------|------|")
+        lines.append(f"| 🔧 合成生成 | {strategy_result.synthetic_score*100:.1f}% | 使用 AI 模型生成虚构内容 |")
+        lines.append(f"| 📝 改编修改 | {strategy_result.modified_score*100:.1f}% | 基于真实来源改编 |")
+        lines.append(f"| 🔬 专业领域 | {strategy_result.niche_score*100:.1f}% | 专业/小众领域内容 |")
+        lines.append("")
+
+        lines.append("### 3.3 检测到的指标")
+        lines.append("")
+        if strategy_result.synthetic_indicators:
+            lines.append("**🔧 合成生成**")
+            for ind in strategy_result.synthetic_indicators[:5]:
+                lines.append(f"- `{ind}`")
+            lines.append("")
+        if strategy_result.modified_indicators:
+            lines.append("**📝 改编修改**")
+            for ind in strategy_result.modified_indicators[:5]:
+                lines.append(f"- `{ind}`")
+            lines.append("")
+        if strategy_result.niche_indicators:
+            lines.append("**🔬 专业领域**")
+            for ind in strategy_result.niche_indicators[:5]:
+                lines.append(f"- `{ind}`")
+            lines.append("")
+
+        if strategy_result.recommendations:
+            lines.append("### 3.4 复现建议")
+            lines.append("")
+            for rec in strategy_result.recommendations:
+                lines.append(f"- {rec}")
+            lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    # Human-Machine Allocation
+    lines.append("## 4️⃣ 人机任务分配")
+    lines.append("")
+    lines.append("### 4.1 分配总览")
+    lines.append("")
+    human_pct = allocation.human_work_percentage
+    machine_pct = allocation.machine_work_percentage
+    human_bar = "█" * int(human_pct / 2.5)
+    machine_bar = "█" * int(machine_pct / 2.5)
+    lines.append(f"- 人工工作: {human_bar} **{human_pct:.0f}%**")
+    lines.append(f"- 机器工作: {machine_bar} **{machine_pct:.0f}%**")
+    lines.append("")
+
+    lines.append("### 4.2 任务明细")
+    lines.append("")
+    lines.append("| 任务 | 分配方式 | 人工占比 | 人工时长 | 人工成本 | 机器成本 |")
+    lines.append("|------|----------|----------|----------|----------|----------|")
+
+    decision_zh = {
+        "human_only": "纯人工",
+        "machine_only": "纯机器",
+        "human_primary": "人工为主",
+        "machine_primary": "机器为主",
+        "balanced": "均衡",
+    }
+    for task in allocation.tasks:
+        dec = decision_zh.get(task.decision.value, task.decision.value)
+        lines.append(f"| **{task.task_name}** | {dec} | {task.human_percentage:.0f}% | {task.human_hours:.1f}h | ${task.human_cost:,.0f} | ${task.machine_cost:.1f} |")
+    lines.append("")
+
+    lines.append("### 4.3 成本估算")
+    lines.append("")
+    lines.append("| 项目 | 金额 |")
+    lines.append("|------|------|")
+    lines.append(f"| 人工成本 | ${allocation.total_human_cost:,.0f} |")
+    lines.append(f"| API/机器成本 | ${allocation.total_machine_cost:,.0f} |")
+    lines.append(f"| **总计** | **${allocation.total_cost:,.0f}** |")
+    lines.append(f"| 预估节省 | ${allocation.estimated_savings_vs_all_human:,.0f}（相比全人工） |")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # Recommendations
+    lines.append("## 5️⃣ 复现建议")
+    lines.append("")
+    lines.append("### 5.1 团队配置")
+    lines.append("")
+    lines.append("| 角色 | 人数 | 职责 |")
+    lines.append("|------|------|------|")
+    lines.append("| 领域专家 | 4 | 创建和审核上下文内容 |")
+    lines.append("| 任务设计师 | 2 | 设计评估任务和问题 |")
+    lines.append("| 标注员 | 4 | 编写评分标准和标注 |")
+    lines.append("| QA审核员 | 2 | 质量保证和验证 |")
+    lines.append("| 项目经理 | 1 | 协调团队和进度跟踪 |")
+    lines.append("")
+
+    lines.append("### 5.2 质量检查点")
+    lines.append("")
+    lines.append("- [ ] 上下文内容是原创的（不在训练数据中）")
+    lines.append("- [ ] 任务需要上下文才能回答")
+    lines.append("- [ ] 评分标准遵循已发现的模式")
+    lines.append("- [ ] 通过交叉验证审核")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("*报告由 DataRecipe 自动生成*")
+
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

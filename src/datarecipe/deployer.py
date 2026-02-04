@@ -107,6 +107,7 @@ class ProductionDeployer:
         provider: str = "local",
         config: Optional[ProductionConfig] = None,
         profile: Optional[AnnotatorProfile] = None,
+        submit: bool = True,
     ) -> DeploymentResult:
         """部署投产项目
 
@@ -180,8 +181,18 @@ class ProductionDeployer:
                 )
 
             # 对于平台 provider，提交项目
-            result = p.submit(handle)
-            return result
+            if submit:
+                result = p.submit(handle)
+                return result
+
+            return DeploymentResult(
+                success=True,
+                project_handle=handle,
+                details={
+                    "warnings": validation.warnings,
+                    "message": "配置已生成，未自动提交。使用 provider API 手动提交。",
+                },
+            )
 
         except Exception as e:
             return DeploymentResult(
