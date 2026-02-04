@@ -2,52 +2,59 @@
 
 # DataRecipe
 
-**Reverse engineering framework for AI datasets**
+**AI 数据集逆向工程框架**
 
 [![PyPI](https://img.shields.io/pypi/v/datarecipe?color=blue)](https://pypi.org/project/datarecipe/)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Installation](#installation) · [Usage](#usage) · [Deep Analysis](#deep-analysis) · [Commands](#commands)
+[快速开始](#快速开始) · [核心功能](#核心功能) · [深度分析](#深度分析) · [命令参考](#命令参考)
 
 </div>
 
 ---
 
-Analyze how any AI dataset was built, then turn insights into production-ready assets。
+解析任意 AI 数据集的构建方式，提取可复用的模式，生成生产级资产。
 
-## Why DataRecipe?
-
-| 目标 | DataRecipe 产物 |
-|------|-----------------|
-| 快速摸清数据集构成 | `analyze` / `deep-analyze` 输出 README 级“成分表”|
-| 复用高质量评测标准 | 自动导出 `rubric_templates.yaml` / `.md`，结构化 action / target / condition |
-| 推导 Prompt / 上下文策略 | `prompt_templates.json`、`context_strategy.json` 带分类统计与示例 |
-| 估算成本与人机分工 | `allocation.json` + CLI 展示人机比例、成本拆分 |
-| 生成生产指南与脚手架 | `datarecipe guide / deploy / workflow` 直接输出 Markdown + 项目结构 |
-
-典型流程：
+## 核心价值
 
 ```
-deep-analyze  →  rubric_templates.md  →  guide / workflow  →  deploy
+数据集 → 深度分析 → 可复用模板 → 生产指南 → 项目脚手架
 ```
 
-## Installation
+| 目标 | 产出物 |
+|------|--------|
+| 摸清数据集构成 | `analyze` / `deep-analyze` 生成完整分析报告 |
+| 复用评测标准 | `rubric_templates.yaml` / `.md` 结构化模板 |
+| 提取 Prompt 策略 | `prompt_templates.json` + `context_strategy.json` |
+| 估算成本与分工 | `allocation.json` 人机比例、成本拆分 |
+| 生成生产指南 | `guide` / `deploy` / `workflow` 输出 Markdown + 项目结构 |
+
+## 安装
 
 ```bash
 pip install datarecipe
 ```
 
-## Usage
+可选依赖：
 
-### Analyze a dataset
+```bash
+pip install datarecipe[llm]      # LLM 分析 (Anthropic/OpenAI)
+pip install datarecipe[quality]  # 质量分析
+pip install datarecipe[mcp]      # MCP 服务器
+pip install datarecipe[all]      # 全部功能
+```
+
+## 快速开始
+
+### 分析数据集
 
 ```bash
 datarecipe analyze Anthropic/hh-rlhf
 ```
 
 <details>
-<summary>Output</summary>
+<summary>输出示例</summary>
 
 ```
 ╭──────────────────────── Dataset Recipe ────────────────────────╮
@@ -64,14 +71,14 @@ datarecipe analyze Anthropic/hh-rlhf
 
 </details>
 
-### Get annotator profile & cost estimate
+### 获取标注画像与成本估算
 
 ```bash
 datarecipe profile nguha/legalbench --region china
 ```
 
 <details>
-<summary>Output</summary>
+<summary>输出示例</summary>
 
 ```
 ╭──────────────────── Annotator Profile ─────────────────────╮
@@ -91,7 +98,7 @@ datarecipe profile nguha/legalbench --region china
 
 </details>
 
-### Generate production materials
+### 生成项目脚手架
 
 ```bash
 datarecipe deploy AI-MO/NuminaMath-CoT -o ./my_project
@@ -99,20 +106,18 @@ datarecipe deploy AI-MO/NuminaMath-CoT -o ./my_project
 
 ---
 
-## Deep Analysis
+## 深度分析
 
-Extract actionable patterns from any dataset for reproduction at scale.
+从数据集中提取可复用的模式，支持规模化复现。
 
-### Comprehensive analysis (recommended)
-
-Run all analyses at once and generate a human-readable report:
+### 一键深度分析
 
 ```bash
 datarecipe deep-analyze tencent/CL-bench -o ./output --size 1899
 ```
 
 <details>
-<summary>Output</summary>
+<summary>输出示例</summary>
 
 ```
 ============================================================
@@ -138,28 +143,28 @@ datarecipe deep-analyze tencent/CL-bench -o ./output --size 1899
 ✓ 综合报告已保存
 
 ============================================================
-  分析完成
+  生成的文件
 ============================================================
 
-生成的文件:
-  📊 prompt_templates.json (6.4MB)
-  📊 context_strategy.json (1.6KB)
-  📊 allocation.json (2.5KB)
-  📊 rubrics_analysis.json (63.2KB)
-  📑 rubric_templates.yaml / rubric_templates.md  ← 结构化 Rubric 模板库
-  📄 ANALYSIS_REPORT.md (4.6KB)   ← 人类可读报告
+  📊 prompt_templates.json      Prompt 模板库
+  📊 context_strategy.json      上下文策略分析
+  📊 allocation.json            人机分配方案
+  📊 rubrics_analysis.json      评分标准分析
+  📑 rubric_templates.yaml      结构化 Rubric 模板
+  📑 rubric_templates.md        可读 Rubric 文档
+  📄 ANALYSIS_REPORT.md         综合分析报告
 ```
 
 </details>
 
-### Extract rubrics patterns
+### 提取评分标准
 
 ```bash
-datarecipe extract-rubrics tencent/CL-bench
+datarecipe extract-rubrics tencent/CL-bench -o rubrics.json
 ```
 
 <details>
-<summary>Output</summary>
+<summary>输出示例</summary>
 
 ```
 ╭────────────────────── Rubrics Analysis ──────────────────────╮
@@ -180,22 +185,21 @@ datarecipe extract-rubrics tencent/CL-bench
 ╰──────────────────────────────────────────────────────────────╯
 ```
 
-同时使用 `-o rubrics.json` 可获得：
-
-- `rubrics.json`：详细统计 + 模式列表
-- `rubrics_templates.yaml`：可复用的结构化模板（action/target/condition）
-- `rubrics_templates.md`：面向非技术干系人的 Markdown 说明
+生成文件：
+- `rubrics.json` - 详细统计与模式列表
+- `rubrics_templates.yaml` - 结构化模板 (action/target/condition)
+- `rubrics_templates.md` - Markdown 格式说明文档
 
 </details>
 
-### Generate human-machine allocation
+### 人机分配估算
 
 ```bash
 datarecipe allocate --size 10000 --region china
 ```
 
 <details>
-<summary>Output</summary>
+<summary>输出示例</summary>
 
 ```
 ╭─────────────────── Allocation Summary ───────────────────╮
@@ -217,54 +221,53 @@ datarecipe allocate --size 10000 --region china
 
 </details>
 
-### Generate data from patterns
+---
 
-```bash
-datarecipe generate --type rubrics --context "game rules" --count 10
-```
+## 命令参考
+
+### 基础分析
+
+| 命令 | 功能 |
+|------|------|
+| `analyze <dataset>` | 提取数据集「配方」(来源、方法、可复现性) |
+| `profile <dataset>` | 生成标注员画像与成本估算 |
+| `cost <dataset>` | 估算 API 合成成本 |
+| `quality <dataset>` | 分析数据质量分布 |
+
+### 深度逆向
+
+| 命令 | 功能 |
+|------|------|
+| `deep-analyze <dataset>` | 运行全部分析，生成综合报告 |
+| `extract-rubrics <dataset>` | 提取评分标准模式 |
+| `extract-prompts <dataset>` | 提取 Prompt 模板 |
+| `detect-strategy <dataset>` | 检测上下文构造策略 |
+| `allocate` | 生成人机分配方案与成本 |
+| `generate` | 基于提取模式生成数据 |
+
+### 生产输出
+
+| 命令 | 功能 |
+|------|------|
+| `deploy <dataset>` | 输出生产级项目结构 |
+| `guide <dataset>` | 生成复现指南 |
+| `workflow <dataset>` | 生成完整复现工作流 |
+| `enhanced-guide <dataset>` | 结合发现模式生成增强指南 |
+
+### 批量操作
+
+| 命令 | 功能 |
+|------|------|
+| `batch <datasets...>` | 批量分析多个数据集 |
+| `compare <datasets...>` | 并排对比多个数据集 |
 
 ---
 
-## Commands
+## MCP 服务器
 
-### Core Analysis
+在 Claude Desktop 中直接使用 DataRecipe。
 
-| Command | Description |
-|---------|-------------|
-| `analyze` | Extract dataset "recipe" (methods, sources, reproducibility) |
-| `profile` | Generate annotator requirements and cost estimates |
-| `deploy` | Output production-ready project materials |
-| `cost` | Estimate API costs for synthetic generation |
-| `quality` | Analyze data quality distribution |
-
-### Deep Reverse Engineering
-
-| Command | Description |
-|---------|-------------|
-| `deep-analyze` | **Run all analyses and generate comprehensive report** |
-| `extract-rubrics` | Extract evaluation criteria patterns (verbs, templates) |
-| `extract-prompts` | Extract and deduplicate system prompt templates |
-| `detect-strategy` | Detect context construction strategy (synthetic/modified/niche) |
-| `allocate` | Generate human-machine task allocation with costs |
-| `enhanced-guide` | Generate production guide with discovered patterns |
-| `generate` | Generate data based on extracted patterns |
-
-### Batch Operations
-
-| Command | Description |
-|---------|-------------|
-| `batch` | Analyze multiple datasets at once |
-| `compare` | Compare multiple datasets side-by-side |
-| `guide` | Generate reproduction guide |
-| `workflow` | Generate complete reproduction workflow |
-
----
-
-## MCP Server
-
-Use DataRecipe directly in Claude Desktop.
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+添加到 `~/Library/Application Support/Claude/claude_desktop_config.json`：
 
 ```json
 {
@@ -277,7 +280,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Then ask Claude: *"Analyze the Anthropic/hh-rlhf dataset"*
+然后询问 Claude：*「分析 Anthropic/hh-rlhf 数据集」*
+
+---
 
 ## License
 
