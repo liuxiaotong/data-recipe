@@ -128,7 +128,8 @@ output/
     ├── prompt_templates.json    # Prompt 模板库
     ├── context_strategy.json    # 上下文策略
     ├── allocation.json          # 人机分配方案
-    └── rubrics_analysis.json    # 原始分析数据
+    ├── rubrics_analysis.json    # 原始分析数据
+    └── llm_analysis.json        # LLM 智能分析 (--use-llm)
 ```
 
 ### 复刻指南 (REPRODUCTION_GUIDE.md)
@@ -184,6 +185,30 @@ output/
 ```
 
 </details>
+
+### LLM 智能分析（未知数据集类型）
+
+当遇到无法识别的数据集类型时，使用 LLM 进行智能分析：
+
+```bash
+# 使用 Anthropic Claude (默认)
+export ANTHROPIC_API_KEY=your_key
+datarecipe deep-analyze unknown/dataset --use-llm
+
+# 使用 OpenAI
+export OPENAI_API_KEY=your_key
+datarecipe deep-analyze unknown/dataset --use-llm --llm-provider openai
+```
+
+LLM 会自动识别数据集类型，并生成：
+- 数据集类型和用途说明
+- 关键字段分析
+- 生产流程 SOP
+- 质量标准
+- 标注指南
+- 团队配置建议
+- 难度评估
+- 相似数据集参考
 
 ### 提取评分标准
 
@@ -267,6 +292,7 @@ datarecipe allocate --size 10000 --region china
 | 命令 | 功能 |
 |------|------|
 | `deep-analyze <dataset>` | 运行全部分析，生成综合报告 |
+| `deep-analyze --use-llm` | 使用 LLM 智能分析未知类型数据集 |
 | `extract-rubrics <dataset>` | 提取评分标准模式 |
 | `extract-prompts <dataset>` | 提取 Prompt 模板 |
 | `detect-strategy <dataset>` | 检测上下文构造策略 |

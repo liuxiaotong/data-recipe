@@ -1664,7 +1664,9 @@ def generate(gen_type: str, count: int, context: str, output: str):
 @click.option("--size", "-s", default=None, type=int, help="Target dataset size (for cost estimation)")
 @click.option("--region", "-r", default="china", help="Region for cost calculation")
 @click.option("--split", default=None, help="Dataset split (auto-detect if not specified)")
-def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, region: str, split: str):
+@click.option("--use-llm", is_flag=True, default=False, help="Use LLM for intelligent analysis of unknown dataset types")
+@click.option("--llm-provider", default="anthropic", type=click.Choice(["anthropic", "openai"]), help="LLM provider for intelligent analysis")
+def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, region: str, split: str, use_llm: bool, llm_provider: str):
     """
     Run comprehensive deep analysis on a dataset.
 
@@ -1679,6 +1681,7 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
     from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
     from datarecipe.analyzers import ContextStrategyDetector
     from datarecipe.generators import HumanMachineSplitter, TaskType
+    from datarecipe.analyzers.llm_dataset_analyzer import LLMDatasetAnalyzer, generate_llm_guide_section, LLMDatasetAnalysis
 
     # Create output directory with dataset subdirectory
     # Convert dataset_id to safe directory name (e.g., "tencent/CL-bench" -> "tencent_CL-bench")
@@ -1729,6 +1732,9 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
         "patch_lines": [],  # list of patch line counts
         "examples": [],  # sample problem statements
     }
+
+    # LLM-based analysis for unknown dataset types
+    llm_analysis = None
 
     try:
         from datasets import load_dataset
@@ -2112,6 +2118,41 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
 
             console.print(f"[green]✓ SWE 分析: {sample_count} 任务, {len(swe_stats['repos'])} 仓库, 主要语言: {top_lang}[/green]")
 
+        # 3.7 LLM-based Analysis for Unknown Dataset Types
+        is_known_type = is_preference_dataset or is_swe_dataset or rubrics or messages
+        if use_llm and not is_known_type:
+            console.print("[dim]🤖 使用 LLM 智能分析数据集...[/dim]")
+            try:
+                llm_analyzer = LLMDatasetAnalyzer(provider=llm_provider)
+                llm_analysis = llm_analyzer.analyze(
+                    dataset_id=dataset_id,
+                    schema_info=schema_info,
+                    sample_items=sample_items,
+                    sample_count=sample_count,
+                )
+                # Save LLM analysis
+                llm_result_dict = {
+                    "dataset_type": llm_analysis.dataset_type,
+                    "purpose": llm_analysis.purpose,
+                    "structure_description": llm_analysis.structure_description,
+                    "key_fields": llm_analysis.key_fields,
+                    "production_steps": llm_analysis.production_steps,
+                    "quality_criteria": llm_analysis.quality_criteria,
+                    "annotation_guidelines": llm_analysis.annotation_guidelines,
+                    "example_analysis": llm_analysis.example_analysis,
+                    "recommended_team": llm_analysis.recommended_team,
+                    "estimated_difficulty": llm_analysis.estimated_difficulty,
+                    "similar_datasets": llm_analysis.similar_datasets,
+                }
+                with open(os.path.join(dataset_output_dir, "llm_analysis.json"), "w", encoding="utf-8") as f:
+                    json.dump(llm_result_dict, f, indent=2, ensure_ascii=False)
+                console.print(f"[green]✓ LLM 分析: 识别为 {llm_analysis.dataset_type} 类型数据集[/green]")
+            except Exception as e:
+                console.print(f"[yellow]⚠ LLM 分析失败: {e}[/yellow]")
+                llm_analysis = None
+        elif use_llm and is_known_type:
+            console.print("[dim]💡 数据集类型已识别，跳过 LLM 分析[/dim]")
+
         # 4. Human-Machine Allocation
         console.print("[dim]⚙️ 计算人机分配...[/dim]")
         splitter = HumanMachineSplitter(region=region)
@@ -2171,6 +2212,8 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             # SWE-bench dataset support
             is_swe_dataset=is_swe_dataset,
             swe_stats=swe_stats,
+            # LLM analysis for unknown types
+            llm_analysis=llm_analysis,
         )
 
         guide_path = os.path.join(dataset_output_dir, "REPRODUCTION_GUIDE.md")
@@ -2472,9 +2515,12 @@ def _generate_reproduction_guide(
     # SWE-bench dataset support
     is_swe_dataset: bool = False,
     swe_stats: dict = None,
+    # LLM analysis for unknown types
+    llm_analysis=None,
 ) -> str:
     """Generate a practical reproduction guide for recreating a similar dataset."""
     import json
+    from datarecipe.analyzers.llm_dataset_analyzer import generate_llm_guide_section
 
     preference_pairs = preference_pairs or []
     preference_topics = preference_topics or {}
@@ -2489,11 +2535,18 @@ def _generate_reproduction_guide(
         lines.append("> **这是一个软件工程评测数据集 (SWE-bench 风格)。本指南提供任务构建规范，帮助你构建类似的代码修复/功能实现评测集。**")
     elif is_preference_dataset:
         lines.append("> **这是一个 RLHF 偏好数据集。本指南提供偏好标注规范，帮助你构建类似的人类偏好数据。**")
+    elif llm_analysis and llm_analysis.dataset_type != "unknown":
+        lines.append(f"> **数据集类型: {llm_analysis.dataset_type}。{llm_analysis.purpose}**")
     else:
         lines.append("> **本指南提供可直接操作的模板和规范，帮助你从零开始构建类似风格的数据集。**")
     lines.append("")
     lines.append("---")
     lines.append("")
+
+    # ==================== LLM Analysis Section (if available) ====================
+    if llm_analysis and llm_analysis.dataset_type != "unknown":
+        lines.append(generate_llm_guide_section(llm_analysis))
+        lines.append("")
 
     # ==================== Section 1: Data Schema ====================
     lines.append("## 1️⃣ 数据结构规范 (Schema)")
