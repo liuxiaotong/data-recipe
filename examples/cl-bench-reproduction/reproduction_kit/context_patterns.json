@@ -1,0 +1,17 @@
+{
+  "format_patterns": {
+    "rulebook": 493,
+    "documentation": 571,
+    "procedure": 194,
+    "data_table": 145,
+    "narrative": 0
+  },
+  "structure_features": {
+    "has_headers": 149,
+    "has_bullets": 1270,
+    "has_numbers": 924,
+    "has_tables": 325,
+    "has_code_blocks": 106,
+    "has_quotes": 44
+  }
+}

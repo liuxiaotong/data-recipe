@@ -1,0 +1,542 @@
+{
+  "Workflow Orchestration": {
+    "count": 229,
+    "parent_category": "Procedural Task Execution",
+    "avg_context_length": 16151,
+    "avg_rubrics": 25.7,
+    "total_rubrics": 5887,
+    "top_verbs": [
+      [
+        "state",
+        34
+      ],
+      [
+        "include",
+        24
+      ],
+      [
+        "not",
+        19
+      ],
+      [
+        "call",
+        19
+      ],
+      [
+        "ensure",
+        18
+      ]
+    ],
+    "sample_task_id": "3aa25b41-ca54-4f14-8754-4bf9902aae9a"
+  },
+  "Technical Standards": {
+    "count": 201,
+    "parent_category": "Rule System Application",
+    "avg_context_length": 30038,
+    "avg_rubrics": 17.2,
+    "total_rubrics": 3454,
+    "top_verbs": [
+      [
+        "include",
+        63
+      ],
+      [
+        "not",
+        54
+      ],
+      [
+        "state",
+        40
+      ],
+      [
+        "have",
+        31
+      ],
+      [
+        "provide",
+        29
+      ]
+    ],
+    "sample_task_id": "1ae25596-346e-4eb9-b2a5-5995cc984a9b"
+  },
+  "Operational Procedures": {
+    "count": 185,
+    "parent_category": "Procedural Task Execution",
+    "avg_context_length": 30616,
+    "avg_rubrics": 16.4,
+    "total_rubrics": 3035,
+    "top_verbs": [
+      [
+        "not",
+        105
+      ],
+      [
+        "include",
+        95
+      ],
+      [
+        "provide",
+        38
+      ],
+      [
+        "be",
+        37
+      ],
+      [
+        "use",
+        37
+      ]
+    ],
+    "sample_task_id": "c78d648c-b96e-43d0-a413-5c57b34638be"
+  },
+  "Game Mechanics": {
+    "count": 137,
+    "parent_category": "Rule System Application",
+    "avg_context_length": 65541,
+    "avg_rubrics": 13.9,
+    "total_rubrics": 1904,
+    "top_verbs": [
+      [
+        "not",
+        106
+      ],
+      [
+        "state",
+        102
+      ],
+      [
+        "explain",
+        81
+      ],
+      [
+        "include",
+        69
+      ],
+      [
+        "provide",
+        48
+      ]
+    ],
+    "sample_task_id": "71a2cd92-6978-4ea8-a37f-d99728129d89"
+  },
+  "Humanities": {
+    "count": 124,
+    "parent_category": "Domain Knowledge Reasoning",
+    "avg_context_length": 22266,
+    "avg_rubrics": 14.7,
+    "total_rubrics": 1824,
+    "top_verbs": [
+      [
+        "not",
+        121
+      ],
+      [
+        "provide",
+        83
+      ],
+      [
+        "state",
+        80
+      ],
+      [
+        "include",
+        63
+      ],
+      [
+        "identify",
+        57
+      ]
+    ],
+    "sample_task_id": "f5365d84-bfa3-4a0d-b4a3-6f76981efc60"
+  },
+  "Management": {
+    "count": 112,
+    "parent_category": "Domain Knowledge Reasoning",
+    "avg_context_length": 13934,
+    "avg_rubrics": 24.4,
+    "total_rubrics": 2734,
+    "top_verbs": [
+      [
+        "include",
+        27
+      ],
+      [
+        "be",
+        15
+      ],
+      [
+        "use",
+        9
+      ],
+      [
+        "state",
+        7
+      ],
+      [
+        "list",
+        4
+      ]
+    ],
+    "sample_task_id": "14f11657-2996-4923-a7a6-4899715eb1b3"
+  },
+  "Healthcare": {
+    "count": 105,
+    "parent_category": "Domain Knowledge Reasoning",
+    "avg_context_length": 26684,
+    "avg_rubrics": 15.8,
+    "total_rubrics": 1654,
+    "top_verbs": [
+      [
+        "not",
+        81
+      ],
+      [
+        "include",
+        46
+      ],
+      [
+        "be",
+        45
+      ],
+      [
+        "provide",
+        38
+      ],
+      [
+        "use",
+        26
+      ]
+    ],
+    "sample_task_id": "9c028fd5-b073-4542-9bd4-3cd5ba43ad9f"
+  },
+  "Finance": {
+    "count": 101,
+    "parent_category": "Domain Knowledge Reasoning",
+    "avg_context_length": 63026,
+    "avg_rubrics": 13.3,
+    "total_rubrics": 1344,
+    "top_verbs": [
+      [
+        "state",
+        68
+      ],
+      [
+        "include",
+        63
+      ],
+      [
+        "not",
+        54
+      ],
+      [
+        "provide",
+        42
+      ],
+      [
+        "correctly",
+        39
+      ]
+    ],
+    "sample_task_id": "71d67b06-5b12-4a77-84c2-73ced6926c97"
+  },
+  "Observational Data": {
+    "count": 95,
+    "parent_category": "Empirical Discovery & Simulation",
+    "avg_context_length": 45131,
+    "avg_rubrics": 18.1,
+    "total_rubrics": 1723,
+    "top_verbs": [
+      [
+        "not",
+        76
+      ],
+      [
+        "state",
+        73
+      ],
+      [
+        "provide",
+        67
+      ],
+      [
+        "be",
+        51
+      ],
+      [
+        "include",
+        39
+      ]
+    ],
+    "sample_task_id": "18d4b25a-ee78-422c-b112-75abedcaaca0"
+  },
+  "Legal & Regulatory": {
+    "count": 92,
+    "parent_category": "Rule System Application",
+    "avg_context_length": 21547,
+    "avg_rubrics": 16.6,
+    "total_rubrics": 1530,
+    "top_verbs": [
+      [
+        "not",
+        41
+      ],
+      [
+        "provide",
+        30
+      ],
+      [
+        "state",
+        28
+      ],
+      [
+        "include",
+        20
+      ],
+      [
+        "be",
+        15
+      ]
+    ],
+    "sample_task_id": "d5bcf3fd-492d-467f-b995-970f85ecf74a"
+  },
+  "Science": {
+    "count": 88,
+    "parent_category": "Domain Knowledge Reasoning",
+    "avg_context_length": 26324,
+    "avg_rubrics": 12.3,
+    "total_rubrics": 1082,
+    "top_verbs": [
+      [
+        "not",
+        94
+      ],
+      [
+        "include",
+        62
+      ],
+      [
+        "be",
+        51
+      ],
+      [
+        "use",
+        42
+      ],
+      [
+        "state",
+        39
+      ]
+    ],
+    "sample_task_id": "6d211644-2a52-4b7e-9b46-be33ea319b49"
+  },
+  "Legal Advisory": {
+    "count": 76,
+    "parent_category": "Domain Knowledge Reasoning",
+    "avg_context_length": 37219,
+    "avg_rubrics": 23.8,
+    "total_rubrics": 1811,
+    "top_verbs": [
+      [
+        "include",
+        40
+      ],
+      [
+        "state",
+        38
+      ],
+      [
+        "not",
+        34
+      ],
+      [
+        "provide",
+        29
+      ],
+      [
+        "use",
+        18
+      ]
+    ],
+    "sample_task_id": "557cc073-a81f-4cb1-b35e-7651e05403c0"
+  },
+  "Mathematical Formalism": {
+    "count": 69,
+    "parent_category": "Rule System Application",
+    "avg_context_length": 37408,
+    "avg_rubrics": 11.6,
+    "total_rubrics": 803,
+    "top_verbs": [
+      [
+        "not",
+        44
+      ],
+      [
+        "be",
+        41
+      ],
+      [
+        "state",
+        41
+      ],
+      [
+        "correctly",
+        29
+      ],
+      [
+        "explain",
+        26
+      ]
+    ],
+    "sample_task_id": "12dd9739-3850-4f38-af79-ad3018990697"
+  },
+  "Programming Syntax": {
+    "count": 67,
+    "parent_category": "Rule System Application",
+    "avg_context_length": 70723,
+    "avg_rubrics": 8.9,
+    "total_rubrics": 595,
+    "top_verbs": [
+      [
+        "include",
+        42
+      ],
+      [
+        "not",
+        38
+      ],
+      [
+        "use",
+        30
+      ],
+      [
+        "explain",
+        27
+      ],
+      [
+        "provide",
+        25
+      ]
+    ],
+    "sample_task_id": "fa2017e0-e25e-4851-a40c-b66501f03ec5"
+  },
+  "Simulation Environment": {
+    "count": 59,
+    "parent_category": "Empirical Discovery & Simulation",
+    "avg_context_length": 67106,
+    "avg_rubrics": 9.8,
+    "total_rubrics": 576,
+    "top_verbs": [
+      [
+        "state",
+        100
+      ],
+      [
+        "include",
+        48
+      ],
+      [
+        "not",
+        41
+      ],
+      [
+        "provide",
+        26
+      ],
+      [
+        "be",
+        22
+      ]
+    ],
+    "sample_task_id": "7badc7f8-ef69-4c47-86a7-7c971e0f3412"
+  },
+  "Instructional Procedures": {
+    "count": 57,
+    "parent_category": "Procedural Task Execution",
+    "avg_context_length": 53473,
+    "avg_rubrics": 9.9,
+    "total_rubrics": 564,
+    "top_verbs": [
+      [
+        "include",
+        47
+      ],
+      [
+        "not",
+        45
+      ],
+      [
+        "provide",
+        43
+      ],
+      [
+        "use",
+        38
+      ],
+      [
+        "be",
+        31
+      ]
+    ],
+    "sample_task_id": "1201e415-a657-473a-943a-4b1b8564861f"
+  },
+  "Lifestyle": {
+    "count": 57,
+    "parent_category": "Domain Knowledge Reasoning",
+    "avg_context_length": 19921,
+    "avg_rubrics": 11.4,
+    "total_rubrics": 650,
+    "top_verbs": [
+      [
+        "not",
+        62
+      ],
+      [
+        "include",
+        44
+      ],
+      [
+        "use",
+        29
+      ],
+      [
+        "state",
+        25
+      ],
+      [
+        "provide",
+        25
+      ]
+    ],
+    "sample_task_id": "0cd43911-38b1-432e-b13d-bdab4cfbabf0"
+  },
+  "Experimental Data": {
+    "count": 45,
+    "parent_category": "Empirical Discovery & Simulation",
+    "avg_context_length": 33697,
+    "avg_rubrics": 9.7,
+    "total_rubrics": 437,
+    "top_verbs": [
+      [
+        "include",
+        34
+      ],
+      [
+        "provide",
+        28
+      ],
+      [
+        "not",
+        27
+      ],
+      [
+        "state",
+        25
+      ],
+      [
+        "explain",
+        17
+      ]
+    ],
+    "sample_task_id": "691700e1-56ac-498e-801d-90186f4b0a5e"
+  }
+}

@@ -512,7 +512,6 @@ class EnhancedCostBreakdown:
 
     # 人力成本
     labor_cost: CostEstimate
-    labor_breakdown: dict = field(default_factory=dict)
 
     # 算力成本
     compute_cost: CostEstimate
@@ -520,7 +519,8 @@ class EnhancedCostBreakdown:
     # 总成本
     total: CostEstimate
 
-    # 元信息
+    # 元信息 (带默认值的字段必须放在后面)
+    labor_breakdown: dict = field(default_factory=dict)
     region: str = "us"
     region_multiplier: float = 1.0
     assumptions: list[str] = field(default_factory=list)

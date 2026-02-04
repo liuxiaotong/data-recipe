@@ -109,7 +109,7 @@ class LocalFilesProvider:
             guide_path.write_text(config.annotation_guide, encoding="utf-8")
             files_created.append(str(guide_path))
 
-        # 5. quality_rules.yaml
+        # 5. quality_rules.yaml + quality_rules.md (人类可读版本)
         if config and config.quality_rules:
             rules_path = output_path / "quality_rules.yaml"
             rules_data = [r.to_dict() for r in config.quality_rules]
@@ -119,7 +119,13 @@ class LocalFilesProvider:
             )
             files_created.append(str(rules_path))
 
-        # 6. acceptance_criteria.yaml
+            # 生成人类可读的 Markdown 版本
+            rules_md_path = output_path / "quality_rules.md"
+            rules_md_content = self._generate_quality_rules_md(config.quality_rules)
+            rules_md_path.write_text(rules_md_content, encoding="utf-8")
+            files_created.append(str(rules_md_path))
+
+        # 6. acceptance_criteria.yaml + acceptance_criteria.md (人类可读版本)
         if config and config.acceptance_criteria:
             criteria_path = output_path / "acceptance_criteria.yaml"
             criteria_data = [c.to_dict() for c in config.acceptance_criteria]
@@ -128,6 +134,12 @@ class LocalFilesProvider:
                 encoding="utf-8"
             )
             files_created.append(str(criteria_path))
+
+            # 生成人类可读的 Markdown 版本
+            criteria_md_path = output_path / "acceptance_criteria.md"
+            criteria_md_content = self._generate_acceptance_criteria_md(config.acceptance_criteria)
+            criteria_md_path.write_text(criteria_md_content, encoding="utf-8")
+            files_created.append(str(criteria_md_path))
 
         # 7. timeline.md
         if config and config.milestones:
@@ -302,6 +314,246 @@ class LocalFilesProvider:
             current += m.estimated_days
         lines.append(f"{'总计':<15} |{'=' * current}")
         lines.append("```")
+
+        return "\n".join(lines)
+
+    def _generate_quality_rules_md(self, rules: list) -> str:
+        """生成人类可读的质检规则文档"""
+        lines = []
+        lines.append("# 质检规则说明")
+        lines.append("")
+        lines.append("本文档定义了数据标注的质量检查规则，确保交付数据符合质量标准。")
+        lines.append("")
+
+        # 规则严重程度说明
+        lines.append("## 严重程度说明")
+        lines.append("")
+        lines.append("| 级别 | 图标 | 含义 | 处理方式 |")
+        lines.append("|------|------|------|----------|")
+        lines.append("| **error** | 🔴 | 严重问题 | 必须修复后才能通过 |")
+        lines.append("| **warning** | 🟡 | 潜在问题 | 建议修复，可酌情放过 |")
+        lines.append("| **info** | 🔵 | 提示信息 | 仅供参考 |")
+        lines.append("")
+
+        # 检查类型说明
+        lines.append("## 检查类型说明")
+        lines.append("")
+        lines.append("| 类型 | 含义 | 示例 |")
+        lines.append("|------|------|------|")
+        lines.append("| **format** | 格式检查 | 字段是否为空、长度是否合规、JSON 格式是否正确 |")
+        lines.append("| **content** | 内容检查 | 事实是否准确、是否有 AI 痕迹、是否符合主题 |")
+        lines.append("| **consistency** | 一致性检查 | 是否与其他数据重复、风格是否统一 |")
+        lines.append("")
+
+        # 规则详情
+        lines.append("## 规则详情")
+        lines.append("")
+
+        # 按类型分组
+        rules_by_type = {}
+        for r in rules:
+            check_type = r.check_type if hasattr(r, 'check_type') else r.get('type', 'other')
+            if check_type not in rules_by_type:
+                rules_by_type[check_type] = []
+            rules_by_type[check_type].append(r)
+
+        type_names = {
+            'format': '📋 格式检查规则',
+            'content': '📝 内容检查规则',
+            'consistency': '🔗 一致性检查规则',
+        }
+
+        for check_type, type_rules in rules_by_type.items():
+            lines.append(f"### {type_names.get(check_type, check_type)}")
+            lines.append("")
+
+            for r in type_rules:
+                rule_id = r.rule_id if hasattr(r, 'rule_id') else r.get('id', '')
+                name = r.name if hasattr(r, 'name') else r.get('name', '')
+                desc = r.description if hasattr(r, 'description') else r.get('description', '')
+                severity = r.severity if hasattr(r, 'severity') else r.get('severity', 'warning')
+                auto = r.auto_check if hasattr(r, 'auto_check') else r.get('auto_check', False)
+
+                # 严重程度图标
+                severity_icon = {'error': '🔴', 'warning': '🟡', 'info': '🔵'}.get(severity, '⚪')
+                auto_label = "✅ 自动检查" if auto else "👤 人工检查"
+
+                lines.append(f"#### {severity_icon} {rule_id}: {name}")
+                lines.append("")
+                lines.append(f"**描述**: {desc}")
+                lines.append("")
+                lines.append(f"- **严重程度**: {severity}")
+                lines.append(f"- **检查方式**: {auto_label}")
+                lines.append("")
+
+        # 使用指南
+        lines.append("## 使用指南")
+        lines.append("")
+        lines.append("### 质检流程")
+        lines.append("")
+        lines.append("1. **自动检查**: 系统自动执行标记为「自动检查」的规则")
+        lines.append("2. **人工抽检**: 质检员随机抽取样本进行人工检查")
+        lines.append("3. **问题标记**: 发现问题的数据标记对应规则 ID")
+        lines.append("4. **修正反馈**: 标注员根据问题反馈进行修正")
+        lines.append("5. **复核验收**: 修正后重新检查直至通过")
+        lines.append("")
+
+        lines.append("### 常见问题")
+        lines.append("")
+        lines.append("**Q: 同时触发多条规则怎么办？**")
+        lines.append("A: 优先处理 error 级别的问题，warning 可在后续批量处理。")
+        lines.append("")
+        lines.append("**Q: 规则判断有歧义怎么办？**")
+        lines.append("A: 联系项目负责人确认，必要时更新规则说明。")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("*由 DataRecipe 生成*")
+
+        return "\n".join(lines)
+
+    def _generate_acceptance_criteria_md(self, criteria: list) -> str:
+        """生成人类可读的验收标准文档"""
+        lines = []
+        lines.append("# 验收标准说明")
+        lines.append("")
+        lines.append("本文档定义了项目验收的量化标准，所有指标达标后方可正式交付。")
+        lines.append("")
+
+        # 总览表
+        lines.append("## 验收指标总览")
+        lines.append("")
+        lines.append("| 指标 | 阈值 | 优先级 | 说明 |")
+        lines.append("|------|------|--------|------|")
+
+        for c in criteria:
+            name = c.name if hasattr(c, 'name') else c.get('name', '')
+            threshold = c.threshold if hasattr(c, 'threshold') else c.get('threshold', 0)
+            priority = c.priority if hasattr(c, 'priority') else c.get('priority', 'required')
+            desc = c.description if hasattr(c, 'description') else c.get('description', '')
+
+            # 优先级图标
+            priority_icon = "🔴 必须" if priority == 'required' else "🟢 建议"
+            threshold_str = f"{threshold * 100:.0f}%" if threshold <= 1 else str(threshold)
+
+            lines.append(f"| **{name}** | ≥ {threshold_str} | {priority_icon} | {desc} |")
+
+        lines.append("")
+
+        # 详细说明
+        lines.append("## 指标详细说明")
+        lines.append("")
+
+        metric_explanations = {
+            'completeness': {
+                'title': '📊 完成率',
+                'what': '衡量标注任务的完成程度',
+                'how': '完成率 = 已完成条数 / 总任务条数 × 100%',
+                'tips': [
+                    '确保所有分配的任务都已处理',
+                    '「无法标注」的数据也计入已完成',
+                    '每日同步进度，及时发现落后情况',
+                ],
+            },
+            'accuracy': {
+                'title': '🎯 准确率',
+                'what': '衡量标注结果的正确程度',
+                'how': '准确率 = 抽检正确数 / 抽检总数 × 100%',
+                'tips': [
+                    '由质检员随机抽样检查',
+                    '与标准答案或专家判断对比',
+                    '低于阈值需要返工修正',
+                ],
+            },
+            'agreement': {
+                'title': '🤝 一致性',
+                'what': '衡量不同标注者之间的标注一致程度',
+                'how': '使用 Cohen\'s Kappa 系数衡量，值域 [-1, 1]',
+                'tips': [
+                    'Kappa ≥ 0.8: 几乎完全一致（优秀）',
+                    'Kappa ≥ 0.6: 基本一致（良好）',
+                    'Kappa < 0.4: 一致性差（需改进）',
+                ],
+            },
+            'format': {
+                'title': '📋 格式合规',
+                'what': '衡量数据格式的规范程度',
+                'how': '格式合规率 = 格式正确条数 / 总条数 × 100%',
+                'tips': [
+                    '使用自动化脚本检查',
+                    'JSON 格式、字段完整性、编码规范',
+                    '格式错误必须 100% 修复',
+                ],
+            },
+            'timeliness': {
+                'title': '⏰ 时效性',
+                'what': '衡量按时完成的情况',
+                'how': '时效性 = 按时完成的里程碑数 / 总里程碑数 × 100%',
+                'tips': [
+                    '每个里程碑有预定完成日期',
+                    '提前预警风险，及时调整',
+                    '合理延期需提前申请',
+                ],
+            },
+        }
+
+        for c in criteria:
+            metric_type = c.metric_type if hasattr(c, 'metric_type') else c.get('type', '')
+            name = c.name if hasattr(c, 'name') else c.get('name', '')
+            threshold = c.threshold if hasattr(c, 'threshold') else c.get('threshold', 0)
+            desc = c.description if hasattr(c, 'description') else c.get('description', '')
+
+            exp = metric_explanations.get(metric_type, {})
+            title = exp.get('title', f"📌 {name}")
+
+            lines.append(f"### {title}")
+            lines.append("")
+            lines.append(f"**定义**: {desc}")
+            lines.append("")
+
+            threshold_str = f"{threshold * 100:.0f}%" if threshold <= 1 else str(threshold)
+            lines.append(f"**验收阈值**: ≥ **{threshold_str}**")
+            lines.append("")
+
+            if 'what' in exp:
+                lines.append(f"**含义**: {exp['what']}")
+                lines.append("")
+
+            if 'how' in exp:
+                lines.append(f"**计算方式**: {exp['how']}")
+                lines.append("")
+
+            if 'tips' in exp:
+                lines.append("**实践建议**:")
+                for tip in exp['tips']:
+                    lines.append(f"- {tip}")
+                lines.append("")
+
+        # 验收流程
+        lines.append("## 验收流程")
+        lines.append("")
+        lines.append("```")
+        lines.append("┌─────────────┐    ┌─────────────┐    ┌─────────────┐")
+        lines.append("│  自检提交   │ -> │  质检审核   │ -> │  最终验收   │")
+        lines.append("└─────────────┘    └─────────────┘    └─────────────┘")
+        lines.append("       │                  │                  │")
+        lines.append("       v                  v                  v")
+        lines.append("  标注团队自查      质检员抽检审核      项目负责人确认")
+        lines.append("  所有指标达标      出具质检报告       签字交付")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("## 不达标处理")
+        lines.append("")
+        lines.append("| 情况 | 处理方式 |")
+        lines.append("|------|----------|")
+        lines.append("| 必须指标未达标 | 返工修正，直至达标 |")
+        lines.append("| 建议指标未达标 | 评估影响，协商处理 |")
+        lines.append("| 多项指标未达标 | 组织复盘，制定改进计划 |")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("*由 DataRecipe 生成*")
 
         return "\n".join(lines)
 
