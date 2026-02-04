@@ -142,15 +142,16 @@ class HuggingFaceExtractor:
     def _detect_teacher_models(self, info, readme_content: Optional[str]) -> list[str]:
         """Detect which teacher models were used."""
         found_models = set()
-        text_to_search = ""
 
-        # Combine all text sources
+        # Combine all text sources efficiently using list + join
+        text_parts = []
         if info.description:
-            text_to_search += info.description.lower() + " "
+            text_parts.append(info.description.lower())
         if readme_content:
-            text_to_search += readme_content.lower() + " "
+            text_parts.append(readme_content.lower())
         if info.tags:
-            text_to_search += " ".join(info.tags).lower() + " "
+            text_parts.append(" ".join(info.tags).lower())
+        text_to_search = " ".join(text_parts)
 
         # Search for known models
         for pattern, model_name in TEACHER_MODEL_PATTERNS:

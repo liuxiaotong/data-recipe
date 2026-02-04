@@ -202,16 +202,21 @@ class Recipe:
         """Export recipe as YAML string."""
         import yaml
 
-        return yaml.dump(self.to_dict(), default_flow_style=False, sort_keys=False)
+        return yaml.dump(
+            self.to_dict(),
+            default_flow_style=False,
+            sort_keys=False,
+            allow_unicode=True
+        )
 
 
 # =============================================================================
-# V2 新增数据模型
+# V2 Extended Data Models
 # =============================================================================
 
 
 class ExperienceLevel(Enum):
-    """标注者经验等级"""
+    """Annotator experience level."""
     JUNIOR = "junior"          # 初级：0-1年
     MID = "mid"                # 中级：1-3年
     SENIOR = "senior"          # 高级：3-5年
@@ -317,18 +322,18 @@ class AnnotatorProfile:
         }
 
     def to_yaml(self) -> str:
-        """导出为 YAML"""
+        """Export as YAML string."""
         import yaml
         return yaml.dump(self.to_dict(), default_flow_style=False, allow_unicode=True)
 
     def to_json(self) -> str:
-        """导出为 JSON"""
+        """Export as JSON string."""
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
 
 @dataclass
 class QualityRule:
-    """质检规则"""
+    """Quality check rule."""
     rule_id: str
     name: str
     description: str
@@ -481,9 +486,9 @@ class EnhancedCost:
 
 @dataclass
 class DataRecipe:
-    """完整的数据配方——v2 版本，串联所有模块"""
+    """Complete data recipe - V2 version with all modules integrated."""
 
-    # === 现有字段（来自 Recipe）===
+    # === Core fields (from Recipe) ===
     name: str
     version: Optional[str] = None
     source_type: SourceType = SourceType.UNKNOWN
@@ -511,14 +516,14 @@ class DataRecipe:
     paper_url: Optional[str] = None
     homepage_url: Optional[str] = None
 
-    # === v2 新增字段 ===
+    # === V2 extended fields ===
     annotator_profile: Optional[AnnotatorProfile] = None
     production_config: Optional[ProductionConfig] = None
     enhanced_cost: Optional[EnhancedCost] = None
 
     @classmethod
     def from_recipe(cls, recipe: Recipe) -> "DataRecipe":
-        """从现有 Recipe 对象创建 DataRecipe"""
+        """Create DataRecipe from an existing Recipe object."""
         return cls(
             name=recipe.name,
             version=recipe.version,
@@ -612,19 +617,19 @@ class DataRecipe:
         return result
 
     def to_yaml(self) -> str:
-        """导出为 YAML"""
+        """Export as YAML string."""
         import yaml
         return yaml.dump(self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True)
 
 
 # =============================================================================
-# Provider 协议相关数据类
+# Provider Protocol Data Classes
 # =============================================================================
 
 
 @dataclass
 class ValidationResult:
-    """配置验证结果"""
+    """Configuration validation result."""
     valid: bool
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -632,10 +637,10 @@ class ValidationResult:
 
 @dataclass
 class AnnotatorMatch:
-    """标注者匹配结果"""
+    """Annotator matching result."""
     annotator_id: str
     name: str
-    match_score: float         # 0-1 匹配度
+    match_score: float         # 0-1 match score
     skills_matched: list[str] = field(default_factory=list)
     skills_missing: list[str] = field(default_factory=list)
     hourly_rate: float = 0.0

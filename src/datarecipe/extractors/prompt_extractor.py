@@ -9,7 +9,7 @@ import hashlib
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Optional
-from difflib import SequenceMatcher
+# from difflib import SequenceMatcher  # Kept for potential fuzzy deduplication
 
 
 @dataclass
@@ -136,14 +136,16 @@ class PromptExtractor:
         r"__(\w+)__",           # __variable__
     ]
 
-    def __init__(self, similarity_threshold: float = 0.85):
+    def __init__(self, similarity_threshold: float = 0.85, max_unique: int = 1000):
         """
         Initialize the extractor.
 
         Args:
             similarity_threshold: Threshold for considering prompts as duplicates
+            max_unique: Maximum number of unique templates to keep (for performance)
         """
         self.similarity_threshold = similarity_threshold
+        self.max_unique = max_unique
 
         # Compile category patterns
         self.category_regexes = {
@@ -321,50 +323,49 @@ class PromptExtractor:
         self,
         templates: list[PromptTemplate]
     ) -> list[PromptTemplate]:
-        """Remove similar templates, keeping the most frequent."""
+        """Remove duplicate templates using hash-based deduplication.
+
+        This is O(n) complexity - fast and efficient for large datasets.
+        Uses content hash for exact match deduplication.
+        """
         if not templates:
             return []
 
-        # Group by similarity
-        groups: list[list[PromptTemplate]] = []
-
+        # Hash-based exact deduplication (O(n))
+        hash_groups: dict[str, list[PromptTemplate]] = {}
         for template in templates:
-            added = False
-            for group in groups:
-                # Compare with first item in group
-                similarity = self._calculate_similarity(
-                    template.content, group[0].content
-                )
-                if similarity >= self.similarity_threshold:
-                    group.append(template)
-                    added = True
-                    break
+            h = template.hash_id
+            if h not in hash_groups:
+                hash_groups[h] = []
+            hash_groups[h].append(template)
 
-            if not added:
-                groups.append([template])
-
-        # Keep representative from each group
+        # Get one representative per unique hash
         unique = []
-        for group in groups:
-            # Sort by length (prefer more complete versions)
+        for group in hash_groups.values():
+            # Prefer longer templates (more complete)
             group.sort(key=lambda t: -t.char_count)
-            representative = group[0]
-            representative.frequency = len(group)
-            unique.append(representative)
+            rep = group[0]
+            rep.frequency = len(group)
+            unique.append(rep)
 
-        # Sort by frequency
+        # Sort by frequency (most common first)
         unique.sort(key=lambda t: -t.frequency)
+
+        # Limit to max_unique for performance
+        if len(unique) > self.max_unique:
+            unique = unique[:self.max_unique]
 
         return unique
 
-    def _calculate_similarity(self, a: str, b: str) -> float:
-        """Calculate similarity between two strings."""
-        # Normalize
-        a = a.lower().strip()
-        b = b.lower().strip()
-
-        # Use SequenceMatcher for similarity
-        return SequenceMatcher(None, a, b).ratio()
+    # NOTE: _calculate_similarity is kept for potential future use in fuzzy deduplication.
+    # Currently we use hash-based exact matching for O(n) performance.
+    # Uncomment and integrate if similarity-based deduplication is needed.
+    #
+    # def _calculate_similarity(self, a: str, b: str) -> float:
+    #     """Calculate similarity between two strings using SequenceMatcher."""
+    #     a = a.lower().strip()
+    #     b = b.lower().strip()
+    #     return SequenceMatcher(None, a, b).ratio()
 
     def _calculate_stats(self, library: PromptLibrary) -> None:
         """Calculate statistics for the library."""

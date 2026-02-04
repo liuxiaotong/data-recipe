@@ -380,7 +380,7 @@ class AnnotatorProfiler:
         minutes = ANNOTATION_TIME_PER_TYPE.get(dataset_type, 5)
 
         # 如果是混合数据集，只需要标注人工部分
-        human_ratio = recipe.human_ratio or 1.0
+        human_ratio = 1.0 if recipe.human_ratio is None else recipe.human_ratio
         effective_size = int(target_size * human_ratio)
 
         hours_per_example = minutes / 60

@@ -42,7 +42,7 @@ class GitHubExtractor:
         # Build recipe
         recipe = Recipe(
             name=repo_info.get("name", repo_id),
-            source_type=SourceType.HUGGINGFACE,  # Using as generic, will show as github
+            source_type=SourceType.GITHUB,
             source_id=repo_id,
             description=repo_info.get("description"),
             license=self._extract_license(repo_info),

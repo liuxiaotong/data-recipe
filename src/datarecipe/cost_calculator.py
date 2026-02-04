@@ -135,19 +135,36 @@ class CostCalculator:
         """Calculate cost breakdown for dataset production.
 
         Args:
-            num_examples: Number of examples to generate
+            num_examples: Number of examples to generate (must be > 0)
             model: LLM model to use
-            avg_input_tokens: Average input tokens per example
-            avg_output_tokens: Average output tokens per example
+            avg_input_tokens: Average input tokens per example (must be > 0)
+            avg_output_tokens: Average output tokens per example (must be > 0)
             human_annotation_type: Type of human annotation (if any)
-            human_annotation_ratio: Ratio of examples needing annotation
+            human_annotation_ratio: Ratio of examples needing annotation (0.0-1.0)
             compute_type: Type of compute resources
-            compute_hours: Total compute hours needed
-            retries: Average retry factor for API calls
+            compute_hours: Total compute hours needed (must be >= 0)
+            retries: Average retry factor for API calls (must be >= 1.0)
 
         Returns:
             CostBreakdown with detailed cost estimates
+
+        Raises:
+            ValueError: If input parameters are invalid
         """
+        # Input validation
+        if num_examples <= 0:
+            raise ValueError(f"num_examples must be positive, got {num_examples}")
+        if avg_input_tokens <= 0:
+            raise ValueError(f"avg_input_tokens must be positive, got {avg_input_tokens}")
+        if avg_output_tokens <= 0:
+            raise ValueError(f"avg_output_tokens must be positive, got {avg_output_tokens}")
+        if not 0.0 <= human_annotation_ratio <= 1.0:
+            raise ValueError(f"human_annotation_ratio must be between 0.0 and 1.0, got {human_annotation_ratio}")
+        if compute_hours < 0:
+            raise ValueError(f"compute_hours must be non-negative, got {compute_hours}")
+        if retries < 1.0:
+            raise ValueError(f"retries must be >= 1.0, got {retries}")
+
         assumptions = []
 
         # API costs
