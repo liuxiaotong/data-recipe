@@ -329,6 +329,24 @@ datarecipe allocate --size 10000 --region china
 | `knowledge --trends` | 查看近期趋势 |
 | `knowledge --recommend <type>` | 获取类型推荐 |
 
+### 缓存管理
+
+| 命令 | 功能 |
+|------|------|
+| `cache --list` | 列出缓存的数据集 |
+| `cache --stats` | 查看缓存统计 |
+| `cache --clear-expired` | 清理过期缓存 |
+| `cache --invalidate <id>` | 使特定缓存失效 |
+| `deep-analyze --force` | 强制重新分析 |
+
+### 自动监听
+
+| 命令 | 功能 |
+|------|------|
+| `watch <dir>` | 监听目录，自动分析新报告 |
+| `watch --once` | 单次检查模式 |
+| `watch --config <yaml>` | 使用配置文件 |
+
 ---
 
 ## 与 ai-dataset-radar 联动
@@ -383,6 +401,63 @@ output/
 │   └── ...
 └── OpenAI_xxx/
     └── ...
+```
+
+---
+
+## 自动化工作流
+
+### 监听 Radar 输出自动分析
+
+```bash
+# 持续监听，每 5 分钟检查一次
+datarecipe watch ./radar_reports/ --interval 300
+
+# 带过滤条件
+datarecipe watch ./reports --orgs Anthropic,OpenAI --min-downloads 1000
+
+# 单次检查
+datarecipe watch ./reports --once
+```
+
+### 配置文件 (triggers.yaml)
+
+```yaml
+triggers:
+  orgs:
+    - Anthropic
+    - OpenAI
+    - Google
+  categories:
+    - preference
+    - sft
+  min_downloads: 500
+  max_datasets_per_report: 10
+  sample_size: 200
+  use_llm: false
+  region: china
+```
+
+```bash
+datarecipe watch ./reports --config ./triggers.yaml
+```
+
+### 缓存机制
+
+分析结果自动缓存，避免重复计算：
+- 缓存目录: `~/.datarecipe/cache/`
+- 默认 TTL: 7 天
+- 自动检测数据集更新（HuggingFace commit hash）
+
+```bash
+# 查看缓存
+datarecipe cache --list
+
+# 强制重新分析（忽略缓存）
+datarecipe deep-analyze dataset/id --force
+
+# 禁用缓存
+datarecipe deep-analyze dataset/id --no-cache
 ```
 
 ---
