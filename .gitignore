@@ -151,6 +151,14 @@ Thumbs.db
 *.cache
 .datarecipe/
 
+# Claude Code (internal tooling)
+.claude/
+CLAUDE.md
+claude_desktop_config.json
+
+# Lock files (not needed for library)
+uv.lock
+
 # Output files
 output/
 recipes/
