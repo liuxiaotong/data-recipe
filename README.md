@@ -14,7 +14,23 @@
 
 ---
 
-Analyze how any AI dataset was built. Extract patterns, generate production guides, and reproduce at scale.
+Analyze how any AI dataset was built, then turn insights into production-ready assets。
+
+## Why DataRecipe?
+
+| 目标 | DataRecipe 产物 |
+|------|-----------------|
+| 快速摸清数据集构成 | `analyze` / `deep-analyze` 输出 README 级“成分表”|
+| 复用高质量评测标准 | 自动导出 `rubric_templates.yaml` / `.md`，结构化 action / target / condition |
+| 推导 Prompt / 上下文策略 | `prompt_templates.json`、`context_strategy.json` 带分类统计与示例 |
+| 估算成本与人机分工 | `allocation.json` + CLI 展示人机比例、成本拆分 |
+| 生成生产指南与脚手架 | `datarecipe guide / deploy / workflow` 直接输出 Markdown + 项目结构 |
+
+典型流程：
+
+```
+deep-analyze  →  rubric_templates.md  →  guide / workflow  →  deploy
+```
 
 ## Installation
 
