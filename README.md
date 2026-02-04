@@ -1,152 +1,100 @@
-<div align="center">
-
 # DataRecipe
 
-**AI 数据集逆向工程框架** | **Reverse Engineering Framework for AI Datasets**
+**AI 数据集逆向工程框架**
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![MCP Server](https://img.shields.io/badge/MCP-Server-purple.svg)](https://modelcontextprotocol.io/)
-
-**逆向分析数据集构建方式 · 生成可复现的生产资料包 · 批量生产同类数据**
-
-[快速开始](#快速开始) · [命令参考](#命令参考) · [English](#english)
-
-</div>
-
----
-
-## 核心能力
-
-DataRecipe 帮你**完整逆向工程**一个 AI 数据集，输出可直接用于批量生产的全套资料。
-
-```
-输入: 任意 AI 数据集 (HuggingFace / GitHub / 本地文件)
-      ↓
-DataRecipe 逆向分析
-      ↓
-输出: 1. 数据集"配方"（构建方法、成本、来源）
-      2. 标注团队画像（技能要求、薪资、招聘建议）
-      3. 生产资料包（标注指南、质检规则、验收标准）
-      4. 模式分析（Prompt 模板、评估标准模式）
-      ↓
-你可以: 批量生产同类高质量数据
-```
-
----
-
-## 安装
+分析任意 AI 数据集的构建方式，生成可用于批量生产同类数据的完整资料包。
 
 ```bash
 pip install datarecipe
-
-# 或使用 uv (推荐)
-uv pip install datarecipe
 ```
 
----
+## 它能做什么
 
-## 快速开始
-
-### 1. 分析数据集
-
-```bash
+```
 datarecipe analyze Anthropic/hh-rlhf
-datarecipe analyze AI-MO/NuminaMath-CoT --json
 ```
 
 ```
-╭─────────────────────────── Dataset Recipe ───────────────────────────╮
-│  Name: AI-MO/NuminaMath-CoT                                          │
-│  Generation: Synthetic 100%                                          │
-│  Teacher Models: None detected                                       │
-│  Reproducibility: [8/10] ████████░░                                  │
-╰──────────────────────────────────────────────────────────────────────╯
+╭──────────────────────── Dataset Recipe ────────────────────────╮
+│  Anthropic/hh-rlhf                                             │
+│                                                                │
+│  Generation    Human 100%                                      │
+│  Method        RLHF preference pairs                           │
+│  Size          161K examples                                   │
+│  Reproduce     [7/10] ███████░░░                               │
+│                                                                │
+│  Missing: exact annotation guidelines, quality criteria        │
+╰────────────────────────────────────────────────────────────────╯
 ```
 
-### 2. 估算标注成本
+## 三个核心命令
+
+### 1. analyze - 逆向分析数据集
+
+提取数据集的"配方"：构建方法、数据来源、合成比例、可复现性评分。
 
 ```bash
-datarecipe profile <dataset> --region china    # 中国人力成本
-datarecipe profile <dataset> --region us       # 美国人力成本
+datarecipe analyze <dataset>              # HuggingFace 数据集
+datarecipe analyze ./local/data.jsonl     # 本地文件
+datarecipe analyze https://github.com/... # GitHub 仓库
 ```
 
-**高价值数据集成本参考：**
+### 2. profile - 生成标注团队画像
 
-| 数据集 | 领域 | 时薪 | 单条成本 |
-|--------|------|------|----------|
-| nguha/legalbench | 法律 | $105 | $44 |
-| openlifescienceai/MedMCQA | 医疗 | $105 | $35 |
-| AI-MO/NuminaMath-CoT | 数学 | $48 | $16 |
-| tatsu-lab/alpaca | 通用 | $6 | $0.5 |
-
-### 3. 生成投产项目
+估算复现该数据集需要的人力配置和成本。
 
 ```bash
-datarecipe deploy <dataset>                    # 默认输出到 ./projects/
-datarecipe deploy <dataset> -o ./my_project    # 自定义目录
+datarecipe profile <dataset> --region china
 ```
 
-生成的项目包含：
+```
+╭──────────────────── Annotator Profile ─────────────────────╮
+│                                                            │
+│  Required Skills                                           │
+│  ├─ Domain: Legal (Expert level)                           │
+│  ├─ Language: English (Native)                             │
+│  └─ Certification: J.D. preferred                          │
+│                                                            │
+│  Cost Estimate (China)                                     │
+│  ├─ Hourly Rate: ¥150-200                                  │
+│  ├─ Per Example: ¥45                                       │
+│  └─ Total (10K examples): ¥450,000                         │
+│                                                            │
+╰────────────────────────────────────────────────────────────╯
+```
+
+### 3. deploy - 生成投产资料包
+
+输出可直接交付给标注团队的完整项目。
+
+```bash
+datarecipe deploy <dataset> -o ./my_project
+```
+
 ```
 my_project/
-├── README.md                 # 项目概述
 ├── annotation_guide.md       # 标注指南
 ├── quality_rules.md          # 质检规则
 ├── acceptance_criteria.md    # 验收标准
-├── timeline.md               # 时间线
-└── scripts/                  # 自动化脚本
+└── timeline.md               # 排期建议
 ```
 
----
+## 更多命令
 
-## 命令参考
+| 命令 | 功能 |
+|------|------|
+| `cost` | 估算 API 调用成本 |
+| `quality` | 分析数据质量分布 |
+| `compare` | 对比多个数据集 |
+| `batch` | 批量分析 |
+| `guide` | 生成复现指南 |
+| `workflow` | 生成工作流模板 |
 
-| 命令 | 功能 | 示例 |
-|------|------|------|
-| `analyze` | 分析数据集元数据 | `datarecipe analyze <dataset>` |
-| `profile` | 生成标注团队画像 | `datarecipe profile <dataset> --region china` |
-| `deploy` | 生成投产项目 | `datarecipe deploy <dataset>` |
-| `cost` | 估算 API/计算成本 | `datarecipe cost <dataset> --model gpt-4o` |
-| `quality` | 质量分析 | `datarecipe quality <dataset>` |
-| `compare` | 对比多个数据集 | `datarecipe compare <ds1> <ds2>` |
+## MCP Server
 
-<details>
-<summary><b>完整命令列表</b></summary>
+支持 Claude Desktop 直接调用。
 
-```bash
-# 分析
-datarecipe analyze <dataset>           # 分析数据集
-datarecipe guide <dataset>             # 生成复现指南
-datarecipe deep-guide <url>            # 深度分析（解析论文）
-datarecipe cost <dataset>              # 成本估算
-datarecipe quality <dataset>           # 质量分析
-
-# 批量操作
-datarecipe batch <ds1> <ds2> ...       # 批量分析
-datarecipe compare <ds1> <ds2>         # 对比数据集
-
-# 投产
-datarecipe profile <dataset>           # 标注团队画像
-datarecipe deploy <dataset>            # 生成投产项目
-datarecipe workflow <dataset>          # 生成复现工作流
-
-# 工具
-datarecipe providers list              # 列出 Provider
-datarecipe create                      # 交互式创建配方
-datarecipe list-sources                # 支持的数据源
-```
-</details>
-
----
-
-## Claude Desktop 集成 (MCP)
-
-DataRecipe 提供 MCP Server，可在 Claude Desktop 中直接使用。
-
-**配置方法:**
-
-编辑 `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
+配置 `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -159,69 +107,29 @@ DataRecipe 提供 MCP Server，可在 Claude Desktop 中直接使用。
 }
 ```
 
-重启 Claude Desktop 后，可直接对话：
-- "分析 Anthropic/hh-rlhf 数据集"
-- "nguha/legalbench 需要什么技能的标注员？"
-- "为 AI-MO/NuminaMath-CoT 创建标注项目"
-
----
-
-## 项目结构
-
-```
-data-recipe/
-├── src/datarecipe/           # 核心代码
-│   ├── analyzer.py           # 数据集分析
-│   ├── profiler.py           # 标注专家画像
-│   ├── deployer.py           # 投产部署
-│   ├── cost_calculator.py    # 成本估算
-│   ├── mcp_server.py         # MCP Server
-│   ├── sources/              # 数据源 (HuggingFace, GitHub, Web)
-│   └── providers/            # 部署 Provider 插件
-├── pyproject.toml
-└── README.md
-```
+然后在 Claude 中直接对话："分析 Anthropic/hh-rlhf 数据集"
 
 ---
 
 ## English
 
-DataRecipe is a **reverse engineering framework for AI datasets**. It analyzes how datasets were built and generates production-ready materials for reproducing similar data at scale.
-
-**Key Capabilities:**
-- Reverse engineer dataset construction methods
-- Extract patterns (prompts, evaluation criteria, rubrics)
-- Generate complete production kits (annotation guides, quality rules, templates)
-- Estimate annotation costs by region (US, China, Europe)
+DataRecipe is a reverse engineering framework for AI datasets. It analyzes how datasets were constructed and generates production-ready materials for reproducing similar data at scale.
 
 **Quick Start:**
+
 ```bash
 pip install datarecipe
+
+# Analyze a dataset
 datarecipe analyze Anthropic/hh-rlhf
-datarecipe deploy AI-MO/NuminaMath-CoT
+
+# Get annotator requirements and cost estimate
+datarecipe profile nguha/legalbench --region us
+
+# Generate production materials
+datarecipe deploy AI-MO/NuminaMath-CoT -o ./output
 ```
 
 ---
 
-## License
-
-MIT License - see [LICENSE](LICENSE)
-
-## Citation
-
-```bibtex
-@software{datarecipe2026,
-  title   = {DataRecipe: Reverse Engineering Framework for AI Datasets},
-  author  = {Liu, Kai},
-  year    = {2026},
-  url     = {https://github.com/liuxiaotong/data-recipe}
-}
-```
-
-<div align="center">
-
----
-
-**[GitHub](https://github.com/liuxiaotong/data-recipe)** · **[Issues](https://github.com/liuxiaotong/data-recipe/issues)**
-
-</div>
+MIT License
