@@ -1663,7 +1663,8 @@ def generate(gen_type: str, count: int, context: str, output: str):
 @click.option("--sample-size", "-n", default=500, help="Number of samples to analyze")
 @click.option("--size", "-s", default=None, type=int, help="Target dataset size (for cost estimation)")
 @click.option("--region", "-r", default="china", help="Region for cost calculation")
-def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, region: str):
+@click.option("--split", default=None, help="Dataset split (auto-detect if not specified)")
+def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, region: str, split: str):
     """
     Run comprehensive deep analysis on a dataset.
 
@@ -1718,9 +1719,39 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
         "chosen_safer": 0,
     }
 
+    # SWE-bench style dataset support
+    is_swe_dataset = False
+    swe_stats = {
+        "repos": {},  # repo -> count
+        "languages": {},  # language -> count
+        "issue_types": {},  # issue type -> count
+        "issue_categories": {},  # category -> count
+        "patch_lines": [],  # list of patch line counts
+        "examples": [],  # sample problem statements
+    }
+
     try:
         from datasets import load_dataset
-        ds = load_dataset(dataset_id, split="train", streaming=True)
+
+        # Auto-detect split if not specified
+        if split is None:
+            try:
+                ds = load_dataset(dataset_id, split="train", streaming=True)
+                split = "train"
+            except ValueError:
+                # Try other common splits
+                for try_split in ["test", "validation", "dev"]:
+                    try:
+                        ds = load_dataset(dataset_id, split=try_split, streaming=True)
+                        split = try_split
+                        console.print(f"[yellow]注意: 使用 '{split}' split (无 train split)[/yellow]")
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    raise ValueError("无法找到可用的 split (尝试: train, test, validation, dev)")
+        else:
+            ds = load_dataset(dataset_id, split=split, streaming=True)
 
         rubrics = []
         messages = []
@@ -1941,6 +1972,62 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
                             "human_query": chosen_turns[0].get("content", "")[:300] if chosen_turns else "",
                         })
 
+            # SWE-bench style dataset detection and analysis
+            if "repo" in item and "patch" in item and "problem_statement" in item:
+                is_swe_dataset = True
+
+                # Collect repo stats
+                repo = item.get("repo", "unknown")
+                swe_stats["repos"][repo] = swe_stats["repos"].get(repo, 0) + 1
+
+                # Collect language stats
+                lang = item.get("repo_language", "unknown")
+                swe_stats["languages"][lang] = swe_stats["languages"].get(lang, 0) + 1
+
+                # Collect issue types
+                issue_spec = item.get("issue_specificity", "")
+                if isinstance(issue_spec, str) and issue_spec.startswith("["):
+                    try:
+                        import ast
+                        types = ast.literal_eval(issue_spec)
+                        for t in types:
+                            swe_stats["issue_types"][t] = swe_stats["issue_types"].get(t, 0) + 1
+                    except Exception:
+                        pass
+                elif isinstance(issue_spec, list):
+                    for t in issue_spec:
+                        swe_stats["issue_types"][t] = swe_stats["issue_types"].get(t, 0) + 1
+
+                # Collect issue categories
+                issue_cats = item.get("issue_categories", "")
+                if isinstance(issue_cats, str) and issue_cats.startswith("["):
+                    try:
+                        import ast
+                        cats = ast.literal_eval(issue_cats)
+                        for c in cats:
+                            swe_stats["issue_categories"][c] = swe_stats["issue_categories"].get(c, 0) + 1
+                    except Exception:
+                        pass
+                elif isinstance(issue_cats, list):
+                    for c in issue_cats:
+                        swe_stats["issue_categories"][c] = swe_stats["issue_categories"].get(c, 0) + 1
+
+                # Count patch lines
+                patch = item.get("patch", "")
+                if isinstance(patch, str):
+                    patch_lines = len([l for l in patch.split("\n") if l.startswith("+") or l.startswith("-")])
+                    swe_stats["patch_lines"].append(patch_lines)
+
+                # Save example problem statements
+                if len(swe_stats["examples"]) < 5:
+                    swe_stats["examples"].append({
+                        "repo": repo,
+                        "language": lang,
+                        "problem_statement": item.get("problem_statement", "")[:800],
+                        "requirements": item.get("requirements", "")[:500],
+                        "patch_lines": patch_lines if isinstance(patch, str) else 0,
+                    })
+
         if actual_size is None:
             actual_size = sample_count
 
@@ -2001,6 +2088,30 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             top_topic = max(preference_topics.items(), key=lambda x: x[1])[0] if preference_topics else "unknown"
             console.print(f"[green]✓ 偏好分析: {sample_count} 对, 主要话题: {top_topic}[/green]")
 
+        # 3.6 SWE-bench Dataset Analysis
+        if is_swe_dataset and swe_stats["repos"]:
+            console.print("[dim]🔧 分析软件工程任务...[/dim]")
+
+            # Calculate statistics
+            avg_patch_lines = sum(swe_stats["patch_lines"]) / len(swe_stats["patch_lines"]) if swe_stats["patch_lines"] else 0
+            top_lang = max(swe_stats["languages"].items(), key=lambda x: x[1])[0] if swe_stats["languages"] else "unknown"
+
+            swe_analysis = {
+                "is_swe_dataset": True,
+                "total_tasks": sample_count,
+                "repos_count": len(swe_stats["repos"]),
+                "repo_distribution": dict(sorted(swe_stats["repos"].items(), key=lambda x: -x[1])[:20]),
+                "language_distribution": swe_stats["languages"],
+                "issue_type_distribution": swe_stats["issue_types"],
+                "issue_category_distribution": swe_stats["issue_categories"],
+                "avg_patch_lines": avg_patch_lines,
+                "examples": swe_stats["examples"],
+            }
+            with open(os.path.join(dataset_output_dir, "swe_analysis.json"), "w", encoding="utf-8") as f:
+                json.dump(swe_analysis, f, indent=2, ensure_ascii=False)
+
+            console.print(f"[green]✓ SWE 分析: {sample_count} 任务, {len(swe_stats['repos'])} 仓库, 主要语言: {top_lang}[/green]")
+
         # 4. Human-Machine Allocation
         console.print("[dim]⚙️ 计算人机分配...[/dim]")
         splitter = HumanMachineSplitter(region=region)
@@ -2057,6 +2168,9 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             preference_pairs=preference_pairs,
             preference_topics=preference_topics,
             preference_patterns=preference_patterns,
+            # SWE-bench dataset support
+            is_swe_dataset=is_swe_dataset,
+            swe_stats=swe_stats,
         )
 
         guide_path = os.path.join(dataset_output_dir, "REPRODUCTION_GUIDE.md")
@@ -2355,6 +2469,9 @@ def _generate_reproduction_guide(
     preference_pairs: list = None,
     preference_topics: dict = None,
     preference_patterns: dict = None,
+    # SWE-bench dataset support
+    is_swe_dataset: bool = False,
+    swe_stats: dict = None,
 ) -> str:
     """Generate a practical reproduction guide for recreating a similar dataset."""
     import json
@@ -2362,12 +2479,15 @@ def _generate_reproduction_guide(
     preference_pairs = preference_pairs or []
     preference_topics = preference_topics or {}
     preference_patterns = preference_patterns or {}
+    swe_stats = swe_stats or {}
 
     lines = []
     lines.append(f"# 📋 {dataset_id} 复刻指南")
     lines.append("")
 
-    if is_preference_dataset:
+    if is_swe_dataset:
+        lines.append("> **这是一个软件工程评测数据集 (SWE-bench 风格)。本指南提供任务构建规范，帮助你构建类似的代码修复/功能实现评测集。**")
+    elif is_preference_dataset:
         lines.append("> **这是一个 RLHF 偏好数据集。本指南提供偏好标注规范，帮助你构建类似的人类偏好数据。**")
     else:
         lines.append("> **本指南提供可直接操作的模板和规范，帮助你从零开始构建类似风格的数据集。**")
@@ -2554,6 +2674,128 @@ def _generate_reproduction_guide(
         lines.append("├─ 步骤 3.2: 不一致样本由第三人仲裁")
         lines.append("└─ 步骤 3.3: 抽样审核，确保标注质量")
         lines.append("```")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    # ==================== Section 2.6: SWE-bench Dataset Guide (if applicable) ====================
+    if is_swe_dataset and swe_stats:
+        lines.append("## 🔧 软件工程评测数据集专用指南")
+        lines.append("")
+        lines.append("这是一个 SWE-bench 风格的软件工程评测数据集，用于评估 AI 代码修复和功能实现能力。")
+        lines.append("")
+
+        # Language distribution
+        if swe_stats.get("languages"):
+            lines.append("### 编程语言分布")
+            lines.append("")
+            lines.append("| 语言 | 数量 | 占比 |")
+            lines.append("|------|------|------|")
+            total = sum(swe_stats["languages"].values())
+            for lang, count in sorted(swe_stats["languages"].items(), key=lambda x: -x[1]):
+                pct = count / total * 100 if total > 0 else 0
+                lines.append(f"| {lang} | {count} | {pct:.1f}% |")
+            lines.append("")
+
+        # Repository distribution
+        if swe_stats.get("repos"):
+            lines.append("### 仓库分布 (Top 10)")
+            lines.append("")
+            lines.append("| 仓库 | 任务数 |")
+            lines.append("|------|--------|")
+            for repo, count in sorted(swe_stats["repos"].items(), key=lambda x: -x[1])[:10]:
+                lines.append(f"| `{repo}` | {count} |")
+            lines.append("")
+
+        # Issue types
+        if swe_stats.get("issue_types"):
+            lines.append("### 问题类型分布")
+            lines.append("")
+            lines.append("| 类型 | 数量 |")
+            lines.append("|------|------|")
+            for itype, count in sorted(swe_stats["issue_types"].items(), key=lambda x: -x[1]):
+                lines.append(f"| `{itype}` | {count} |")
+            lines.append("")
+
+        # Issue categories
+        if swe_stats.get("issue_categories"):
+            lines.append("### 所需知识领域")
+            lines.append("")
+            lines.append("| 领域 | 数量 |")
+            lines.append("|------|------|")
+            for cat, count in sorted(swe_stats["issue_categories"].items(), key=lambda x: -x[1]):
+                lines.append(f"| `{cat}` | {count} |")
+            lines.append("")
+
+        # Patch complexity
+        if swe_stats.get("patch_lines"):
+            avg_lines = sum(swe_stats["patch_lines"]) / len(swe_stats["patch_lines"])
+            max_lines = max(swe_stats["patch_lines"])
+            min_lines = min(swe_stats["patch_lines"])
+            lines.append("### 代码修改复杂度")
+            lines.append("")
+            lines.append(f"- **平均修改行数**: {avg_lines:.1f} 行")
+            lines.append(f"- **最大修改**: {max_lines} 行")
+            lines.append(f"- **最小修改**: {min_lines} 行")
+            lines.append("")
+
+        # Problem statement examples
+        if swe_stats.get("examples"):
+            lines.append("### 问题描述示例")
+            lines.append("")
+            for i, ex in enumerate(swe_stats["examples"][:2], 1):
+                lines.append(f"**示例 {i}** (`{ex.get('repo', 'unknown')}` - {ex.get('language', 'unknown')})")
+                lines.append("")
+                lines.append("**Problem Statement:**")
+                lines.append("```")
+                lines.append(ex.get("problem_statement", "")[:600])
+                lines.append("```")
+                lines.append("")
+                if ex.get("requirements"):
+                    lines.append("**Requirements:**")
+                    lines.append("```")
+                    lines.append(ex.get("requirements", "")[:400])
+                    lines.append("```")
+                    lines.append("")
+
+        # SOP for SWE-bench dataset
+        lines.append("### SWE-bench 数据生产 SOP")
+        lines.append("")
+        lines.append("```")
+        lines.append("Phase 1: 仓库筛选")
+        lines.append("├─ 步骤 1.1: 选择活跃的开源仓库（GPL 等强 copyleft 许可优先）")
+        lines.append("├─ 步骤 1.2: 确保有完善的测试套件")
+        lines.append("└─ 步骤 1.3: 筛选有清晰 issue/PR 历史的仓库")
+        lines.append("")
+        lines.append("Phase 2: 任务挖掘")
+        lines.append("├─ 步骤 2.1: 从已合并的 PR 中提取 bug fix / feature")
+        lines.append("├─ 步骤 2.2: 提取 base_commit (修复前) 和 patch (修复内容)")
+        lines.append("├─ 步骤 2.3: 识别 fail-to-pass 测试（修复后应通过）")
+        lines.append("└─ 步骤 2.4: 识别 pass-to-pass 测试（确保无回归）")
+        lines.append("")
+        lines.append("Phase 3: 任务增强")
+        lines.append("├─ 步骤 3.1: 撰写 problem_statement（问题描述）")
+        lines.append("├─ 步骤 3.2: 撰写 requirements（功能需求）")
+        lines.append("├─ 步骤 3.3: 标注 interface（涉及的 API/函数）")
+        lines.append("└─ 步骤 3.4: 分类 issue_categories（所需知识领域）")
+        lines.append("")
+        lines.append("Phase 4: 质量验证")
+        lines.append("├─ 步骤 4.1: 验证 patch 能通过所有测试")
+        lines.append("├─ 步骤 4.2: 确保 problem_statement 不泄露解决方案")
+        lines.append("└─ 步骤 4.3: 验证任务可由人类工程师独立完成")
+        lines.append("```")
+        lines.append("")
+
+        # Quality criteria
+        lines.append("### 数据质量标准")
+        lines.append("")
+        lines.append("| 维度 | 要求 |")
+        lines.append("|------|------|")
+        lines.append("| **问题描述** | 清晰描述 bug 现象或功能需求，不泄露解决方案 |")
+        lines.append("| **测试覆盖** | 至少有 1 个 fail-to-pass 测试验证修复正确性 |")
+        lines.append("| **无回归** | pass-to-pass 测试确保不引入新 bug |")
+        lines.append("| **可复现** | 提供完整的环境设置命令 |")
+        lines.append("| **合理复杂度** | 修改行数适中，不过于简单也不过于复杂 |")
         lines.append("")
         lines.append("---")
         lines.append("")
