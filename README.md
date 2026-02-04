@@ -10,7 +10,7 @@
 
 **逆向分析数据集构建方式 · 生成可复现的生产资料包 · 批量生产同类数据**
 
-[快速开始](#快速开始) · [实战案例](#实战案例-cl-bench-逆向复现) · [命令参考](#命令参考) · [English](#english)
+[快速开始](#快速开始) · [命令参考](#命令参考) · [English](#english)
 
 </div>
 
@@ -18,17 +18,17 @@
 
 ## 核心能力
 
-DataRecipe 不只是分析数据集，而是帮你**完整逆向工程**一个数据集，输出可直接用于批量生产的全套资料。
+DataRecipe 帮你**完整逆向工程**一个 AI 数据集，输出可直接用于批量生产的全套资料。
 
 ```
-输入: 任意 AI 数据集
+输入: 任意 AI 数据集 (HuggingFace / GitHub / 本地文件)
       ↓
 DataRecipe 逆向分析
       ↓
 输出: 1. 数据集"配方"（构建方法、成本、来源）
       2. 标注团队画像（技能要求、薪资、招聘建议）
       3. 生产资料包（标注指南、质检规则、验收标准）
-      4. 模式分析（Rubrics 模式、Prompt 模板）
+      4. 模式分析（Prompt 模板、评估标准模式）
       ↓
 你可以: 批量生产同类高质量数据
 ```
@@ -58,9 +58,9 @@ datarecipe analyze AI-MO/NuminaMath-CoT --json
 ```
 ╭─────────────────────────── Dataset Recipe ───────────────────────────╮
 │  Name: AI-MO/NuminaMath-CoT                                          │
-│  📊 Generation: Synthetic 100%                                       │
-│  🤖 Teacher Models: None detected                                    │
-│  🔄 Reproducibility: [8/10] ████████░░                               │
+│  Generation: Synthetic 100%                                          │
+│  Teacher Models: None detected                                       │
+│  Reproducibility: [8/10] ████████░░                                  │
 ╰──────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -94,50 +94,8 @@ my_project/
 ├── annotation_guide.md       # 标注指南
 ├── quality_rules.md          # 质检规则
 ├── acceptance_criteria.md    # 验收标准
-├── timeline.md               # 时间线 + 甘特图
+├── timeline.md               # 时间线
 └── scripts/                  # 自动化脚本
-```
-
----
-
-## 实战案例: CL-bench 逆向复现
-
-我们用 DataRecipe 完整逆向了腾讯混元的 [CL-bench](https://github.com/Tencent-Hunyuan/CL-bench) 数据集（1,899 个任务，31,607 条 Rubrics），生成了可直接用于批量生产的完整资料包。
-
-**查看完整案例: [`examples/cl-bench-reproduction/`](examples/cl-bench-reproduction/)**
-
-### 案例亮点
-
-| 产出 | 说明 |
-|------|------|
-| [PRODUCTION_GUIDE.md](examples/cl-bench-reproduction/PRODUCTION_GUIDE.md) | 512 行完整生产指南 |
-| [system_prompt_templates.json](examples/cl-bench-reproduction/reproduction_kit/system_prompt_templates.json) | 495 个 System Prompt 模板 |
-| [subcategory_analysis.json](examples/cl-bench-reproduction/reproduction_kit/subcategory_analysis.json) | 18 个子类别详细分析 |
-| [batch_production_demo.py](examples/cl-bench-reproduction/scripts/batch_production_demo.py) | 无需 API 的批量生产脚本 |
-
-### 逆向发现的 Rubrics 模式
-
-```
-句式: The response should [动词] [对象] [条件/细节]
-
-Top 动词:
-- not (3.2%) - 否定检查，如 "should not assume..."
-- include (2.5%) - 包含检查，如 "should include all..."
-- state (2.4%) - 陈述检查，如 "should state that..."
-- provide (1.9%) - 提供检查，如 "should provide evidence..."
-- explain (1.1%) - 解释检查，如 "should explain why..."
-```
-
-### 快速体验
-
-```bash
-cd examples/cl-bench-reproduction
-
-# 运行批量生产演示（无需 API）
-python scripts/batch_production_demo.py
-
-# 查看生成的数据
-cat production_output/batch_*.jsonl | head -1 | python -m json.tool
 ```
 
 ---
@@ -220,8 +178,6 @@ data-recipe/
 │   ├── mcp_server.py         # MCP Server
 │   ├── sources/              # 数据源 (HuggingFace, GitHub, Web)
 │   └── providers/            # 部署 Provider 插件
-├── examples/                 # 实战案例
-│   └── cl-bench-reproduction/  # CL-bench 逆向复现完整资料
 ├── pyproject.toml
 └── README.md
 ```
@@ -234,13 +190,9 @@ DataRecipe is a **reverse engineering framework for AI datasets**. It analyzes h
 
 **Key Capabilities:**
 - Reverse engineer dataset construction methods
-- Extract patterns (rubrics, prompts, evaluation criteria)
+- Extract patterns (prompts, evaluation criteria, rubrics)
 - Generate complete production kits (annotation guides, quality rules, templates)
-- Estimate annotation costs by region
-
-**Example: CL-bench Reproduction**
-
-We fully reverse-engineered Tencent's [CL-bench](https://github.com/Tencent-Hunyuan/CL-bench) dataset (1,899 tasks, 31,607 rubrics) and generated a complete production kit. See [`examples/cl-bench-reproduction/`](examples/cl-bench-reproduction/).
+- Estimate annotation costs by region (US, China, Europe)
 
 **Quick Start:**
 ```bash
@@ -270,6 +222,6 @@ MIT License - see [LICENSE](LICENSE)
 
 ---
 
-**[GitHub](https://github.com/liuxiaotong/data-recipe)** · **[Issues](https://github.com/liuxiaotong/data-recipe/issues)** · **[Examples](examples/)**
+**[GitHub](https://github.com/liuxiaotong/data-recipe)** · **[Issues](https://github.com/liuxiaotong/data-recipe/issues)**
 
 </div>
