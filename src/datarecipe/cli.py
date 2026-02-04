@@ -1208,5 +1208,352 @@ def workflow(dataset_id: str, output: str, target_size: int, fmt: str):
     console.print(f"  4. See README.md for detailed instructions")
 
 
+# =============================================================================
+# New Commands: Pattern Extraction & Generation
+# =============================================================================
+
+@main.command("extract-rubrics")
+@click.argument("dataset_id")
+@click.option("--output", "-o", default=None, help="Output file path (JSON)")
+@click.option("--sample-size", "-n", default=1000, help="Number of samples to analyze")
+def extract_rubrics(dataset_id: str, output: str, sample_size: int):
+    """Extract rubrics/evaluation patterns from a dataset."""
+    from datarecipe.extractors import RubricsAnalyzer
+
+    console.print(f"\n[bold]Extracting rubrics patterns from {dataset_id}...[/bold]\n")
+
+    try:
+        # Load dataset
+        from datasets import load_dataset
+        ds = load_dataset(dataset_id, split="train", streaming=True)
+
+        # Collect rubrics
+        rubrics = []
+        for i, item in enumerate(ds):
+            if i >= sample_size:
+                break
+            # Try common rubrics field names
+            for field in ["rubrics", "rubric", "criteria", "evaluation"]:
+                if field in item:
+                    value = item[field]
+                    if isinstance(value, list):
+                        rubrics.extend(value)
+                    elif isinstance(value, str):
+                        rubrics.append(value)
+
+        if not rubrics:
+            console.print("[yellow]No rubrics found in dataset.[/yellow]")
+            console.print("Tried fields: rubrics, rubric, criteria, evaluation")
+            return
+
+        # Analyze
+        analyzer = RubricsAnalyzer()
+        result = analyzer.analyze(rubrics, task_count=sample_size)
+
+        # Display summary
+        console.print(Panel(result.summary(), title="Rubrics Analysis"))
+
+        # Export if output specified
+        if output:
+            import json
+            data = analyzer.to_dict(result)
+            with open(output, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            console.print(f"\n[green]Exported to {output}[/green]")
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@main.command("extract-prompts")
+@click.argument("dataset_id")
+@click.option("--output", "-o", default=None, help="Output file path (JSON)")
+@click.option("--sample-size", "-n", default=1000, help="Number of samples to analyze")
+def extract_prompts(dataset_id: str, output: str, sample_size: int):
+    """Extract system prompt templates from a dataset."""
+    from datarecipe.extractors import PromptExtractor
+
+    console.print(f"\n[bold]Extracting prompt templates from {dataset_id}...[/bold]\n")
+
+    try:
+        from datasets import load_dataset
+        ds = load_dataset(dataset_id, split="train", streaming=True)
+
+        # Collect messages
+        messages = []
+        for i, item in enumerate(ds):
+            if i >= sample_size:
+                break
+            # Try common message field names
+            for field in ["messages", "conversation", "turns"]:
+                if field in item and isinstance(item[field], list):
+                    messages.extend(item[field])
+
+        if not messages:
+            console.print("[yellow]No messages found in dataset.[/yellow]")
+            return
+
+        # Extract
+        extractor = PromptExtractor()
+        library = extractor.extract(messages)
+
+        # Display summary
+        console.print(Panel(library.summary(), title="Prompt Library"))
+
+        # Export if output specified
+        if output:
+            import json
+            data = extractor.to_dict(library)
+            with open(output, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            console.print(f"\n[green]Exported to {output}[/green]")
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@main.command("detect-strategy")
+@click.argument("dataset_id")
+@click.option("--output", "-o", default=None, help="Output file path (JSON)")
+@click.option("--sample-size", "-n", default=100, help="Number of samples to analyze")
+def detect_strategy(dataset_id: str, output: str, sample_size: int):
+    """Detect context construction strategy in a dataset."""
+    from datarecipe.analyzers import ContextStrategyDetector
+
+    console.print(f"\n[bold]Detecting context strategy in {dataset_id}...[/bold]\n")
+
+    try:
+        from datasets import load_dataset
+        ds = load_dataset(dataset_id, split="train", streaming=True)
+
+        # Collect contexts
+        contexts = []
+        for i, item in enumerate(ds):
+            if i >= sample_size:
+                break
+            # Try common context field names
+            for field in ["context", "input", "text", "content", "document"]:
+                if field in item and isinstance(item[field], str):
+                    contexts.append(item[field])
+                    break
+            # Also check messages
+            if "messages" in item and isinstance(item["messages"], list):
+                for msg in item["messages"]:
+                    if isinstance(msg, dict) and msg.get("role") == "user":
+                        contexts.append(msg.get("content", ""))
+
+        if not contexts:
+            console.print("[yellow]No contexts found in dataset.[/yellow]")
+            return
+
+        # Detect
+        detector = ContextStrategyDetector()
+        result = detector.analyze(contexts)
+
+        # Display summary
+        console.print(Panel(result.summary(), title="Context Strategy"))
+
+        # Export if output specified
+        if output:
+            import json
+            data = detector.to_dict(result)
+            with open(output, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            console.print(f"\n[green]Exported to {output}[/green]")
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+
+
+@main.command("allocate")
+@click.option("--size", "-s", default=10000, help="Target dataset size")
+@click.option("--region", "-r", default="china", help="Region for cost calculation")
+@click.option("--output", "-o", default=None, help="Output file path (JSON/Markdown)")
+@click.option("--format", "fmt", type=click.Choice(["table", "json", "markdown"]), default="table")
+def allocate(size: int, region: str, output: str, fmt: str):
+    """Generate human-machine task allocation."""
+    from datarecipe.generators import HumanMachineSplitter, TaskType
+
+    console.print(f"\n[bold]Generating human-machine allocation...[/bold]")
+    console.print(f"Target size: {size:,} | Region: {region}\n")
+
+    splitter = HumanMachineSplitter(region=region)
+    result = splitter.analyze(
+        dataset_size=size,
+        task_types=[
+            TaskType.CONTEXT_CREATION,
+            TaskType.TASK_DESIGN,
+            TaskType.RUBRICS_WRITING,
+            TaskType.DATA_GENERATION,
+            TaskType.QUALITY_REVIEW,
+        ]
+    )
+
+    if fmt == "table":
+        console.print(Panel(result.summary(), title="Allocation Summary"))
+        console.print("\n" + result.to_markdown_table())
+    elif fmt == "markdown":
+        console.print(result.summary())
+        console.print("\n" + result.to_markdown_table())
+    else:
+        import json
+        data = splitter.to_dict(result)
+        console.print(json.dumps(data, indent=2))
+
+    if output:
+        import json
+        with open(output, "w", encoding="utf-8") as f:
+            if output.endswith(".json"):
+                json.dump(splitter.to_dict(result), f, indent=2, ensure_ascii=False)
+            else:
+                f.write(result.summary() + "\n\n" + result.to_markdown_table())
+        console.print(f"\n[green]Exported to {output}[/green]")
+
+
+@main.command("enhanced-guide")
+@click.argument("dataset_id")
+@click.option("--output", "-o", default=None, help="Output file path")
+@click.option("--size", "-s", default=10000, help="Target dataset size")
+@click.option("--region", "-r", default="china", help="Region for cost calculation")
+def enhanced_guide(dataset_id: str, output: str, size: int, region: str):
+    """Generate enhanced production guide with patterns and allocation."""
+    from datarecipe.generators import EnhancedGuideGenerator, HumanMachineSplitter, TaskType
+    from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
+    from datarecipe.analyzers import ContextStrategyDetector
+
+    console.print(f"\n[bold]Generating enhanced guide for {dataset_id}...[/bold]\n")
+
+    try:
+        # Try to load and analyze the dataset
+        rubrics_result = None
+        prompt_library = None
+        strategy_result = None
+
+        try:
+            from datasets import load_dataset
+            ds = load_dataset(dataset_id, split="train", streaming=True)
+
+            rubrics = []
+            messages = []
+            contexts = []
+
+            for i, item in enumerate(ds):
+                if i >= 500:
+                    break
+                # Collect rubrics
+                for field in ["rubrics", "rubric", "criteria"]:
+                    if field in item:
+                        value = item[field]
+                        if isinstance(value, list):
+                            rubrics.extend(value)
+                        elif isinstance(value, str):
+                            rubrics.append(value)
+                # Collect messages
+                if "messages" in item and isinstance(item["messages"], list):
+                    messages.extend(item["messages"])
+                # Collect contexts
+                for field in ["context", "input", "text"]:
+                    if field in item and isinstance(item[field], str):
+                        contexts.append(item[field])
+                        break
+
+            if rubrics:
+                analyzer = RubricsAnalyzer()
+                rubrics_result = analyzer.analyze(rubrics)
+                console.print(f"[green]✓ Analyzed {len(rubrics)} rubrics[/green]")
+
+            if messages:
+                extractor = PromptExtractor()
+                prompt_library = extractor.extract(messages)
+                console.print(f"[green]✓ Extracted {prompt_library.unique_count} prompts[/green]")
+
+            if contexts:
+                detector = ContextStrategyDetector()
+                strategy_result = detector.analyze(contexts[:100])
+                console.print(f"[green]✓ Detected strategy: {strategy_result.primary_strategy.value}[/green]")
+
+        except Exception as e:
+            console.print(f"[yellow]Could not analyze dataset: {e}[/yellow]")
+
+        # Generate allocation
+        splitter = HumanMachineSplitter(region=region)
+        allocation = splitter.analyze(
+            dataset_size=size,
+            task_types=[
+                TaskType.CONTEXT_CREATION,
+                TaskType.TASK_DESIGN,
+                TaskType.RUBRICS_WRITING,
+                TaskType.QUALITY_REVIEW,
+            ]
+        )
+
+        # Generate guide
+        generator = EnhancedGuideGenerator()
+        guide = generator.generate(
+            dataset_name=dataset_id,
+            target_size=size,
+            rubrics_analysis=rubrics_result,
+            prompt_library=prompt_library,
+            context_strategy=strategy_result,
+            allocation=allocation,
+            region=region,
+        )
+
+        # Output
+        markdown = generator.to_markdown(guide)
+
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(markdown)
+            console.print(f"\n[green]Guide saved to {output}[/green]")
+        else:
+            console.print("\n" + markdown)
+
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        import traceback
+        traceback.print_exc()
+
+
+@main.command("generate")
+@click.option("--type", "gen_type", type=click.Choice(["rubrics", "prompts", "contexts"]), default="rubrics")
+@click.option("--count", "-n", default=10, help="Number of items to generate")
+@click.option("--context", "-c", default="the topic", help="Context/topic for generation")
+@click.option("--output", "-o", default=None, help="Output file path (JSONL)")
+def generate(gen_type: str, count: int, context: str, output: str):
+    """Generate data based on patterns."""
+    from datarecipe.generators import PatternGenerator
+
+    console.print(f"\n[bold]Generating {count} {gen_type}...[/bold]\n")
+
+    generator = PatternGenerator()
+
+    if gen_type == "rubrics":
+        result = generator.generate_rubrics(context=context, count=count)
+    elif gen_type == "prompts":
+        result = generator.generate_prompts(domain=context, count=count)
+    elif gen_type == "contexts":
+        result = generator.generate_contexts(count=count)
+    else:
+        console.print(f"[red]Unknown type: {gen_type}[/red]")
+        return
+
+    # Display
+    console.print(Panel(result.summary(), title="Generation Result"))
+    console.print("")
+
+    for item in result.items[:5]:
+        console.print(f"[cyan]{item.data_type}[/cyan]: {item.content[:100]}...")
+        console.print("")
+
+    if len(result.items) > 5:
+        console.print(f"... and {len(result.items) - 5} more")
+
+    # Export
+    if output:
+        generator.export_jsonl(result, output)
+        console.print(f"\n[green]Exported to {output}[/green]")
+
+
 if __name__ == "__main__":
     main()
