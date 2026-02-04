@@ -24,11 +24,11 @@
 
 | 目标 | 产出物 |
 |------|--------|
-| 摸清数据集构成 | `analyze` / `deep-analyze` 生成完整分析报告 |
+| 摸清数据集构成 | `ANALYSIS_REPORT.md` 完整分析报告 |
+| **复刻数据集** | `REPRODUCTION_GUIDE.md` 可操作的复刻指南 |
 | 复用评测标准 | `rubric_templates.yaml` / `.md` 结构化模板 |
 | 提取 Prompt 策略 | `prompt_templates.json` + `context_strategy.json` |
 | 估算成本与分工 | `allocation.json` 人机比例、成本拆分 |
-| 生成生产指南 | `guide` / `deploy` / `workflow` 输出 Markdown + 项目结构 |
 
 ## 安装
 
@@ -108,16 +108,46 @@ datarecipe deploy AI-MO/NuminaMath-CoT -o ./my_project
 
 ## 深度分析
 
-从数据集中提取可复用的模式，支持规模化复现。
+从数据集中提取可复用的模式，生成可操作的复刻指南。
 
 ### 一键深度分析
 
 ```bash
-datarecipe deep-analyze tencent/CL-bench -o ./output --size 1899
+datarecipe deep-analyze tencent/CL-bench -o ./output
 ```
 
+输出目录结构：
+
+```
+output/
+└── tencent_CL-bench/
+    ├── ANALYSIS_REPORT.md       # 统计分析报告
+    ├── REPRODUCTION_GUIDE.md    # 复刻指南 ⭐
+    ├── rubric_templates.yaml    # 评分标准模板
+    ├── rubric_templates.md      # 评分标准文档
+    ├── prompt_templates.json    # Prompt 模板库
+    ├── context_strategy.json    # 上下文策略
+    ├── allocation.json          # 人机分配方案
+    └── rubrics_analysis.json    # 原始分析数据
+```
+
+### 复刻指南 (REPRODUCTION_GUIDE.md)
+
+核心产出物，包含 8 个可操作部分：
+
+| 部分 | 内容 |
+|------|------|
+| 数据结构规范 | 字段定义 + JSON Schema |
+| 任务分类体系 | category / sub_category 完整列表 |
+| System Prompt 模板库 | 按领域分类的真实示例 |
+| Rubric 编写规范 | 句式模式 + 结构 + 完整示例 |
+| 复刻 SOP | 3 阶段 9 步骤标准流程 |
+| 完整数据示例 | JSON 格式参考 |
+| 资源估算 | 人力配置 + 成本 |
+| 检查清单 | 发布前质量检查 |
+
 <details>
-<summary>输出示例</summary>
+<summary>运行示例</summary>
 
 ```
 ============================================================
@@ -125,7 +155,7 @@ datarecipe deep-analyze tencent/CL-bench -o ./output --size 1899
 ============================================================
 
 数据集: tencent/CL-bench
-输出目录: ./output
+输出目录: ./output/tencent_CL-bench
 
 📥 加载数据集...
 ✓ 加载完成: 300 样本
@@ -141,18 +171,16 @@ datarecipe deep-analyze tencent/CL-bench -o ./output --size 1899
 
 📄 生成综合报告...
 ✓ 综合报告已保存
+📋 生成复刻指南...
+✓ 复刻指南已保存
 
 ============================================================
-  生成的文件
+  分析完成
 ============================================================
 
-  📊 prompt_templates.json      Prompt 模板库
-  📊 context_strategy.json      上下文策略分析
-  📊 allocation.json            人机分配方案
-  📊 rubrics_analysis.json      评分标准分析
-  📑 rubric_templates.yaml      结构化 Rubric 模板
-  📑 rubric_templates.md        可读 Rubric 文档
-  📄 ANALYSIS_REPORT.md         综合分析报告
+核心产出:
+  📄 分析报告: ./output/tencent_CL-bench/ANALYSIS_REPORT.md
+  📋 复刻指南: ./output/tencent_CL-bench/REPRODUCTION_GUIDE.md
 ```
 
 </details>
