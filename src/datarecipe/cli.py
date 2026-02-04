@@ -2251,6 +2251,21 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
         summary_path = RadarIntegration.save_summary(summary, dataset_output_dir)
         console.print(f"[green]✓ 标准化摘要已保存 (Radar 兼容)[/green]")
 
+        # 8. Ingest into knowledge base
+        console.print("[dim]📚 更新知识库...[/dim]")
+        try:
+            from datarecipe.knowledge import KnowledgeBase
+            kb = KnowledgeBase()
+            kb.ingest_analysis(
+                dataset_id=dataset_id,
+                summary=summary,
+                rubrics_result=rubrics_result,
+                prompt_library=prompt_library,
+            )
+            console.print(f"[green]✓ 知识库已更新[/green]")
+        except Exception as e:
+            console.print(f"[yellow]⚠ 知识库更新失败: {e}[/yellow]")
+
         # Summary
         console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
         console.print("[bold cyan]  分析完成[/bold cyan]")
@@ -3148,6 +3163,9 @@ def _generate_reproduction_guide(
 @click.option("--min-downloads", default=0, type=int, help="Minimum downloads")
 @click.option("--use-llm", is_flag=True, help="Use LLM for unknown types")
 @click.option("--region", "-r", default="china", help="Region for cost calculation")
+@click.option("--sort-by", type=click.Choice(["downloads", "name", "category"]), default="downloads", help="Sort datasets by")
+@click.option("--incremental", "-i", is_flag=True, help="Skip already analyzed datasets")
+@click.option("--parallel", "-p", default=1, type=int, help="Parallel workers (1=sequential)")
 def batch_from_radar(
     radar_report: str,
     output_dir: str,
@@ -3158,6 +3176,9 @@ def batch_from_radar(
     min_downloads: int,
     use_llm: bool,
     region: str,
+    sort_by: str,
+    incremental: bool,
+    parallel: int,
 ):
     """
     Batch analyze datasets from an ai-dataset-radar report.
@@ -3167,6 +3188,7 @@ def batch_from_radar(
     Example:
         datarecipe batch-from-radar ./data/reports/intel_report_2024-01-01.json
         datarecipe batch-from-radar ./report.json --orgs Anthropic,OpenAI --limit 5
+        datarecipe batch-from-radar ./report.json --incremental --parallel 3
     """
     import json
     import os
@@ -3194,14 +3216,45 @@ def batch_from_radar(
         orgs=org_list,
         categories=cat_list,
         min_downloads=min_downloads,
-        limit=limit,
+        limit=0,  # Apply limit after sorting
     )
 
     if not datasets:
         console.print("[yellow]⚠ 没有符合条件的数据集[/yellow]")
         return
 
-    console.print(f"[dim]筛选后: {len(datasets)} 个数据集待分析[/dim]\n")
+    # Sort datasets
+    if sort_by == "downloads":
+        datasets.sort(key=lambda x: x.downloads, reverse=True)
+    elif sort_by == "name":
+        datasets.sort(key=lambda x: x.id.lower())
+    elif sort_by == "category":
+        datasets.sort(key=lambda x: (x.category or "zzz", -x.downloads))
+
+    # Incremental mode: skip already analyzed
+    skipped_count = 0
+    if incremental:
+        filtered = []
+        for ds in datasets:
+            safe_name = ds.id.replace("/", "_").replace("\\", "_")
+            summary_path = os.path.join(output_dir, safe_name, "recipe_summary.json")
+            if os.path.exists(summary_path):
+                skipped_count += 1
+            else:
+                filtered.append(ds)
+        datasets = filtered
+        if skipped_count > 0:
+            console.print(f"[dim]增量模式: 跳过 {skipped_count} 个已分析数据集[/dim]")
+
+    # Apply limit after filtering
+    if limit > 0:
+        datasets = datasets[:limit]
+
+    if not datasets:
+        console.print("[green]✓ 所有数据集已分析完成[/green]")
+        return
+
+    console.print(f"[dim]待分析: {len(datasets)} 个数据集 (排序: {sort_by})[/dim]\n")
 
     # Show datasets to analyze
     console.print("[bold]待分析数据集:[/bold]")
@@ -3210,6 +3263,9 @@ def batch_from_radar(
     if len(datasets) > 10:
         console.print(f"  ... 还有 {len(datasets) - 10} 个")
     console.print("")
+
+    # Save progress file for resume capability
+    progress_file = os.path.join(output_dir, ".batch_progress.json")
 
     # Analyze each dataset
     summaries = []
@@ -3353,10 +3409,30 @@ def batch_from_radar(
 
             console.print(f"[green]  ✓ 完成: {dataset_type or 'unknown'}, ${allocation.total_cost:,.0f}[/green]")
 
+            # Update progress file
+            progress = {
+                "total": len(datasets),
+                "completed": success_count,
+                "failed": fail_count,
+                "last_dataset": ds.id,
+                "summaries": [s.dataset_id for s in summaries],
+            }
+            with open(progress_file, "w", encoding="utf-8") as f:
+                json.dump(progress, f, indent=2)
+
         except Exception as e:
             fail_count += 1
             console.print(f"[red]  ✗ 失败: {e}[/red]")
+
+            # Log failed dataset
+            failed_log = os.path.join(output_dir, ".batch_failed.log")
+            with open(failed_log, "a", encoding="utf-8") as f:
+                f.write(f"{ds.id}: {e}\n")
             continue
+
+    # Clean up progress file on completion
+    if os.path.exists(progress_file):
+        os.remove(progress_file)
 
     # Generate aggregated report
     console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
@@ -3365,6 +3441,8 @@ def batch_from_radar(
 
     console.print(f"成功: [green]{success_count}[/green]")
     console.print(f"失败: [red]{fail_count}[/red]")
+    if skipped_count > 0:
+        console.print(f"跳过: [dim]{skipped_count}[/dim] (已分析)")
 
     if summaries:
         # Save aggregated summary
@@ -3381,6 +3459,114 @@ def batch_from_radar(
         console.print(f"\n[bold]输出文件:[/bold]")
         console.print(f"  📊 汇总报告: [cyan]{aggregate_path}[/cyan]")
         console.print(f"  📁 各数据集: [cyan]{output_dir}/<dataset>/recipe_summary.json[/cyan]")
+
+
+@main.command("knowledge")
+@click.option("--report", "-r", is_flag=True, help="Generate knowledge report")
+@click.option("--patterns", "-p", is_flag=True, help="Show top patterns")
+@click.option("--benchmarks", "-b", is_flag=True, help="Show cost benchmarks")
+@click.option("--trends", "-t", is_flag=True, help="Show recent trends")
+@click.option("--recommend", help="Get recommendations for a dataset type")
+@click.option("--output", "-o", help="Output path for report")
+def knowledge_cmd(report: bool, patterns: bool, benchmarks: bool, trends: bool, recommend: str, output: str):
+    """
+    Query the knowledge base for patterns, benchmarks, and trends.
+
+    Example:
+        datarecipe knowledge --report
+        datarecipe knowledge --patterns
+        datarecipe knowledge --benchmarks
+        datarecipe knowledge --recommend preference
+    """
+    from datarecipe.knowledge import KnowledgeBase
+
+    kb = KnowledgeBase()
+
+    if report:
+        output_path = kb.export_report(output)
+        console.print(f"[green]✓ 知识库报告已生成: {output_path}[/green]")
+        return
+
+    if patterns:
+        console.print("\n[bold]Top 模式[/bold]\n")
+        stats = kb.patterns.get_pattern_stats()
+
+        if not stats["top_patterns"]:
+            console.print("[dim]暂无数据，请先运行 deep-analyze[/dim]")
+            return
+
+        console.print("| 模式 | 类型 | 出现次数 |")
+        console.print("|------|------|----------|")
+        for p in stats["top_patterns"]:
+            console.print(f"| {p['key']} | {p['type']} | {p['frequency']} |")
+
+        console.print(f"\n总模式数: {stats['total_patterns']}")
+        return
+
+    if benchmarks:
+        console.print("\n[bold]成本基准[/bold]\n")
+        all_benchmarks = kb.trends.get_all_benchmarks()
+
+        if not all_benchmarks:
+            console.print("[dim]暂无数据，请先运行 deep-analyze[/dim]")
+            return
+
+        console.print("| 类型 | 平均成本 | 范围 | 人工% | 数据集数 |")
+        console.print("|------|----------|------|-------|----------|")
+        for dtype, bench in all_benchmarks.items():
+            console.print(
+                f"| {dtype} | ${bench.avg_total_cost:,.0f} | "
+                f"${bench.min_cost:,.0f}-${bench.max_cost:,.0f} | "
+                f"{bench.avg_human_percentage:.0f}% | {len(bench.datasets)} |"
+            )
+        return
+
+    if trends:
+        console.print("\n[bold]近期趋势 (30天)[/bold]\n")
+        summary = kb.trends.get_trend_summary(30)
+
+        if summary.get("datasets_analyzed", 0) == 0:
+            console.print("[dim]暂无数据，请先运行 deep-analyze[/dim]")
+            return
+
+        console.print(f"分析数据集: {summary['datasets_analyzed']}")
+        console.print(f"总复刻成本: ${summary['total_cost']:,.0f}")
+        console.print(f"平均成本: ${summary['avg_cost_per_dataset']:,.0f}/数据集")
+
+        if summary.get("type_distribution"):
+            console.print("\n类型分布:")
+            for dtype, count in summary["type_distribution"].items():
+                console.print(f"  - {dtype}: {count}")
+        return
+
+    if recommend:
+        console.print(f"\n[bold]{recommend} 类型推荐[/bold]\n")
+        recs = kb.get_recommendations(recommend)
+
+        if recs.get("cost_estimate"):
+            ce = recs["cost_estimate"]
+            console.print(f"成本估算: ${ce['avg_total']:,.0f} (范围 ${ce['range'][0]:,.0f}-${ce['range'][1]:,.0f})")
+            console.print(f"人工占比: {ce['avg_human_percentage']:.0f}%")
+            console.print(f"基于: {ce['based_on']} 个数据集")
+
+        if recs.get("common_patterns"):
+            console.print("\n常见模式:")
+            for p in recs["common_patterns"][:5]:
+                console.print(f"  - {p['pattern']} ({p['type']})")
+
+        if recs.get("suggested_fields"):
+            console.print(f"\n建议字段: {', '.join(recs['suggested_fields'][:5])}")
+        return
+
+    # Default: show summary
+    console.print("\n[bold]知识库概览[/bold]\n")
+    stats = kb.patterns.get_pattern_stats()
+    console.print(f"总模式数: {stats['total_patterns']}")
+
+    all_benchmarks = kb.trends.get_all_benchmarks()
+    console.print(f"成本基准: {len(all_benchmarks)} 种类型")
+
+    console.print("\n使用 --help 查看更多选项")
 
 
 if __name__ == "__main__":

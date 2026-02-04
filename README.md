@@ -315,7 +315,19 @@ datarecipe allocate --size 10000 --region china
 |------|------|
 | `batch <datasets...>` | 批量分析多个数据集 |
 | `batch-from-radar <report>` | 从 Radar 报告批量分析 |
+| `batch-from-radar --incremental` | 增量模式，跳过已分析数据集 |
+| `batch-from-radar --sort-by downloads` | 按下载量排序 |
 | `compare <datasets...>` | 并排对比多个数据集 |
+
+### 知识库
+
+| 命令 | 功能 |
+|------|------|
+| `knowledge --report` | 生成知识库报告 |
+| `knowledge --patterns` | 查看 Top 模式 |
+| `knowledge --benchmarks` | 查看成本基准 |
+| `knowledge --trends` | 查看近期趋势 |
+| `knowledge --recommend <type>` | 获取类型推荐 |
 
 ---
 
@@ -371,6 +383,33 @@ output/
 │   └── ...
 └── OpenAI_xxx/
     └── ...
+```
+
+---
+
+## 知识库
+
+分析结果自动积累到本地知识库 (`~/.datarecipe/knowledge/`)，用于：
+- 跨数据集模式发现
+- 成本基准比较
+- 趋势分析
+- 智能推荐
+
+```bash
+# 查看成本基准
+datarecipe knowledge --benchmarks
+
+# 输出示例:
+# | 类型 | 平均成本 | 范围 | 人工% | 数据集数 |
+# |------|----------|------|-------|----------|
+# | preference | $5,200 | $800-$12,000 | 84% | 5 |
+# | evaluation | $8,500 | $2,000-$15,000 | 78% | 8 |
+
+# 获取推荐
+datarecipe knowledge --recommend preference
+
+# 生成完整报告
+datarecipe knowledge --report -o ./knowledge_report.md
 ```
 
 ---
