@@ -123,6 +123,7 @@ output/
 └── tencent_CL-bench/
     ├── ANALYSIS_REPORT.md       # 统计分析报告
     ├── REPRODUCTION_GUIDE.md    # 复刻指南 ⭐
+    ├── recipe_summary.json      # 标准化摘要 (Radar 兼容) ⭐
     ├── rubric_templates.yaml    # 评分标准模板
     ├── rubric_templates.md      # 评分标准文档
     ├── prompt_templates.json    # Prompt 模板库
@@ -313,7 +314,64 @@ datarecipe allocate --size 10000 --region china
 | 命令 | 功能 |
 |------|------|
 | `batch <datasets...>` | 批量分析多个数据集 |
+| `batch-from-radar <report>` | 从 Radar 报告批量分析 |
 | `compare <datasets...>` | 并排对比多个数据集 |
+
+---
+
+## 与 ai-dataset-radar 联动
+
+DataRecipe 与 [ai-dataset-radar](https://github.com/liuxiaotong/ai-dataset-radar) 构成完整的 AI native 工作流：
+
+```
+Radar (发现新数据集) → Recipe (逆向分析) → 复刻生产
+```
+
+### 从 Radar 报告批量分析
+
+```bash
+# 分析 Radar 周报中的所有数据集
+datarecipe batch-from-radar ./intel_report_2024-01-01.json
+
+# 按条件筛选
+datarecipe batch-from-radar ./report.json \
+  --orgs Anthropic,OpenAI \
+  --categories preference,sft \
+  --min-downloads 1000 \
+  --limit 10
+
+# 启用 LLM 分析未知类型
+datarecipe batch-from-radar ./report.json --use-llm
+```
+
+### 标准化输出格式
+
+每个分析结果都会生成 `recipe_summary.json`，格式与 Radar 兼容：
+
+```json
+{
+  "dataset_id": "Anthropic/hh-rlhf",
+  "dataset_type": "preference",
+  "reproduction_cost": {"human": 5000, "api": 200, "total": 5200},
+  "difficulty": "medium",
+  "human_percentage": 84.0,
+  "key_patterns": ["rubric:include", "rubric:explain"],
+  "report_path": "./output/Anthropic_hh-rlhf/ANALYSIS_REPORT.md",
+  "guide_path": "./output/Anthropic_hh-rlhf/REPRODUCTION_GUIDE.md"
+}
+```
+
+### 批量分析输出
+
+```
+output/
+├── batch_summary.json          # 汇总统计
+├── Anthropic_hh-rlhf/
+│   ├── recipe_summary.json     # 标准化摘要
+│   └── ...
+└── OpenAI_xxx/
+    └── ...
+```
 
 ---
 
@@ -334,7 +392,32 @@ datarecipe allocate --size 10000 --region china
 }
 ```
 
-然后询问 Claude：*「分析 Anthropic/hh-rlhf 数据集」*
+### 可用工具
+
+| 工具 | 功能 |
+|------|------|
+| `analyze_dataset` | 基础分析（来源、生成方法、可复现性） |
+| `deep_analyze` | 深度分析，生成复刻指南和成本估算 |
+| `compare_datasets` | 对比多个数据集的构建方式 |
+| `get_reproduction_guide` | 获取数据集的复刻指南 |
+| `batch_analyze_from_radar` | 从 Radar 报告批量分析 |
+| `find_similar_datasets` | 找相似数据集 |
+| `profile_annotators` | 生成标注专家画像 |
+| `estimate_cost` | 估算生产成本 |
+| `deploy_project` | 生成投产项目 |
+
+### 使用示例
+
+```
+用户: 深度分析 tencent/CL-bench 数据集
+Claude: [调用 deep_analyze] 这是一个评测数据集，复刻成本约 $5,000...
+
+用户: 对比 Anthropic/hh-rlhf 和 OpenAI/summarize_from_feedback
+Claude: [调用 compare_datasets] 两者都是偏好数据集，但成本差异较大...
+
+用户: Radar 发现了新数据集，帮我分析前 5 个
+Claude: [调用 batch_analyze_from_radar] 已分析 5 个数据集，总复刻成本...
+```
 
 ---
 

@@ -2221,6 +2221,36 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             f.write(guide)
         console.print(f"[green]✓ 复刻指南已保存[/green]")
 
+        # 7. Generate standardized recipe_summary.json for Radar integration
+        console.print("[dim]📦 生成标准化摘要...[/dim]")
+        from datarecipe.integrations.radar import RadarIntegration
+
+        # Determine dataset type
+        detected_type = ""
+        if is_swe_dataset:
+            detected_type = "swe_bench"
+        elif is_preference_dataset:
+            detected_type = "preference"
+        elif rubrics:
+            detected_type = "evaluation"
+        elif llm_analysis:
+            detected_type = llm_analysis.dataset_type
+
+        summary = RadarIntegration.create_summary(
+            dataset_id=dataset_id,
+            dataset_type=detected_type,
+            purpose=llm_analysis.purpose if llm_analysis else "",
+            allocation=allocation,
+            rubrics_result=rubrics_result,
+            prompt_library=prompt_library,
+            schema_info=schema_info,
+            sample_count=sample_count,
+            llm_analysis=llm_analysis,
+            output_dir=dataset_output_dir,
+        )
+        summary_path = RadarIntegration.save_summary(summary, dataset_output_dir)
+        console.print(f"[green]✓ 标准化摘要已保存 (Radar 兼容)[/green]")
+
         # Summary
         console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
         console.print("[bold cyan]  分析完成[/bold cyan]")
@@ -3106,6 +3136,251 @@ def _generate_reproduction_guide(
     lines.append("*指南由 DataRecipe 自动生成*")
 
     return "\n".join(lines)
+
+
+@main.command("batch-from-radar")
+@click.argument("radar_report")
+@click.option("--output-dir", "-o", default="./analysis_output", help="Output directory")
+@click.option("--sample-size", "-n", default=200, help="Number of samples per dataset")
+@click.option("--limit", "-l", default=0, type=int, help="Max datasets to analyze (0 = all)")
+@click.option("--orgs", help="Filter by orgs (comma-separated)")
+@click.option("--categories", help="Filter by categories (comma-separated)")
+@click.option("--min-downloads", default=0, type=int, help="Minimum downloads")
+@click.option("--use-llm", is_flag=True, help="Use LLM for unknown types")
+@click.option("--region", "-r", default="china", help="Region for cost calculation")
+def batch_from_radar(
+    radar_report: str,
+    output_dir: str,
+    sample_size: int,
+    limit: int,
+    orgs: str,
+    categories: str,
+    min_downloads: int,
+    use_llm: bool,
+    region: str,
+):
+    """
+    Batch analyze datasets from an ai-dataset-radar report.
+
+    Reads a radar intel_report JSON file and analyzes all (or filtered) datasets.
+
+    Example:
+        datarecipe batch-from-radar ./data/reports/intel_report_2024-01-01.json
+        datarecipe batch-from-radar ./report.json --orgs Anthropic,OpenAI --limit 5
+    """
+    import json
+    import os
+    from datarecipe.integrations.radar import RadarIntegration, RecipeSummary
+
+    console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
+    console.print(f"[bold cyan]  DataRecipe 批量分析 (Radar 集成)[/bold cyan]")
+    console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+
+    # Load radar report
+    console.print(f"[dim]📂 加载 Radar 报告: {radar_report}[/dim]")
+    try:
+        integration = RadarIntegration()
+        all_datasets = integration.load_radar_report(radar_report)
+        console.print(f"[green]✓ 加载 {len(all_datasets)} 个数据集[/green]")
+    except Exception as e:
+        console.print(f"[red]错误: 无法加载 Radar 报告 - {e}[/red]")
+        return
+
+    # Filter datasets
+    org_list = [o.strip() for o in orgs.split(",")] if orgs else None
+    cat_list = [c.strip() for c in categories.split(",")] if categories else None
+
+    datasets = integration.filter_datasets(
+        orgs=org_list,
+        categories=cat_list,
+        min_downloads=min_downloads,
+        limit=limit,
+    )
+
+    if not datasets:
+        console.print("[yellow]⚠ 没有符合条件的数据集[/yellow]")
+        return
+
+    console.print(f"[dim]筛选后: {len(datasets)} 个数据集待分析[/dim]\n")
+
+    # Show datasets to analyze
+    console.print("[bold]待分析数据集:[/bold]")
+    for i, ds in enumerate(datasets[:10], 1):
+        console.print(f"  {i}. {ds.id} ({ds.category}, {ds.downloads:,} downloads)")
+    if len(datasets) > 10:
+        console.print(f"  ... 还有 {len(datasets) - 10} 个")
+    console.print("")
+
+    # Analyze each dataset
+    summaries = []
+    success_count = 0
+    fail_count = 0
+
+    for i, ds in enumerate(datasets, 1):
+        console.print(f"\n[bold]━━━ [{i}/{len(datasets)}] {ds.id} ━━━[/bold]")
+
+        try:
+            # Import here to avoid circular imports
+            from datasets import load_dataset
+            from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
+            from datarecipe.analyzers import ContextStrategyDetector
+            from datarecipe.generators import HumanMachineSplitter, TaskType
+
+            # Create output directory
+            safe_name = ds.id.replace("/", "_").replace("\\", "_")
+            dataset_output_dir = os.path.join(output_dir, safe_name)
+            os.makedirs(dataset_output_dir, exist_ok=True)
+
+            # Load dataset
+            console.print("[dim]  📥 加载数据...[/dim]")
+            try:
+                dataset = load_dataset(ds.id, split="train", streaming=True)
+            except ValueError:
+                # Try test split
+                try:
+                    dataset = load_dataset(ds.id, split="test", streaming=True)
+                except Exception:
+                    raise ValueError("无法找到可用的 split")
+
+            # Collect samples
+            schema_info = {}
+            sample_items = []
+            rubrics = []
+            messages = []
+
+            for j, item in enumerate(dataset):
+                if j >= sample_size:
+                    break
+
+                # Schema info
+                if j < 5:
+                    for field, value in item.items():
+                        if field not in schema_info:
+                            schema_info[field] = {
+                                "type": type(value).__name__,
+                                "nested_type": None
+                            }
+                    sample_items.append(item)
+
+                # Collect rubrics/messages
+                for field in ["rubrics", "rubric", "criteria"]:
+                    if field in item:
+                        v = item[field]
+                        if isinstance(v, list):
+                            rubrics.extend(v)
+                        elif isinstance(v, str):
+                            rubrics.append(v)
+
+                if "messages" in item:
+                    messages.extend(item.get("messages", []))
+
+            sample_count = j + 1
+            console.print(f"[dim]  ✓ 加载 {sample_count} 样本[/dim]")
+
+            # Detect dataset type
+            is_preference = "chosen" in schema_info and "rejected" in schema_info
+            is_swe = "repo" in schema_info and "patch" in schema_info
+
+            dataset_type = ds.category or ""
+            if is_preference:
+                dataset_type = "preference"
+            elif is_swe:
+                dataset_type = "swe_bench"
+            elif rubrics:
+                dataset_type = "evaluation"
+
+            # Human-machine allocation
+            console.print("[dim]  ⚙️ 计算成本...[/dim]")
+            splitter = HumanMachineSplitter(region=region)
+            allocation = splitter.analyze(
+                dataset_size=sample_count,
+                task_types=[
+                    TaskType.CONTEXT_CREATION,
+                    TaskType.TASK_DESIGN,
+                    TaskType.RUBRICS_WRITING,
+                    TaskType.DATA_GENERATION,
+                    TaskType.QUALITY_REVIEW,
+                ]
+            )
+
+            # Rubrics analysis
+            rubrics_result = None
+            if rubrics:
+                analyzer = RubricsAnalyzer()
+                rubrics_result = analyzer.analyze(rubrics, task_count=sample_count)
+
+            # Prompt analysis
+            prompt_library = None
+            if messages:
+                extractor = PromptExtractor()
+                prompt_library = extractor.extract(messages)
+
+            # LLM analysis for unknown types
+            llm_analysis = None
+            if use_llm and not dataset_type:
+                console.print("[dim]  🤖 LLM 分析中...[/dim]")
+                try:
+                    from datarecipe.analyzers.llm_dataset_analyzer import LLMDatasetAnalyzer
+                    llm_analyzer = LLMDatasetAnalyzer()
+                    llm_analysis = llm_analyzer.analyze(
+                        dataset_id=ds.id,
+                        schema_info=schema_info,
+                        sample_items=sample_items,
+                        sample_count=sample_count,
+                    )
+                    dataset_type = llm_analysis.dataset_type
+                except Exception as e:
+                    console.print(f"[yellow]  ⚠ LLM 分析失败: {e}[/yellow]")
+
+            # Create summary
+            summary = RadarIntegration.create_summary(
+                dataset_id=ds.id,
+                dataset_type=dataset_type,
+                category=ds.category,
+                allocation=allocation,
+                rubrics_result=rubrics_result,
+                prompt_library=prompt_library,
+                schema_info=schema_info,
+                sample_count=sample_count,
+                llm_analysis=llm_analysis,
+                output_dir=dataset_output_dir,
+            )
+
+            # Save summary
+            RadarIntegration.save_summary(summary, dataset_output_dir)
+            summaries.append(summary)
+            success_count += 1
+
+            console.print(f"[green]  ✓ 完成: {dataset_type or 'unknown'}, ${allocation.total_cost:,.0f}[/green]")
+
+        except Exception as e:
+            fail_count += 1
+            console.print(f"[red]  ✗ 失败: {e}[/red]")
+            continue
+
+    # Generate aggregated report
+    console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
+    console.print("[bold cyan]  批量分析完成[/bold cyan]")
+    console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+
+    console.print(f"成功: [green]{success_count}[/green]")
+    console.print(f"失败: [red]{fail_count}[/red]")
+
+    if summaries:
+        # Save aggregated summary
+        aggregate = RadarIntegration.aggregate_summaries(summaries)
+        aggregate_path = os.path.join(output_dir, "batch_summary.json")
+        with open(aggregate_path, "w", encoding="utf-8") as f:
+            json.dump(aggregate, f, indent=2, ensure_ascii=False)
+
+        console.print(f"\n[bold]汇总统计:[/bold]")
+        console.print(f"  总复刻成本: ${aggregate['total_reproduction_cost']['total']:,.0f}")
+        console.print(f"  平均人工占比: {aggregate['avg_human_percentage']:.0f}%")
+        console.print(f"  类型分布: {aggregate['type_distribution']}")
+
+        console.print(f"\n[bold]输出文件:[/bold]")
+        console.print(f"  📊 汇总报告: [cyan]{aggregate_path}[/cyan]")
+        console.print(f"  📁 各数据集: [cyan]{output_dir}/<dataset>/recipe_summary.json[/cyan]")
 
 
 if __name__ == "__main__":
