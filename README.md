@@ -347,6 +347,14 @@ datarecipe allocate --size 10000 --region china
 | `watch --once` | 单次检查模式 |
 | `watch --config <yaml>` | 使用配置文件 |
 
+### 整合报告
+
+| 命令 | 功能 |
+|------|------|
+| `integrate-report` | 生成整合报告 |
+| `integrate-report -r <radar.json>` | 整合 Radar 发现 |
+| `integrate-report --recipe-dir <dir>` | 指定分析目录 |
+
 ---
 
 ## 与 ai-dataset-radar 联动
@@ -419,6 +427,28 @@ datarecipe watch ./reports --orgs Anthropic,OpenAI --min-downloads 1000
 # 单次检查
 datarecipe watch ./reports --once
 ```
+
+### 整合报告
+
+将 Radar 发现和 Recipe 分析整合成一份完整周报：
+
+```bash
+# 基于 Radar 报告生成
+datarecipe integrate-report -r ./intel_report.json -o ./reports
+
+# 仅基于已分析数据集
+datarecipe integrate-report --recipe-dir ./analysis_output
+
+# 指定时间范围
+datarecipe integrate-report --start-date 2024-01-01 --end-date 2024-01-07
+```
+
+生成的报告包含：
+- 执行摘要（发现数、分析数、总成本）
+- 组织分布和类型分布
+- 详细数据集列表（已分析/待分析）
+- 成本分析（按类型）
+- 关键洞察和趋势
 
 ### 配置文件 (triggers.yaml)
 

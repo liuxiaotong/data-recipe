@@ -3500,6 +3500,64 @@ def batch_from_radar(
         console.print(f"  📁 各数据集: [cyan]{output_dir}/<dataset>/recipe_summary.json[/cyan]")
 
 
+@main.command("integrate-report")
+@click.option("--radar-report", "-r", help="Path to Radar intel report JSON")
+@click.option("--output-dir", "-o", default="./reports", help="Output directory")
+@click.option("--recipe-dir", default="./analysis_output", help="Recipe analysis directory")
+@click.option("--start-date", help="Period start date (YYYY-MM-DD)")
+@click.option("--end-date", help="Period end date (YYYY-MM-DD)")
+@click.option("--format", "-f", "formats", multiple=True, default=["md", "json"], help="Output formats")
+def integrate_report(
+    radar_report: str,
+    output_dir: str,
+    recipe_dir: str,
+    start_date: str,
+    end_date: str,
+    formats: tuple,
+):
+    """
+    Generate integrated report combining Radar discoveries and Recipe analysis.
+
+    Example:
+        datarecipe integrate-report -r ./intel_report.json -o ./reports
+        datarecipe integrate-report --recipe-dir ./analysis_output
+    """
+    from datarecipe.reports import IntegratedReportGenerator
+
+    console.print(f"\n[bold cyan]生成整合报告[/bold cyan]\n")
+
+    generator = IntegratedReportGenerator(
+        recipe_output_dir=recipe_dir,
+    )
+
+    # Generate report
+    report = generator.generate_weekly_report(
+        radar_report_path=radar_report,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    # Display summary
+    console.print(f"周期: {report.period_start} ~ {report.period_end}")
+    console.print(f"发现数据集: {report.total_discovered}")
+    console.print(f"已分析: {report.total_analyzed}")
+    console.print(f"总复刻成本: ${report.total_reproduction_cost:,.0f}")
+    console.print("")
+
+    if report.insights:
+        console.print("[bold]洞察:[/bold]")
+        for insight in report.insights:
+            console.print(f"  • {insight}")
+        console.print("")
+
+    # Save report
+    paths = generator.save_report(report, output_dir, list(formats))
+
+    console.print("[bold]生成文件:[/bold]")
+    for fmt, path in paths.items():
+        console.print(f"  📄 {path}")
+
+
 @main.command("watch")
 @click.argument("watch_dir")
 @click.option("--output-dir", "-o", default="./analysis_output", help="Output directory")
