@@ -521,7 +521,7 @@ datarecipe knowledge --report -o ./knowledge_report.md
 
 ## MCP 服务器
 
-在 Claude Desktop 中直接使用 DataRecipe。
+在 Claude Desktop / Claude App 中直接使用 DataRecipe，**生成与 CLI 完全相同的完整产出物**。
 
 添加到 `~/Library/Application Support/Claude/claude_desktop_config.json`：
 
@@ -538,29 +538,62 @@ datarecipe knowledge --report -o ./knowledge_report.md
 
 ### 可用工具
 
-| 工具 | 功能 |
-|------|------|
-| `analyze_dataset` | 基础分析（来源、生成方法、可复现性） |
-| `deep_analyze` | 深度分析，生成复刻指南和成本估算 |
-| `compare_datasets` | 对比多个数据集的构建方式 |
-| `get_reproduction_guide` | 获取数据集的复刻指南 |
-| `batch_analyze_from_radar` | 从 Radar 报告批量分析 |
-| `find_similar_datasets` | 找相似数据集 |
-| `profile_annotators` | 生成标注专家画像 |
-| `estimate_cost` | 估算生产成本 |
-| `deploy_project` | 生成投产项目 |
+| 工具 | 功能 | 产出物 |
+|------|------|--------|
+| `deep_analyze` | 深度分析数据集 | 完整产出 ⭐ |
+| `get_reproduction_guide` | 获取复刻指南 | 指南全文 |
+| `compare_datasets` | 对比多个数据集 | 对比报告 |
+| `batch_analyze_from_radar` | 从 Radar 报告批量分析 | 批量产出 |
+| `find_similar_datasets` | 找相似数据集 | 相似度列表 |
+| `analyze_dataset` | 基础分析 | JSON 摘要 |
+| `profile_annotators` | 标注专家画像 | 画像报告 |
+| `estimate_cost` | 估算生产成本 | 成本明细 |
+| `deploy_project` | 生成投产项目 | 项目脚手架 |
+
+### MCP 产出物
+
+调用 `deep_analyze` 会在 `./analysis_output/<dataset>/` 生成完整文件：
+
+```
+analysis_output/
+└── tencent_CL-bench/
+    ├── REPRODUCTION_GUIDE.md    # 复刻指南 ⭐
+    ├── ANALYSIS_REPORT.md       # 分析报告 ⭐
+    ├── recipe_summary.json      # 标准化摘要
+    ├── rubric_templates.yaml    # 评分模板
+    ├── rubric_templates.md      # 评分文档
+    ├── prompt_templates.json    # Prompt 模板
+    ├── context_strategy.json    # 上下文策略
+    ├── allocation.json          # 人机分配
+    └── llm_analysis.json        # LLM 分析 (可选)
+```
 
 ### 使用示例
 
 ```
 用户: 深度分析 tencent/CL-bench 数据集
-Claude: [调用 deep_analyze] 这是一个评测数据集，复刻成本约 $5,000...
+Claude: [调用 deep_analyze]
+        ✅ 已生成完整分析:
+        - 类型: evaluation
+        - 复刻成本: $5,200 (人工 84%)
+        - 产出文件: 8 个 (见 ./analysis_output/tencent_CL-bench/)
+
+用户: 给我复刻指南
+Claude: [调用 get_reproduction_guide]
+        📋 REPRODUCTION_GUIDE.md 内容:
+        # tencent/CL-bench 复刻指南
+        ...
 
 用户: 对比 Anthropic/hh-rlhf 和 OpenAI/summarize_from_feedback
-Claude: [调用 compare_datasets] 两者都是偏好数据集，但成本差异较大...
+Claude: [调用 compare_datasets]
+        两者都是偏好数据集:
+        - hh-rlhf: $5,200, 人工 84%
+        - summarize: $3,800, 人工 76%
 
 用户: Radar 发现了新数据集，帮我分析前 5 个
-Claude: [调用 batch_analyze_from_radar] 已分析 5 个数据集，总复刻成本...
+Claude: [调用 batch_analyze_from_radar]
+        已分析 5 个数据集，总复刻成本 $28,000
+        每个数据集都已生成完整产出文件
 ```
 
 ---

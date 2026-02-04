@@ -167,133 +167,46 @@ def list_providers() -> dict:
 
 
 def deep_analyze_dataset(dataset_id: str, sample_size: int = 200, use_llm: bool = False) -> dict:
-    """深度分析数据集，生成复刻指南"""
-    import os
-    from datarecipe.integrations.radar import RadarIntegration
+    """深度分析数据集，生成完整复刻指南和分析报告
+
+    使用 DeepAnalyzerCore 进行完整分析，生成与 CLI 相同的所有输出文件：
+    - REPRODUCTION_GUIDE.md: 复刻指南
+    - ANALYSIS_REPORT.md: 分析报告
+    - rubric_templates.yaml/md: 评分模板
+    - prompt_templates.json: Prompt 模板
+    - recipe_summary.json: 分析摘要
+    - 等其他分析产物
+    """
+    from datarecipe.core import DeepAnalyzerCore
 
     try:
-        from datasets import load_dataset
-        from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
-        from datarecipe.analyzers import ContextStrategyDetector
-        from datarecipe.generators import HumanMachineSplitter, TaskType
-
-        # Create output directory
-        safe_name = dataset_id.replace("/", "_").replace("\\", "_")
-        output_dir = f"./analysis_output/{safe_name}"
-        os.makedirs(output_dir, exist_ok=True)
-
-        # Load dataset
-        try:
-            ds = load_dataset(dataset_id, split="train", streaming=True)
-        except ValueError:
-            ds = load_dataset(dataset_id, split="test", streaming=True)
-
-        # Collect samples
-        schema_info = {}
-        sample_items = []
-        rubrics = []
-        messages = []
-        sample_count = 0
-
-        for i, item in enumerate(ds):
-            if i >= sample_size:
-                break
-            sample_count = i + 1
-
-            if i < 5:
-                for field, value in item.items():
-                    if field not in schema_info:
-                        schema_info[field] = {"type": type(value).__name__}
-                sample_items.append(item)
-
-            for field in ["rubrics", "rubric", "criteria"]:
-                if field in item:
-                    v = item[field]
-                    if isinstance(v, list):
-                        rubrics.extend(v)
-                    elif isinstance(v, str):
-                        rubrics.append(v)
-
-            if "messages" in item:
-                messages.extend(item.get("messages", []))
-
-        # Detect dataset type
-        is_preference = "chosen" in schema_info and "rejected" in schema_info
-        is_swe = "repo" in schema_info and "patch" in schema_info
-
-        dataset_type = ""
-        if is_preference:
-            dataset_type = "preference"
-        elif is_swe:
-            dataset_type = "swe_bench"
-        elif rubrics:
-            dataset_type = "evaluation"
-
-        # Analyze
-        rubrics_result = None
-        if rubrics:
-            analyzer = RubricsAnalyzer()
-            rubrics_result = analyzer.analyze(rubrics, task_count=sample_count)
-
-        prompt_library = None
-        if messages:
-            extractor = PromptExtractor()
-            prompt_library = extractor.extract(messages)
-
-        # Allocation
-        splitter = HumanMachineSplitter(region="china")
-        allocation = splitter.analyze(
-            dataset_size=sample_count,
-            task_types=[
-                TaskType.CONTEXT_CREATION,
-                TaskType.TASK_DESIGN,
-                TaskType.RUBRICS_WRITING,
-                TaskType.DATA_GENERATION,
-                TaskType.QUALITY_REVIEW,
-            ]
+        # Use core analyzer for full analysis
+        analyzer = DeepAnalyzerCore(
+            output_dir="./analysis_output",
+            region="china",
+            use_llm=use_llm,
+            llm_provider="anthropic",
         )
 
-        # LLM analysis
-        llm_analysis = None
-        if use_llm and not dataset_type:
-            try:
-                from datarecipe.analyzers.llm_dataset_analyzer import LLMDatasetAnalyzer
-                llm_analyzer = LLMDatasetAnalyzer()
-                llm_analysis = llm_analyzer.analyze(
-                    dataset_id=dataset_id,
-                    schema_info=schema_info,
-                    sample_items=sample_items,
-                    sample_count=sample_count,
-                )
-                dataset_type = llm_analysis.dataset_type
-            except Exception:
-                pass
-
-        # Create summary
-        summary = RadarIntegration.create_summary(
+        result = analyzer.analyze(
             dataset_id=dataset_id,
-            dataset_type=dataset_type,
-            allocation=allocation,
-            rubrics_result=rubrics_result,
-            prompt_library=prompt_library,
-            schema_info=schema_info,
-            sample_count=sample_count,
-            llm_analysis=llm_analysis,
-            output_dir=output_dir,
+            sample_size=sample_size,
         )
-        RadarIntegration.save_summary(summary, output_dir)
+
+        if not result.success:
+            return {"error": result.error, "dataset_id": dataset_id}
 
         return {
             "dataset_id": dataset_id,
-            "dataset_type": dataset_type or "unknown",
-            "sample_count": sample_count,
-            "fields": list(schema_info.keys()),
-            "reproduction_cost": summary.reproduction_cost,
-            "human_percentage": summary.human_percentage,
-            "rubric_patterns": summary.rubric_patterns,
-            "prompt_templates": summary.prompt_templates,
-            "output_dir": output_dir,
-            "files": ["recipe_summary.json"],
+            "dataset_type": result.dataset_type or "unknown",
+            "sample_count": result.sample_count,
+            "fields": result.fields,
+            "reproduction_cost": result.reproduction_cost,
+            "human_percentage": result.human_percentage,
+            "rubric_patterns": result.rubric_patterns,
+            "prompt_templates": result.prompt_templates,
+            "output_dir": result.output_dir,
+            "files": result.files_generated,
         }
 
     except Exception as e:
@@ -358,15 +271,20 @@ def compare_datasets(dataset_ids: list[str]) -> dict:
 
 
 def get_reproduction_guide(dataset_id: str) -> dict:
-    """获取已分析数据集的复刻指南"""
+    """获取已分析数据集的复刻指南
+
+    如果分析不存在，会自动进行完整分析生成所有文件。
+    """
     import os
 
     safe_name = dataset_id.replace("/", "_").replace("\\", "_")
-    guide_path = f"./analysis_output/{safe_name}/REPRODUCTION_GUIDE.md"
-    summary_path = f"./analysis_output/{safe_name}/recipe_summary.json"
+    output_dir = f"./analysis_output/{safe_name}"
+    guide_path = f"{output_dir}/REPRODUCTION_GUIDE.md"
+    report_path = f"{output_dir}/ANALYSIS_REPORT.md"
+    summary_path = f"{output_dir}/recipe_summary.json"
 
     if not os.path.exists(summary_path):
-        # Run analysis first
+        # Run full analysis first (generates all files)
         result = deep_analyze_dataset(dataset_id, sample_size=200)
         if "error" in result:
             return result
@@ -375,18 +293,34 @@ def get_reproduction_guide(dataset_id: str) -> dict:
     from datarecipe.integrations.radar import RadarIntegration
     summary = RadarIntegration.load_summary(summary_path)
 
-    # Load guide if exists
+    # Load guide
     guide_content = ""
     if os.path.exists(guide_path):
         with open(guide_path, "r", encoding="utf-8") as f:
             guide_content = f.read()
 
+    # Load report
+    report_content = ""
+    if os.path.exists(report_path):
+        with open(report_path, "r", encoding="utf-8") as f:
+            report_content = f.read()
+
+    # List all available files
+    available_files = []
+    if os.path.exists(output_dir):
+        available_files = os.listdir(output_dir)
+
     return {
         "dataset_id": dataset_id,
+        "output_dir": output_dir,
         "summary": summary.to_dict(),
+        "available_files": available_files,
         "guide_path": guide_path,
         "guide_available": os.path.exists(guide_path),
-        "guide_preview": guide_content[:2000] + "..." if len(guide_content) > 2000 else guide_content,
+        "guide_content": guide_content,
+        "report_path": report_path,
+        "report_available": os.path.exists(report_path),
+        "report_preview": report_content[:2000] + "..." if len(report_content) > 2000 else report_content,
     }
 
 
@@ -636,7 +570,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="deep_analyze",
-            description="深度分析数据集，提取评分标准、Prompt模板、生成复刻指南和成本估算。",
+            description="深度分析数据集，生成完整的复刻指南和分析报告。输出包括: REPRODUCTION_GUIDE.md(复刻指南), ANALYSIS_REPORT.md(分析报告), rubric_templates.yaml(评分模板), prompt_templates.json(Prompt模板), recipe_summary.json(分析摘要)等。",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -675,7 +609,7 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="get_reproduction_guide",
-            description="获取数据集的复刻指南，包括 Schema、SOP、成本估算等。",
+            description="获取数据集的复刻指南和分析报告。如果不存在会自动进行完整分析。返回完整的 REPRODUCTION_GUIDE.md 内容、ANALYSIS_REPORT.md 预览和所有生成的文件列表。",
             inputSchema={
                 "type": "object",
                 "properties": {
