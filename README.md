@@ -8,13 +8,13 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Installation](#installation) · [Usage](#usage) · [Commands](#commands) · [MCP Server](#mcp-server)
+[Installation](#installation) · [Usage](#usage) · [Deep Analysis](#deep-analysis) · [Commands](#commands)
 
 </div>
 
 ---
 
-Analyze how any AI dataset was built. Generate production-ready materials to reproduce it at scale.
+Analyze how any AI dataset was built. Extract patterns, generate production guides, and reproduce at scale.
 
 ## Installation
 
@@ -81,20 +81,77 @@ datarecipe profile nguha/legalbench --region china
 datarecipe deploy AI-MO/NuminaMath-CoT -o ./my_project
 ```
 
+---
+
+## Deep Analysis
+
+Extract actionable patterns from any dataset for reproduction at scale.
+
+### Extract rubrics patterns
+
+```bash
+datarecipe extract-rubrics tencent/CL-bench
+```
+
 <details>
 <summary>Output</summary>
 
 ```
-my_project/
-├── annotation_guide.md       # Step-by-step labeling instructions
-├── quality_rules.md          # QA checklist
-├── acceptance_criteria.md    # Delivery standards
-└── timeline.md               # Project schedule
+╭────────────────────── Rubrics Analysis ──────────────────────╮
+│  Total Rubrics: 1173                                         │
+│  Unique Patterns: 900                                        │
+│                                                              │
+│  Top Verbs:                                                  │
+│    - include: 91 (7.8%)                                      │
+│    - state: 86 (7.3%)                                        │
+│    - not: 71 (6.1%)                                          │
+│    - explain: 70 (6.0%)                                      │
+│    - provide: 58 (4.9%)                                      │
+╰──────────────────────────────────────────────────────────────╯
 ```
 
 </details>
 
+### Generate human-machine allocation
+
+```bash
+datarecipe allocate --size 10000 --region china
+```
+
+<details>
+<summary>Output</summary>
+
+```
+╭─────────────────── Allocation Summary ───────────────────╮
+│  Total Tasks: 5                                          │
+│    - Human Only: 3                                       │
+│    - Machine Only: 1                                     │
+│    - Hybrid: 1                                           │
+│                                                          │
+│  COSTS:                                                  │
+│    Human Labor: $43,620 (2222 hours)                     │
+│    Machine/API: $498                                     │
+│    Total: $44,118                                        │
+│                                                          │
+│  WORKLOAD SPLIT:                                         │
+│    Human: 84%                                            │
+│    Machine: 16%                                          │
+╰──────────────────────────────────────────────────────────╯
+```
+
+</details>
+
+### Generate data from patterns
+
+```bash
+datarecipe generate --type rubrics --context "game rules" --count 10
+```
+
+---
+
 ## Commands
+
+### Core Analysis
 
 | Command | Description |
 |---------|-------------|
@@ -103,9 +160,28 @@ my_project/
 | `deploy` | Output production-ready project materials |
 | `cost` | Estimate API costs for synthetic generation |
 | `quality` | Analyze data quality distribution |
-| `compare` | Compare multiple datasets side-by-side |
+
+### Deep Reverse Engineering
+
+| Command | Description |
+|---------|-------------|
+| `extract-rubrics` | Extract evaluation criteria patterns (verbs, templates) |
+| `extract-prompts` | Extract and deduplicate system prompt templates |
+| `detect-strategy` | Detect context construction strategy (synthetic/modified/niche) |
+| `allocate` | Generate human-machine task allocation with costs |
+| `enhanced-guide` | Generate production guide with discovered patterns |
+| `generate` | Generate data based on extracted patterns |
+
+### Batch Operations
+
+| Command | Description |
+|---------|-------------|
 | `batch` | Analyze multiple datasets at once |
+| `compare` | Compare multiple datasets side-by-side |
 | `guide` | Generate reproduction guide |
+| `workflow` | Generate complete reproduction workflow |
+
+---
 
 ## MCP Server
 
