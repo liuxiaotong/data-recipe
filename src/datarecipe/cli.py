@@ -1679,20 +1679,31 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
     from datarecipe.analyzers import ContextStrategyDetector
     from datarecipe.generators import HumanMachineSplitter, TaskType
 
-    # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    # Create output directory with dataset subdirectory
+    # Convert dataset_id to safe directory name (e.g., "tencent/CL-bench" -> "tencent_CL-bench")
+    safe_dataset_name = dataset_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+    dataset_output_dir = os.path.join(output_dir, safe_dataset_name)
+    os.makedirs(dataset_output_dir, exist_ok=True)
 
     console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
     console.print(f"[bold cyan]  DataRecipe 深度逆向分析[/bold cyan]")
     console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
     console.print(f"数据集: [bold]{dataset_id}[/bold]")
-    console.print(f"输出目录: [bold]{output_dir}[/bold]\n")
+    console.print(f"输出目录: [bold]{dataset_output_dir}[/bold]\n")
 
     # Initialize results
     rubrics_result = None
     prompt_library = None
     strategy_result = None
     actual_size = size
+
+    # Data for reproduction guide
+    schema_info = {}  # field -> {type, examples}
+    category_set = set()
+    sub_category_set = set()
+    system_prompts_by_domain = {}  # domain -> [prompts]
+    rubrics_examples = []  # Full rubric examples with context
+    sample_items = []  # Complete sample items for reference
 
     try:
         from datasets import load_dataset
@@ -1712,18 +1723,85 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             if i > 0 and i % 100 == 0:
                 console.print(f"[dim]   已处理 {i}/{sample_size} 样本[/dim]")
 
-            # Collect rubrics
+            # Collect schema info from first few items
+            if i < 10:
+                for field, value in item.items():
+                    if field not in schema_info:
+                        schema_info[field] = {
+                            "type": type(value).__name__,
+                            "examples": [],
+                            "nested_type": None
+                        }
+                        # Detect nested types for lists/dicts
+                        if isinstance(value, list) and value:
+                            schema_info[field]["nested_type"] = type(value[0]).__name__
+                        elif isinstance(value, dict) and value:
+                            schema_info[field]["nested_type"] = list(value.keys())
+                    # Collect examples
+                    if len(schema_info[field]["examples"]) < 3:
+                        if isinstance(value, str) and len(value) > 500:
+                            schema_info[field]["examples"].append(value[:500] + "...")
+                        elif isinstance(value, (list, dict)):
+                            pass  # Skip complex types for examples
+                        else:
+                            schema_info[field]["examples"].append(value)
+
+            # Save complete sample items (first 5)
+            if i < 5:
+                sample_items.append(item)
+
+            # Collect metadata categories
+            if "metadata" in item and isinstance(item["metadata"], dict):
+                meta = item["metadata"]
+                if "context_category" in meta:
+                    category_set.add(meta["context_category"])
+                if "sub_category" in meta:
+                    sub_category_set.add(meta["sub_category"])
+                if "category" in meta:
+                    category_set.add(meta["category"])
+
+            # Collect rubrics with context for examples
+            item_rubrics = []
             for field in ["rubrics", "rubric", "criteria"]:
                 if field in item:
                     value = item[field]
                     if isinstance(value, list):
                         rubrics.extend(value)
+                        item_rubrics.extend(value)
                     elif isinstance(value, str):
                         rubrics.append(value)
+                        item_rubrics.append(value)
 
-            # Collect messages
+            # Save rubric examples with full context (first 10)
+            if item_rubrics and len(rubrics_examples) < 10:
+                rubrics_examples.append({
+                    "rubrics": item_rubrics,
+                    "metadata": item.get("metadata", {}),
+                    "messages": item.get("messages", [])
+                })
+
+            # Collect messages and system prompts by domain
             if "messages" in item and isinstance(item["messages"], list):
                 messages.extend(item["messages"])
+
+                # Extract system prompt and categorize by domain
+                for msg in item["messages"]:
+                    if isinstance(msg, dict) and msg.get("role") == "system":
+                        content = msg.get("content", "")
+                        if content and len(content) > 50:
+                            # Determine domain from metadata or content
+                            domain = "general"
+                            if "metadata" in item and isinstance(item["metadata"], dict):
+                                domain = item["metadata"].get("context_category",
+                                         item["metadata"].get("category", "general"))
+
+                            if domain not in system_prompts_by_domain:
+                                system_prompts_by_domain[domain] = []
+                            if len(system_prompts_by_domain[domain]) < 3:
+                                system_prompts_by_domain[domain].append({
+                                    "content": content,
+                                    "metadata": item.get("metadata", {})
+                                })
 
             # Collect contexts from various fields
             context_found = False
@@ -1754,13 +1832,13 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             rubrics_result = analyzer.analyze(rubrics, task_count=sample_count)
 
             # Save JSON
-            with open(os.path.join(output_dir, "rubrics_analysis.json"), "w", encoding="utf-8") as f:
+            with open(os.path.join(dataset_output_dir, "rubrics_analysis.json"), "w", encoding="utf-8") as f:
                 json.dump(analyzer.to_dict(rubrics_result), f, indent=2, ensure_ascii=False)
 
             # Save structured templates (YAML + Markdown)
-            with open(os.path.join(output_dir, "rubric_templates.yaml"), "w", encoding="utf-8") as f:
+            with open(os.path.join(dataset_output_dir, "rubric_templates.yaml"), "w", encoding="utf-8") as f:
                 f.write(analyzer.to_yaml_templates(rubrics_result))
-            with open(os.path.join(output_dir, "rubric_templates.md"), "w", encoding="utf-8") as f:
+            with open(os.path.join(dataset_output_dir, "rubric_templates.md"), "w", encoding="utf-8") as f:
                 f.write(analyzer.to_markdown_templates(rubrics_result))
             console.print(f"[green]✓ 评分标准: {len(rubrics)} 条, {rubrics_result.unique_patterns} 种模式[/green]")
 
@@ -1771,7 +1849,7 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             prompt_library = extractor.extract(messages)
 
             # Save JSON
-            with open(os.path.join(output_dir, "prompt_templates.json"), "w", encoding="utf-8") as f:
+            with open(os.path.join(dataset_output_dir, "prompt_templates.json"), "w", encoding="utf-8") as f:
                 json.dump(extractor.to_dict(prompt_library), f, indent=2, ensure_ascii=False)
             console.print(f"[green]✓ Prompt模板: {prompt_library.unique_count} 个独特模板[/green]")
 
@@ -1782,7 +1860,7 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             strategy_result = detector.analyze(contexts[:100])
 
             # Save JSON
-            with open(os.path.join(output_dir, "context_strategy.json"), "w", encoding="utf-8") as f:
+            with open(os.path.join(dataset_output_dir, "context_strategy.json"), "w", encoding="utf-8") as f:
                 json.dump(detector.to_dict(strategy_result), f, indent=2, ensure_ascii=False)
             console.print(f"[green]✓ 策略检测: {strategy_result.primary_strategy.value} (置信度 {strategy_result.confidence:.1%})[/green]")
 
@@ -1802,7 +1880,7 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
 
         # Save JSON
         allocation_dict = splitter.to_dict(allocation)
-        with open(os.path.join(output_dir, "allocation.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(dataset_output_dir, "allocation.json"), "w", encoding="utf-8") as f:
             json.dump(allocation_dict, f, indent=2, ensure_ascii=False)
         console.print(f"[green]✓ 人机分配: 人工 {allocation.human_work_percentage:.0f}%, 机器 {allocation.machine_work_percentage:.0f}%[/green]")
 
@@ -1819,10 +1897,30 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             region=region,
         )
 
-        report_path = os.path.join(output_dir, "ANALYSIS_REPORT.md")
+        report_path = os.path.join(dataset_output_dir, "ANALYSIS_REPORT.md")
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(report)
         console.print(f"[green]✓ 综合报告已保存[/green]")
+
+        # 6. Generate Reproduction Guide
+        console.print("[dim]📋 生成复刻指南...[/dim]")
+        guide = _generate_reproduction_guide(
+            dataset_id=dataset_id,
+            schema_info=schema_info,
+            category_set=category_set,
+            sub_category_set=sub_category_set,
+            system_prompts_by_domain=system_prompts_by_domain,
+            rubrics_examples=rubrics_examples,
+            sample_items=sample_items,
+            rubrics_result=rubrics_result,
+            prompt_library=prompt_library,
+            allocation=allocation,
+        )
+
+        guide_path = os.path.join(dataset_output_dir, "REPRODUCTION_GUIDE.md")
+        with open(guide_path, "w", encoding="utf-8") as f:
+            f.write(guide)
+        console.print(f"[green]✓ 复刻指南已保存[/green]")
 
         # Summary
         console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
@@ -1830,8 +1928,8 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
         console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
 
         console.print("生成的文件:")
-        for fname in os.listdir(output_dir):
-            fpath = os.path.join(output_dir, fname)
+        for fname in sorted(os.listdir(dataset_output_dir)):
+            fpath = os.path.join(dataset_output_dir, fname)
             fsize = os.path.getsize(fpath)
             if fsize > 1024 * 1024:
                 size_str = f"{fsize / 1024 / 1024:.1f}MB"
@@ -1839,10 +1937,12 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
                 size_str = f"{fsize / 1024:.1f}KB"
             else:
                 size_str = f"{fsize}B"
-            icon = "📊" if fname.endswith(".json") else "📄"
+            icon = "📊" if fname.endswith(".json") else "📄" if fname.endswith(".md") else "📑"
             console.print(f"  {icon} {fname} ({size_str})")
 
-        console.print(f"\n[bold]查看报告: [cyan]{report_path}[/cyan][/bold]")
+        console.print(f"\n[bold]核心产出:[/bold]")
+        console.print(f"  📄 分析报告: [cyan]{report_path}[/cyan]")
+        console.print(f"  📋 复刻指南: [cyan]{guide_path}[/cyan]")
 
     except Exception as e:
         console.print(f"[red]错误: {e}[/red]")
@@ -2093,6 +2193,362 @@ def _generate_analysis_report(
     lines.append("---")
     lines.append("")
     lines.append("*报告由 DataRecipe 自动生成*")
+
+    return "\n".join(lines)
+
+
+def _generate_reproduction_guide(
+    dataset_id: str,
+    schema_info: dict,
+    category_set: set,
+    sub_category_set: set,
+    system_prompts_by_domain: dict,
+    rubrics_examples: list,
+    sample_items: list,
+    rubrics_result,
+    prompt_library,
+    allocation,
+) -> str:
+    """Generate a practical reproduction guide for recreating a similar dataset."""
+    import json
+
+    lines = []
+    lines.append(f"# 📋 {dataset_id} 复刻指南")
+    lines.append("")
+    lines.append("> **本指南提供可直接操作的模板和规范，帮助你从零开始构建类似风格的数据集。**")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # ==================== Section 1: Data Schema ====================
+    lines.append("## 1️⃣ 数据结构规范 (Schema)")
+    lines.append("")
+    lines.append("### 1.1 字段定义")
+    lines.append("")
+    lines.append("| 字段名 | 类型 | 子类型 | 说明 |")
+    lines.append("|--------|------|--------|------|")
+
+    field_descriptions = {
+        "messages": "对话消息列表，包含 system/user/assistant 角色",
+        "rubrics": "评分标准列表，用于评估模型回答质量",
+        "metadata": "元数据字典，包含任务分类等信息",
+        "input": "用户输入/上下文",
+        "output": "期望的模型输出",
+        "instruction": "任务指令",
+        "context": "上下文信息",
+        "question": "问题内容",
+        "answer": "参考答案",
+    }
+
+    for field, info in schema_info.items():
+        ftype = info["type"]
+        nested = info.get("nested_type", "")
+        if isinstance(nested, list):
+            nested = f"keys: {', '.join(nested[:3])}"
+        desc = field_descriptions.get(field, "—")
+        lines.append(f"| `{field}` | `{ftype}` | `{nested or '—'}` | {desc} |")
+    lines.append("")
+
+    # JSON Schema
+    lines.append("### 1.2 JSON Schema")
+    lines.append("")
+    lines.append("```json")
+    lines.append("{")
+    for i, (field, info) in enumerate(schema_info.items()):
+        comma = "," if i < len(schema_info) - 1 else ""
+        if info["type"] == "list":
+            if info.get("nested_type") == "dict":
+                lines.append(f'  "{field}": [{{...}}]{comma}')
+            elif info.get("nested_type") == "str":
+                lines.append(f'  "{field}": ["..."]' + comma)
+            else:
+                lines.append(f'  "{field}": []{comma}')
+        elif info["type"] == "dict":
+            lines.append(f'  "{field}": {{...}}{comma}')
+        elif info["type"] == "str":
+            lines.append(f'  "{field}": "..."{comma}')
+        else:
+            lines.append(f'  "{field}": ...{comma}')
+    lines.append("}")
+    lines.append("```")
+    lines.append("")
+
+    # ==================== Section 2: Category System ====================
+    lines.append("## 2️⃣ 任务分类体系")
+    lines.append("")
+
+    if category_set:
+        lines.append("### 2.1 主分类 (context_category)")
+        lines.append("")
+        for cat in sorted(category_set):
+            lines.append(f"- `{cat}`")
+        lines.append("")
+
+    if sub_category_set:
+        lines.append("### 2.2 子分类 (sub_category)")
+        lines.append("")
+        for sub in sorted(sub_category_set):
+            lines.append(f"- `{sub}`")
+        lines.append("")
+
+    if not category_set and not sub_category_set:
+        lines.append("*未检测到分类体系*")
+        lines.append("")
+
+    lines.append("---")
+    lines.append("")
+
+    # ==================== Section 3: System Prompt Templates ====================
+    lines.append("## 3️⃣ System Prompt 模板库")
+    lines.append("")
+    lines.append("> 以下是从数据集中提取的真实 System Prompt 示例，可直接复用或改编。")
+    lines.append("")
+
+    if system_prompts_by_domain:
+        for domain, prompts in list(system_prompts_by_domain.items())[:5]:
+            lines.append(f"### 3.{list(system_prompts_by_domain.keys()).index(domain)+1} {domain}")
+            lines.append("")
+            for i, p in enumerate(prompts[:2], 1):
+                content = p["content"]
+                # Truncate if too long
+                if len(content) > 1500:
+                    content = content[:1500] + "\n\n... (截断，完整内容见 prompt_templates.json)"
+                lines.append(f"**示例 {i}:**")
+                lines.append("")
+                lines.append("```")
+                lines.append(content)
+                lines.append("```")
+                lines.append("")
+    else:
+        lines.append("*未提取到 System Prompt*")
+        lines.append("")
+
+    lines.append("---")
+    lines.append("")
+
+    # ==================== Section 4: Rubric Writing Guide ====================
+    lines.append("## 4️⃣ 评分标准 (Rubric) 编写规范")
+    lines.append("")
+
+    if rubrics_result:
+        lines.append("### 4.1 句式模式")
+        lines.append("")
+        lines.append("从数据集中发现的高频句式模式：")
+        lines.append("")
+
+        # Top verbs
+        sorted_verbs = sorted(rubrics_result.verb_distribution.items(), key=lambda x: -x[1])[:8]
+        lines.append("| 核心动词 | 频次 | 示例句式 |")
+        lines.append("|----------|------|----------|")
+        verb_examples = {
+            "include": "The response should include [具体内容]",
+            "state": "The response should state [具体事实]",
+            "explain": "The response should explain [概念/原因]",
+            "provide": "The response should provide [信息/示例]",
+            "not": "The response should not [禁止行为]",
+            "identify": "The response should identify [目标对象]",
+            "use": "The response should use [指定方法/格式]",
+            "define": "The response should define [术语/概念]",
+            "list": "The response should list [条目/步骤]",
+            "describe": "The response should describe [描述对象]",
+        }
+        for verb, count in sorted_verbs:
+            example = verb_examples.get(verb, f"... should {verb} ...")
+            lines.append(f"| **{verb}** | {count} | `{example}` |")
+        lines.append("")
+
+        lines.append("### 4.2 评分标准结构")
+        lines.append("")
+        lines.append("推荐采用以下结构编写评分标准：")
+        lines.append("")
+        lines.append("```")
+        lines.append("[主语] should [动作] [目标]. [条件/例外]. Fail if [失败条件].")
+        lines.append("```")
+        lines.append("")
+        lines.append("**结构说明：**")
+        lines.append("")
+        lines.append("| 组成部分 | 说明 | 示例 |")
+        lines.append("|----------|------|------|")
+        lines.append("| 主语 | 被评估对象 | The response / The model / The answer |")
+        lines.append("| 动作 | 期望行为 | should include / should explain / should not |")
+        lines.append("| 目标 | 具体内容 | the definition of X / at least 3 examples |")
+        lines.append("| 条件 | 适用范围 | For example, ... / When X, ... |")
+        lines.append("| 失败条件 | 扣分标准 | Fail if X is missing / Fail if incorrect |")
+        lines.append("")
+
+    # Real rubric examples
+    if rubrics_examples:
+        lines.append("### 4.3 完整示例")
+        lines.append("")
+        lines.append("> 以下是从数据集中提取的真实评分标准示例：")
+        lines.append("")
+
+        for i, ex in enumerate(rubrics_examples[:3], 1):
+            meta = ex.get("metadata", {})
+            cat = meta.get("context_category", meta.get("category", "unknown"))
+            sub = meta.get("sub_category", "")
+
+            lines.append(f"**示例 {i}** (`{cat}` / `{sub}`)")
+            lines.append("")
+            for j, r in enumerate(ex["rubrics"][:5], 1):
+                lines.append(f"{j}. {r}")
+            if len(ex["rubrics"]) > 5:
+                lines.append(f"   ... (共 {len(ex['rubrics'])} 条)")
+            lines.append("")
+
+    lines.append("---")
+    lines.append("")
+
+    # ==================== Section 5: Step-by-Step SOP ====================
+    lines.append("## 5️⃣ 复刻 SOP (标准操作流程)")
+    lines.append("")
+    lines.append("### Phase 1: 准备阶段")
+    lines.append("")
+    lines.append("```")
+    lines.append("步骤 1.1: 确定目标领域和分类体系")
+    lines.append("         ├─ 参考上方「任务分类体系」")
+    lines.append("         └─ 确定要覆盖的 context_category 列表")
+    lines.append("")
+    lines.append("步骤 1.2: 收集原始上下文材料")
+    lines.append("         ├─ 专业文档、手册、规范")
+    lines.append("         ├─ 确保材料不在 LLM 训练数据中")
+    lines.append("         └─ 每个分类准备 10-20 份材料")
+    lines.append("")
+    lines.append("步骤 1.3: 准备 System Prompt 模板")
+    lines.append("         ├─ 参考上方「System Prompt 模板库」")
+    lines.append("         └─ 按领域定制角色设定")
+    lines.append("```")
+    lines.append("")
+
+    lines.append("### Phase 2: 数据生成阶段")
+    lines.append("")
+    lines.append("```")
+    lines.append("步骤 2.1: 编写 System Prompt")
+    lines.append("         ├─ 定义 AI 角色和能力边界")
+    lines.append("         ├─ 设置输出格式约束")
+    lines.append("         └─ 添加领域特定指令")
+    lines.append("")
+    lines.append("步骤 2.2: 构造 User Query")
+    lines.append("         ├─ 嵌入上下文材料")
+    lines.append("         ├─ 设计需要理解上下文才能回答的问题")
+    lines.append("         └─ 问题应有明确的评估标准")
+    lines.append("")
+    lines.append("步骤 2.3: 编写评分标准 (Rubrics)")
+    lines.append("         ├─ 遵循上方「评分标准编写规范」")
+    lines.append("         ├─ 每个任务 8-15 条评分标准")
+    lines.append("         ├─ 覆盖：正确性、完整性、格式、约束")
+    lines.append("         └─ 使用 Fail if ... 明确失败条件")
+    lines.append("```")
+    lines.append("")
+
+    lines.append("### Phase 3: 质量控制阶段")
+    lines.append("")
+    lines.append("```")
+    lines.append("步骤 3.1: 自检")
+    lines.append("         ├─ [ ] 问题必须依赖上下文才能回答")
+    lines.append("         ├─ [ ] 评分标准可量化、可执行")
+    lines.append("         └─ [ ] 数据格式符合 Schema 规范")
+    lines.append("")
+    lines.append("步骤 3.2: 交叉审核")
+    lines.append("         ├─ 另一标注员独立评估")
+    lines.append("         ├─ 检查评分标准是否遗漏")
+    lines.append("         └─ 验证标准是否存在歧义")
+    lines.append("")
+    lines.append("步骤 3.3: 抽样测试")
+    lines.append("         ├─ 用 LLM 生成回答")
+    lines.append("         ├─ 按 Rubrics 评分")
+    lines.append("         └─ 验证评分标准的区分度")
+    lines.append("```")
+    lines.append("")
+
+    lines.append("---")
+    lines.append("")
+
+    # ==================== Section 6: Complete Example ====================
+    lines.append("## 6️⃣ 完整数据示例")
+    lines.append("")
+
+    if sample_items:
+        item = sample_items[0]
+        lines.append("```json")
+        # Create a clean version for display
+        display_item = {}
+        for k, v in item.items():
+            if k == "messages" and isinstance(v, list):
+                display_messages = []
+                for msg in v:
+                    if isinstance(msg, dict):
+                        content = msg.get("content", "")
+                        if len(content) > 500:
+                            msg = dict(msg)
+                            msg["content"] = content[:500] + "... (truncated)"
+                        display_messages.append(msg)
+                display_item[k] = display_messages
+            elif k == "rubrics" and isinstance(v, list):
+                display_item[k] = v[:5] + ["... (truncated)"] if len(v) > 5 else v
+            elif isinstance(v, str) and len(v) > 300:
+                display_item[k] = v[:300] + "... (truncated)"
+            else:
+                display_item[k] = v
+        lines.append(json.dumps(display_item, indent=2, ensure_ascii=False))
+        lines.append("```")
+    else:
+        lines.append("*无可用示例*")
+    lines.append("")
+
+    lines.append("---")
+    lines.append("")
+
+    # ==================== Section 7: Resource Estimation ====================
+    lines.append("## 7️⃣ 资源估算")
+    lines.append("")
+
+    if allocation:
+        lines.append("### 7.1 人力配置建议")
+        lines.append("")
+        lines.append("| 角色 | 人数 | 主要职责 |")
+        lines.append("|------|------|----------|")
+        lines.append("| 领域专家 | 2-4 | 提供上下文材料，审核专业性 |")
+        lines.append("| 任务设计师 | 1-2 | 设计问题，确保评测效度 |")
+        lines.append("| 标注员 | 3-5 | 编写评分标准，标注数据 |")
+        lines.append("| QA | 1-2 | 质量抽检，一致性校验 |")
+        lines.append("")
+
+        lines.append("### 7.2 成本估算")
+        lines.append("")
+        lines.append(f"- **人工成本**: ${allocation.total_human_cost:,.0f}")
+        lines.append(f"- **API 成本**: ${allocation.total_machine_cost:,.0f}")
+        lines.append(f"- **总计**: ${allocation.total_cost:,.0f}")
+        lines.append("")
+
+    lines.append("---")
+    lines.append("")
+
+    # ==================== Section 8: Checklist ====================
+    lines.append("## 8️⃣ 发布前检查清单")
+    lines.append("")
+    lines.append("### 数据质量")
+    lines.append("")
+    lines.append("- [ ] 所有字段符合 Schema 规范")
+    lines.append("- [ ] 无空值或异常值")
+    lines.append("- [ ] 上下文材料不在公开训练集中")
+    lines.append("- [ ] 评分标准无歧义，可量化执行")
+    lines.append("")
+    lines.append("### 覆盖度")
+    lines.append("")
+    lines.append("- [ ] 各分类数据量均衡")
+    lines.append("- [ ] 难度分布合理")
+    lines.append("- [ ] 领域覆盖完整")
+    lines.append("")
+    lines.append("### 合规性")
+    lines.append("")
+    lines.append("- [ ] 无版权问题")
+    lines.append("- [ ] 无隐私信息泄露")
+    lines.append("- [ ] 标注许可证明确")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("*指南由 DataRecipe 自动生成*")
 
     return "\n".join(lines)
 
