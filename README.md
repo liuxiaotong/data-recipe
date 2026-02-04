@@ -1,18 +1,37 @@
+<div align="center">
+
 # DataRecipe
 
-**AI 数据集逆向工程框架**
+**Reverse engineering framework for AI datasets**
 
-分析任意 AI 数据集的构建方式，生成可用于批量生产同类数据的完整资料包。
+[![PyPI](https://img.shields.io/pypi/v/datarecipe?color=blue)](https://pypi.org/project/datarecipe/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+[Installation](#installation) · [Usage](#usage) · [Commands](#commands) · [MCP Server](#mcp-server)
+
+</div>
+
+---
+
+Analyze how any AI dataset was built. Generate production-ready materials to reproduce it at scale.
+
+## Installation
 
 ```bash
 pip install datarecipe
 ```
 
-## 它能做什么
+## Usage
 
-```
+### Analyze a dataset
+
+```bash
 datarecipe analyze Anthropic/hh-rlhf
 ```
+
+<details>
+<summary>Output</summary>
 
 ```
 ╭──────────────────────── Dataset Recipe ────────────────────────╮
@@ -21,31 +40,22 @@ datarecipe analyze Anthropic/hh-rlhf
 │  Generation    Human 100%                                      │
 │  Method        RLHF preference pairs                           │
 │  Size          161K examples                                   │
-│  Reproduce     [7/10] ███████░░░                               │
+│  Reproducibility  [7/10] ███████░░░                            │
 │                                                                │
 │  Missing: exact annotation guidelines, quality criteria        │
 ╰────────────────────────────────────────────────────────────────╯
 ```
 
-## 三个核心命令
+</details>
 
-### 1. analyze - 逆向分析数据集
-
-提取数据集的"配方"：构建方法、数据来源、合成比例、可复现性评分。
+### Get annotator profile & cost estimate
 
 ```bash
-datarecipe analyze <dataset>              # HuggingFace 数据集
-datarecipe analyze ./local/data.jsonl     # 本地文件
-datarecipe analyze https://github.com/... # GitHub 仓库
+datarecipe profile nguha/legalbench --region china
 ```
 
-### 2. profile - 生成标注团队画像
-
-估算复现该数据集需要的人力配置和成本。
-
-```bash
-datarecipe profile <dataset> --region china
-```
+<details>
+<summary>Output</summary>
 
 ```
 ╭──────────────────── Annotator Profile ─────────────────────╮
@@ -63,38 +73,45 @@ datarecipe profile <dataset> --region china
 ╰────────────────────────────────────────────────────────────╯
 ```
 
-### 3. deploy - 生成投产资料包
+</details>
 
-输出可直接交付给标注团队的完整项目。
+### Generate production materials
 
 ```bash
-datarecipe deploy <dataset> -o ./my_project
+datarecipe deploy AI-MO/NuminaMath-CoT -o ./my_project
 ```
+
+<details>
+<summary>Output</summary>
 
 ```
 my_project/
-├── annotation_guide.md       # 标注指南
-├── quality_rules.md          # 质检规则
-├── acceptance_criteria.md    # 验收标准
-└── timeline.md               # 排期建议
+├── annotation_guide.md       # Step-by-step labeling instructions
+├── quality_rules.md          # QA checklist
+├── acceptance_criteria.md    # Delivery standards
+└── timeline.md               # Project schedule
 ```
 
-## 更多命令
+</details>
 
-| 命令 | 功能 |
-|------|------|
-| `cost` | 估算 API 调用成本 |
-| `quality` | 分析数据质量分布 |
-| `compare` | 对比多个数据集 |
-| `batch` | 批量分析 |
-| `guide` | 生成复现指南 |
-| `workflow` | 生成工作流模板 |
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `analyze` | Extract dataset "recipe" (methods, sources, reproducibility) |
+| `profile` | Generate annotator requirements and cost estimates |
+| `deploy` | Output production-ready project materials |
+| `cost` | Estimate API costs for synthetic generation |
+| `quality` | Analyze data quality distribution |
+| `compare` | Compare multiple datasets side-by-side |
+| `batch` | Analyze multiple datasets at once |
+| `guide` | Generate reproduction guide |
 
 ## MCP Server
 
-支持 Claude Desktop 直接调用。
+Use DataRecipe directly in Claude Desktop.
 
-配置 `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -107,29 +124,8 @@ my_project/
 }
 ```
 
-然后在 Claude 中直接对话："分析 Anthropic/hh-rlhf 数据集"
+Then ask Claude: *"Analyze the Anthropic/hh-rlhf dataset"*
 
----
+## License
 
-## English
-
-DataRecipe is a reverse engineering framework for AI datasets. It analyzes how datasets were constructed and generates production-ready materials for reproducing similar data at scale.
-
-**Quick Start:**
-
-```bash
-pip install datarecipe
-
-# Analyze a dataset
-datarecipe analyze Anthropic/hh-rlhf
-
-# Get annotator requirements and cost estimate
-datarecipe profile nguha/legalbench --region us
-
-# Generate production materials
-datarecipe deploy AI-MO/NuminaMath-CoT -o ./output
-```
-
----
-
-MIT License
+[MIT](LICENSE)
