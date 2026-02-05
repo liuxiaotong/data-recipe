@@ -164,3 +164,6 @@ output/
 recipes/
 projects/
 examples/
+
+# Generated analysis output
+analysis_output/
