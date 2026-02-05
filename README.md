@@ -8,7 +8,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[快速开始](#快速开始) · [核心功能](#核心功能) · [深度分析](#深度分析) · [命令参考](#命令参考)
+[快速开始](#快速开始) · [核心功能](#核心功能) · [深度分析](#深度分析) · [成本估算](#成本估算) · [命令参考](#命令参考)
 
 </div>
 
@@ -19,13 +19,15 @@
 ## 核心价值
 
 ```
-数据集 → 深度分析 → 可复用模板 → 生产指南 → 项目脚手架
+数据集 → 深度分析 → 可复用模板 → 生产指南 → 标注规范 → 成本估算
 ```
 
 | 目标 | 产出物 |
 |------|--------|
 | 摸清数据集构成 | `ANALYSIS_REPORT.md` 完整分析报告 |
 | **复刻数据集** | `REPRODUCTION_GUIDE.md` 可操作的复刻指南 |
+| **标注外包规范** | `ANNOTATION_SPEC.md` 前瞻性标注规范 ⭐ |
+| **精准成本估算** | `COST_BREAKDOWN.md` 分阶段成本明细 ⭐ |
 | 复用评测标准 | `rubric_templates.yaml` / `.md` 结构化模板 |
 | 提取 Prompt 策略 | `prompt_templates.json` + `context_strategy.json` |
 | 估算成本与分工 | `allocation.json` 人机比例、成本拆分 |
@@ -123,13 +125,21 @@ output/
 └── tencent_CL-bench/
     ├── ANALYSIS_REPORT.md       # 统计分析报告
     ├── REPRODUCTION_GUIDE.md    # 复刻指南 ⭐
-    ├── recipe_summary.json      # 标准化摘要 (Radar 兼容) ⭐
+    ├── ANNOTATION_SPEC.md       # 标注规范 (外包交付用) ⭐
+    ├── COST_BREAKDOWN.md        # 分阶段成本明细 ⭐
+    ├── recipe_summary.json      # 标准化摘要 (Radar 兼容)
     ├── rubric_templates.yaml    # 评分标准模板
     ├── rubric_templates.md      # 评分标准文档
     ├── prompt_templates.json    # Prompt 模板库
     ├── context_strategy.json    # 上下文策略
     ├── allocation.json          # 人机分配方案
     ├── rubrics_analysis.json    # 原始分析数据
+    ├── annotation_spec.json     # 标注规范 (JSON)
+    ├── token_analysis.json      # Token 统计与 API 成本
+    ├── cost_comparison.json     # 多模型成本对比
+    ├── complexity_analysis.json # 内容复杂度分析
+    ├── cost_calibration.json    # 历史基准校准
+    ├── phased_cost.json         # 分阶段成本模型
     └── llm_analysis.json        # LLM 智能分析 (--use-llm)
 ```
 
@@ -271,6 +281,149 @@ datarecipe allocate --size 10000 --region china
 │    Human: 84%                                            │
 │    Machine: 16%                                          │
 ╰──────────────────────────────────────────────────────────╯
+```
+
+</details>
+
+---
+
+## 成本估算
+
+DataRecipe 采用多维度成本估算方法，从四个角度综合评估数据集生产成本。
+
+### 估算方法论
+
+```
+Token 分析 ──┐
+             ├──→ 综合成本估算 ──→ COST_BREAKDOWN.md
+复杂度分析 ──┤
+             │
+历史校准 ────┤
+             │
+分阶段模型 ──┘
+```
+
+| 方法 | 说明 | 产出 |
+|------|------|------|
+| **Token 分析** | 基于实际 token 数量计算 API 成本 | `token_analysis.json` |
+| **复杂度分析** | 领域难度、文本长度、结构复杂度 | `complexity_analysis.json` |
+| **历史校准** | 与知识库中相似数据集对比 | `cost_calibration.json` |
+| **分阶段模型** | 设计/生产/质量三阶段拆分 | `phased_cost.json` |
+
+### Token 精确计算
+
+基于真实模型定价，支持 15+ 主流模型对比：
+
+```bash
+# 深度分析会自动输出 token 分析和多模型对比
+datarecipe deep-analyze dataset/id -o ./output
+```
+
+<details>
+<summary>cost_comparison.json 示例</summary>
+
+```json
+{
+  "model_comparison": [
+    {"model": "deepseek-v3", "cost": "$2.74", "savings_vs_gpt4o": "95%"},
+    {"model": "gpt-4o-mini", "cost": "$3.00", "savings_vs_gpt4o": "94%"},
+    {"model": "claude-3-haiku", "cost": "$5.00", "savings_vs_gpt4o": "90%"},
+    {"model": "gpt-4o", "cost": "$50.00", "baseline": true},
+    {"model": "claude-opus-4", "cost": "$150.00"}
+  ]
+}
+```
+
+</details>
+
+### 分阶段成本模型
+
+成本按项目阶段拆分，便于预算规划：
+
+| 阶段 | 内容 | 成本类型 |
+|------|------|----------|
+| **设计阶段** | Schema 设计、标注指南、试点测试、工具配置 | 固定成本 |
+| **生产阶段** | 人工标注、API 生成、初审、基础设施 | 变动成本 |
+| **质量阶段** | QA 抽检、返工修正、专家复核、终验 | 比例成本 |
+
+<details>
+<summary>COST_BREAKDOWN.md 示例</summary>
+
+```markdown
+# 分阶段成本估算
+
+**数据集类型**: preference
+**目标规模**: 50 条
+**项目规模**: small
+
+## 阶段一：设计阶段（固定成本）
+| 项目 | 成本 |
+|------|------|
+| Schema 设计 | $400 |
+| 标注指南编写 | $640 |
+| 试点测试 | $120 |
+| 工具配置 | $200 |
+| **小计** | **$1,360** |
+
+## 阶段二：生产阶段（变动成本）
+| 项目 | 成本 | 单价 |
+|------|------|------|
+| 人工标注 | $17 | - |
+| API 生成 | $0 | - |
+| **小计** | **$68** | $1.37/条 |
+
+## 汇总
+| 阶段 | 成本 | 占比 |
+|------|------|------|
+| 设计阶段 | $1,360 | 94.8% |
+| 生产阶段 | $68 | 4.8% |
+| 质量阶段 | $6 | 0.4% |
+| 风险预留 (15%) | $215 | - |
+| **总计** | **$1,649** | - |
+```
+
+</details>
+
+### 标注规范生成
+
+`ANNOTATION_SPEC.md` 是面向外包团队的前瞻性标注规范，包含：
+
+| 部分 | 内容 |
+|------|------|
+| 题目类型描述 | 任务名称、说明、认知要求、推理链 |
+| 数据要求 | 字段数量、必填字段、长度要求、领域要求 |
+| 质量约束 | 质量差异、选择依据、AI 内容限制、格式规范 |
+| 格式要求 | Schema 定义、字段类型 |
+| 例题 | 题目、答案、打分标准 |
+| 打分标准 | 评分维度、部分得分规则 |
+
+<details>
+<summary>ANNOTATION_SPEC.md 示例</summary>
+
+```markdown
+# Anthropic/hh-rlhf 标注规范
+
+> 生成时间: 2026-02-05
+> 数据类型: 偏好对比数据
+> 样本来源: 5 条
+
+## 一、题目类型描述
+
+**任务名称**: 偏好对比数据
+**任务说明**: 人类偏好对比数据集，用于训练奖励模型或直接偏好优化...
+
+## 二、数据要求
+
+1. 每条数据需包含 2 个字段
+2. 必填字段: chosen, rejected
+3. 文本长度要求: 中等（500-2000 字符）
+4. 领域要求: 需要 code 领域专业知识
+
+## 三、质量约束
+
+1. 两个回答必须有明显的质量差异
+2. 交付数据中不能含有任何 AI 产出的内容
+...
 ```
 
 </details>
@@ -559,12 +712,20 @@ analysis_output/
 └── tencent_CL-bench/
     ├── REPRODUCTION_GUIDE.md    # 复刻指南 ⭐
     ├── ANALYSIS_REPORT.md       # 分析报告 ⭐
+    ├── ANNOTATION_SPEC.md       # 标注规范 ⭐
+    ├── COST_BREAKDOWN.md        # 成本明细 ⭐
     ├── recipe_summary.json      # 标准化摘要
     ├── rubric_templates.yaml    # 评分模板
     ├── rubric_templates.md      # 评分文档
     ├── prompt_templates.json    # Prompt 模板
     ├── context_strategy.json    # 上下文策略
     ├── allocation.json          # 人机分配
+    ├── annotation_spec.json     # 标注规范 (JSON)
+    ├── token_analysis.json      # Token 分析
+    ├── cost_comparison.json     # 模型成本对比
+    ├── complexity_analysis.json # 复杂度分析
+    ├── cost_calibration.json    # 成本校准
+    ├── phased_cost.json         # 分阶段成本
     └── llm_analysis.json        # LLM 分析 (可选)
 ```
 
@@ -576,7 +737,7 @@ Claude: [调用 deep_analyze]
         ✅ 已生成完整分析:
         - 类型: evaluation
         - 复刻成本: $5,200 (人工 84%)
-        - 产出文件: 8 个 (见 ./analysis_output/tencent_CL-bench/)
+        - 产出文件: 16 个 (见 ./analysis_output/tencent_CL-bench/)
 
 用户: 给我复刻指南
 Claude: [调用 get_reproduction_guide]
@@ -594,6 +755,36 @@ Claude: [调用 compare_datasets]
 Claude: [调用 batch_analyze_from_radar]
         已分析 5 个数据集，总复刻成本 $28,000
         每个数据集都已生成完整产出文件
+```
+
+---
+
+## 项目架构
+
+```
+src/datarecipe/
+├── core/                    # 核心分析引擎
+│   ├── deep_analyzer.py     # 深度分析主逻辑
+│   └── ...
+├── cost/                    # 成本估算模块 ⭐
+│   ├── token_analyzer.py    # Token 统计与 API 定价
+│   ├── complexity_analyzer.py # 内容复杂度分析
+│   ├── calibrator.py        # 历史数据校准
+│   └── phased_model.py      # 分阶段成本模型
+├── generators/              # 文档生成器
+│   ├── annotation_spec.py   # 标注规范生成 ⭐
+│   ├── reproduction_guide.py # 复刻指南生成
+│   └── ...
+├── extractors/              # 模式提取器
+│   ├── rubric_extractor.py  # 评分标准提取
+│   ├── prompt_extractor.py  # Prompt 模板提取
+│   └── ...
+├── sources/                 # 数据源适配
+│   ├── huggingface.py       # HuggingFace 数据集
+│   ├── github.py            # GitHub 数据集
+│   └── ...
+├── mcp_server.py            # MCP 服务器入口
+└── cli.py                   # CLI 入口
 ```
 
 ---
