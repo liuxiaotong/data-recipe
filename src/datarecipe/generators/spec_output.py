@@ -59,6 +59,7 @@ class SpecOutputGenerator:
                 "data": "06_原始数据",
                 "templates": "07_模板",
                 "ai_agent": "08_AI_Agent",
+                "samples": "09_样例数据",
             }
             for key, subdir in subdirs.items():
                 os.makedirs(os.path.join(output_dir, subdir), exist_ok=True)
@@ -90,6 +91,9 @@ class SpecOutputGenerator:
             self._generate_ai_reasoning_traces(analysis, output_dir, subdirs, target_size, region, result)
             self._generate_ai_pipeline(analysis, output_dir, subdirs, result)
             self._generate_ai_readme(analysis, output_dir, subdirs, result)
+
+            # Generate Think-Po samples
+            self._generate_think_po_samples(analysis, output_dir, subdirs, target_size, result)
 
             self._generate_readme(analysis, output_dir, subdirs, result)
 
@@ -794,11 +798,15 @@ class SpecOutputGenerator:
         lines.append(f"├── {subdirs['data']}/           # 📊 原始数据")
         lines.append("│   └── spec_analysis.json       # 分析数据")
         lines.append("│")
-        lines.append(f"└── {subdirs['ai_agent']}/            # 🤖 AI Agent")
-        lines.append("    ├── agent_context.json       # 聚合入口")
-        lines.append("    ├── workflow_state.json      # 工作流状态")
-        lines.append("    ├── reasoning_traces.json    # 推理链")
-        lines.append("    └── pipeline.yaml            # 可执行流水线")
+        lines.append(f"├── {subdirs['ai_agent']}/            # 🤖 AI Agent")
+        lines.append("│   ├── agent_context.json       # 聚合入口")
+        lines.append("│   ├── workflow_state.json      # 工作流状态")
+        lines.append("│   ├── reasoning_traces.json    # 推理链")
+        lines.append("│   └── pipeline.yaml            # 可执行流水线")
+        lines.append("│")
+        lines.append(f"└── {subdirs['samples']}/           # 🧪 样例数据")
+        lines.append("    ├── think_po_samples.json   # Think-Po 样例")
+        lines.append("    └── SAMPLE_GUIDE.md          # 样例指南")
         lines.append("```")
         lines.append("")
         lines.append("## 快速导航")
@@ -813,6 +821,7 @@ class SpecOutputGenerator:
         lines.append(f"| **数据模板** | `{subdirs['templates']}/data_template.json` |")
         lines.append(f"| **成本预算** | `{subdirs['cost']}/COST_BREAKDOWN.md` |")
         lines.append(f"| **AI Agent** | `{subdirs['ai_agent']}/agent_context.json` |")
+        lines.append(f"| **样例数据** | `{subdirs['samples']}/SAMPLE_GUIDE.md` |")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -2485,3 +2494,560 @@ class SpecOutputGenerator:
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
         result.files_generated.append(f"{subdirs['ai_agent']}/README.md")
+
+    def _generate_think_po_samples(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        target_size: int,
+        result: SpecOutputResult,
+    ):
+        """Generate Think-Po samples with automation analysis.
+
+        Generates up to 50 sample data entries with:
+        - Actual sample data for automatable tasks
+        - Clear markers for manual steps when automation isn't possible
+        - Reasoning traces for each sample
+        """
+        samples = []
+        max_samples = min(50, target_size)
+
+        # Analyze automation feasibility
+        automation_analysis = self._analyze_automation_feasibility(analysis)
+
+        # Get task types from analysis
+        task_types = self._extract_task_types(analysis)
+
+        # Generate samples for each task type
+        samples_per_type = max(1, max_samples // max(len(task_types), 1))
+
+        for task_type in task_types:
+            type_automation = automation_analysis.get(task_type, automation_analysis.get("default", {}))
+
+            for i in range(samples_per_type):
+                if len(samples) >= max_samples:
+                    break
+
+                sample = self._generate_single_sample(
+                    analysis=analysis,
+                    task_type=task_type,
+                    sample_index=len(samples) + 1,
+                    automation_info=type_automation,
+                )
+                samples.append(sample)
+
+        # Build the complete samples document
+        samples_doc = {
+            "_meta": {
+                "version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "generator": "DataRecipe Think-Po Generator",
+                "purpose": "生产样例数据，支持人机协同理解",
+                "total_samples": len(samples),
+                "target_size": target_size,
+            },
+            "automation_summary": {
+                "overall_automation_rate": automation_analysis.get("overall_rate", 0),
+                "fully_automated_tasks": automation_analysis.get("fully_automated", []),
+                "partially_automated_tasks": automation_analysis.get("partially_automated", []),
+                "manual_tasks": automation_analysis.get("manual_only", []),
+                "automation_blockers": automation_analysis.get("blockers", []),
+            },
+            "samples": samples,
+            "production_notes": self._generate_production_notes(analysis, automation_analysis),
+        }
+
+        # Write JSON file
+        json_path = os.path.join(output_dir, subdirs["samples"], "think_po_samples.json")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(samples_doc, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(f"{subdirs['samples']}/think_po_samples.json")
+
+        # Generate human-readable guide
+        self._generate_samples_guide(analysis, output_dir, subdirs, samples_doc, result)
+
+    def _analyze_automation_feasibility(self, analysis: SpecificationAnalysis) -> dict:
+        """Analyze which parts of the pipeline can be automated."""
+        result = {
+            "overall_rate": 0,
+            "fully_automated": [],
+            "partially_automated": [],
+            "manual_only": [],
+            "blockers": [],
+            "default": {
+                "can_automate": False,
+                "automation_rate": 0,
+                "manual_steps": [],
+                "reasons": [],
+            }
+        }
+
+        # Check for automation blockers
+        blockers = []
+
+        # Check forbidden items
+        forbidden_lower = [f.lower() for f in analysis.forbidden_items]
+        if any("ai" in f or "机器" in f or "自动" in f for f in forbidden_lower):
+            blockers.append({
+                "type": "forbidden_ai",
+                "description": "需求明确禁止使用AI生成",
+                "impact": "所有内容必须人工创作"
+            })
+
+        # Check if needs human creativity
+        cognitive_lower = " ".join(analysis.cognitive_requirements).lower()
+        if "创意" in cognitive_lower or "创作" in cognitive_lower or "原创" in cognitive_lower:
+            blockers.append({
+                "type": "creativity_required",
+                "description": "任务需要人类创意",
+                "impact": "核心内容必须人工创作，AI可辅助格式化"
+            })
+
+        # Check if needs expert knowledge
+        if analysis.estimated_difficulty in ["expert", "hard"]:
+            if "专业" in cognitive_lower or "领域" in cognitive_lower:
+                blockers.append({
+                    "type": "expert_knowledge",
+                    "description": "需要专业领域知识",
+                    "impact": "需要领域专家参与内容审核"
+                })
+
+        # Check if has difficulty validation
+        if analysis.has_difficulty_validation():
+            blockers.append({
+                "type": "difficulty_validation",
+                "description": f"需要使用 {analysis.difficulty_validation.get('model', '指定模型')} 进行难度验证",
+                "impact": "每条数据需要额外的模型测试步骤"
+            })
+
+        result["blockers"] = blockers
+
+        # Determine automation rate based on blockers
+        if not blockers:
+            result["overall_rate"] = 80
+            result["default"]["can_automate"] = True
+            result["default"]["automation_rate"] = 80
+            result["default"]["manual_steps"] = [
+                {"step": "quality_review", "reason": "最终质量把关需要人工确认"}
+            ]
+        elif any(b["type"] == "forbidden_ai" for b in blockers):
+            result["overall_rate"] = 10
+            result["default"]["can_automate"] = False
+            result["default"]["automation_rate"] = 10
+            result["default"]["manual_steps"] = [
+                {"step": "content_creation", "reason": "需求禁止AI生成，必须人工创作"},
+                {"step": "quality_review", "reason": "人工质检"}
+            ]
+            result["default"]["reasons"] = ["需求明确禁止AI参与内容生成"]
+        elif any(b["type"] == "creativity_required" for b in blockers):
+            result["overall_rate"] = 30
+            result["default"]["can_automate"] = False
+            result["default"]["automation_rate"] = 30
+            result["default"]["manual_steps"] = [
+                {"step": "content_creation", "reason": "需要人类创意"},
+                {"step": "quality_review", "reason": "创意内容需人工评估"}
+            ]
+            result["default"]["reasons"] = ["任务需要人类创意，AI仅可辅助格式化"]
+        else:
+            result["overall_rate"] = 50
+            result["default"]["can_automate"] = True
+            result["default"]["automation_rate"] = 50
+            result["default"]["manual_steps"] = [
+                {"step": "expert_review", "reason": "专业内容需要专家审核"},
+                {"step": "difficulty_validation", "reason": "需要进行难度验证测试"}
+            ]
+
+        return result
+
+    def _extract_task_types(self, analysis: SpecificationAnalysis) -> list:
+        """Extract task types from analysis."""
+        task_types = []
+
+        # Check fields for task_type field
+        for field in analysis.fields:
+            if field.get("name") == "task_type":
+                desc = field.get("description", "")
+                # Extract types from description like "understanding/editing/generation"
+                if "/" in desc:
+                    parts = desc.split("：")[-1] if "：" in desc else desc
+                    task_types = [t.strip() for t in parts.split("/")]
+                    break
+
+        # If no task types found, use examples
+        if not task_types and analysis.examples:
+            seen = set()
+            for ex in analysis.examples:
+                if ex.get("task_type") and ex["task_type"] not in seen:
+                    task_types.append(ex["task_type"])
+                    seen.add(ex["task_type"])
+
+        # Default to generic if nothing found
+        if not task_types:
+            task_types = ["default"]
+
+        return task_types
+
+    def _generate_single_sample(
+        self,
+        analysis: SpecificationAnalysis,
+        task_type: str,
+        sample_index: int,
+        automation_info: dict,
+    ) -> dict:
+        """Generate a single Think-Po sample."""
+        sample_id = f"SAMPLE_{sample_index:03d}"
+
+        # Build sample structure based on fields
+        data_fields = {}
+        for field in analysis.fields:
+            field_name = field.get("name", "")
+            field_type = field.get("type", "string")
+            required = field.get("required", False)
+            desc = field.get("description", "")
+
+            if field_name == "task_type":
+                data_fields[field_name] = task_type
+            elif field_type == "image":
+                data_fields[field_name] = f"[图片占位符: {desc}]"
+            elif field_type == "string":
+                if "svg" in field_name.lower() or "code" in field_name.lower():
+                    data_fields[field_name] = self._generate_sample_svg(task_type, sample_index)
+                elif "instruction" in field_name.lower() or "question" in field_name.lower():
+                    data_fields[field_name] = self._generate_sample_instruction(analysis, task_type, sample_index)
+                elif "output" in field_name.lower() or "answer" in field_name.lower():
+                    data_fields[field_name] = f"[{desc or '期望输出'}]"
+                else:
+                    data_fields[field_name] = f"[{desc or field_name}]"
+            else:
+                data_fields[field_name] = f"[{field_type}: {desc}]"
+
+        # Determine automation status for this sample
+        can_automate = automation_info.get("can_automate", False)
+        automation_rate = automation_info.get("automation_rate", 0)
+
+        sample = {
+            "id": sample_id,
+            "task_type": task_type,
+            "data": data_fields,
+            "think_process": {
+                "step_1_parse_input": f"解析输入数据，识别任务类型为 {task_type}",
+                "step_2_understand_task": f"理解任务要求: {analysis.task_description[:100] if analysis.task_description else '执行指定任务'}...",
+                "step_3_execute": "执行任务逻辑，生成输出",
+                "step_4_validate": "验证输出符合质量约束",
+                "step_5_format": "格式化输出为目标格式",
+            },
+            "automation_status": {
+                "can_fully_automate": can_automate and automation_rate >= 80,
+                "automation_rate": automation_rate,
+                "automated_steps": [],
+                "manual_steps": [],
+            },
+            "metadata": {
+                "difficulty": analysis.estimated_difficulty,
+                "domain": analysis.estimated_domain,
+                "generated_at": datetime.now().isoformat(),
+            }
+        }
+
+        # Fill in automation details
+        if can_automate and automation_rate >= 80:
+            sample["automation_status"]["automated_steps"] = [
+                {"step": "input_parsing", "method": "规则解析"},
+                {"step": "task_execution", "method": "自动化脚本"},
+                {"step": "output_formatting", "method": "模板生成"},
+            ]
+            sample["automation_status"]["manual_steps"] = [
+                {
+                    "step": "quality_review",
+                    "reason": "最终质量需人工确认",
+                    "effort": "低 (抽检即可)"
+                }
+            ]
+        else:
+            manual_steps = automation_info.get("manual_steps", [])
+            sample["automation_status"]["manual_steps"] = [
+                {
+                    "step": ms.get("step", "unknown"),
+                    "reason": ms.get("reason", "需要人工参与"),
+                    "effort": "中" if ms.get("step") != "content_creation" else "高"
+                }
+                for ms in manual_steps
+            ]
+
+            # What can still be automated
+            sample["automation_status"]["automated_steps"] = [
+                {"step": "input_parsing", "method": "规则解析"},
+                {"step": "output_formatting", "method": "模板生成"},
+            ]
+
+        return sample
+
+    def _generate_sample_svg(self, task_type: str, index: int) -> str:
+        """Generate a sample SVG code."""
+        colors = ["red", "blue", "green", "yellow", "purple", "orange"]
+        color = colors[index % len(colors)]
+
+        if "edit" in task_type.lower() or "editing" in task_type.lower():
+            return f'''<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="40" fill="{color}" />
+</svg>'''
+        elif "generation" in task_type.lower() or "生成" in task_type:
+            return "[待生成的SVG代码]"
+        else:
+            return f'''<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="10" width="80" height="80" fill="{color}" />
+  <circle cx="50" cy="50" r="20" fill="white" />
+</svg>'''
+
+    def _generate_sample_instruction(self, analysis: SpecificationAnalysis, task_type: str, index: int) -> str:
+        """Generate a sample instruction based on task type."""
+        # Try to use examples from analysis
+        for ex in analysis.examples:
+            if ex.get("task_type") == task_type and ex.get("question"):
+                return ex["question"]
+
+        # Generate based on task type
+        instructions = {
+            "understanding": [
+                "分析以下SVG代码，描述其中包含的图形元素",
+                "解释这段SVG代码实现的视觉效果",
+                "识别SVG中使用的颜色和形状",
+            ],
+            "editing": [
+                "将圆形的颜色改为红色",
+                "增加矩形的宽度为原来的1.5倍",
+                "为所有形状添加2px的黑色边框",
+            ],
+            "generation": [
+                "创建一个包含蓝色矩形和红色圆形的SVG",
+                "生成一个简单的笑脸图标",
+                "绘制一个三角形警告标志",
+            ],
+            "default": [
+                f"执行任务 {index}",
+            ]
+        }
+
+        task_key = task_type.lower()
+        for key in instructions:
+            if key in task_key:
+                return instructions[key][index % len(instructions[key])]
+
+        return instructions["default"][0]
+
+    def _generate_production_notes(self, analysis: SpecificationAnalysis, automation_analysis: dict) -> dict:
+        """Generate production notes based on analysis."""
+        overall_rate = automation_analysis.get("overall_rate", 0)
+        blockers = automation_analysis.get("blockers", [])
+
+        if overall_rate >= 80:
+            recommendation = "可以批量自动化生产"
+            workflow = "自动生成 → 抽检审核 → 批量提交"
+        elif overall_rate >= 50:
+            recommendation = "半自动化生产，需要人工参与关键环节"
+            workflow = "自动生成初稿 → 人工审核/修改 → 质检 → 提交"
+        elif overall_rate >= 30:
+            recommendation = "以人工为主，AI辅助"
+            workflow = "人工创作 → AI辅助格式化 → 质检 → 提交"
+        else:
+            recommendation = "需要全人工生产"
+            workflow = "人工创作 → 交叉审核 → 质检 → 提交"
+
+        return {
+            "recommendation": recommendation,
+            "suggested_workflow": workflow,
+            "key_blockers": [b["description"] for b in blockers],
+            "optimization_suggestions": self._get_optimization_suggestions(analysis, automation_analysis),
+        }
+
+    def _get_optimization_suggestions(self, analysis: SpecificationAnalysis, automation_analysis: dict) -> list:
+        """Get suggestions for optimizing the production process."""
+        suggestions = []
+
+        if automation_analysis.get("overall_rate", 0) < 50:
+            suggestions.append({
+                "area": "模板化",
+                "suggestion": "创建标准模板减少重复劳动",
+                "impact": "可提升10-20%效率"
+            })
+
+        if analysis.has_difficulty_validation():
+            suggestions.append({
+                "area": "难度验证",
+                "suggestion": "批量运行难度验证而非逐条测试",
+                "impact": "可节省50%验证时间"
+            })
+
+        if len(analysis.fields) > 5:
+            suggestions.append({
+                "area": "字段简化",
+                "suggestion": "考虑使用默认值减少必填项",
+                "impact": "可提升标注效率"
+            })
+
+        suggestions.append({
+            "area": "质检抽样",
+            "suggestion": "使用分层抽样代替全量检查",
+            "impact": "质检效率提升60%以上"
+        })
+
+        return suggestions
+
+    def _generate_samples_guide(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        samples_doc: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate human-readable SAMPLE_GUIDE.md."""
+        lines = []
+        lines.append(f"# {analysis.project_name} 样例数据指南")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"> 样例数量: {samples_doc['_meta']['total_samples']} 条")
+        lines.append(f"> 目标规模: {samples_doc['_meta']['target_size']} 条")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Automation summary
+        auto_summary = samples_doc["automation_summary"]
+        lines.append("## 自动化评估")
+        lines.append("")
+
+        rate = auto_summary["overall_automation_rate"]
+        if rate >= 80:
+            status = "🟢 高度自动化"
+        elif rate >= 50:
+            status = "🟡 半自动化"
+        elif rate >= 30:
+            status = "🟠 低自动化"
+        else:
+            status = "🔴 需人工生产"
+
+        lines.append(f"**自动化程度**: {status} ({rate}%)")
+        lines.append("")
+
+        # Blockers
+        if auto_summary["automation_blockers"]:
+            lines.append("### 自动化阻塞因素")
+            lines.append("")
+            for blocker in auto_summary["automation_blockers"]:
+                lines.append(f"- **{blocker['type']}**: {blocker['description']}")
+                lines.append(f"  - 影响: {blocker['impact']}")
+            lines.append("")
+
+        # Production notes
+        prod_notes = samples_doc["production_notes"]
+        lines.append("### 生产建议")
+        lines.append("")
+        lines.append(f"**建议**: {prod_notes['recommendation']}")
+        lines.append("")
+        lines.append(f"**工作流**: `{prod_notes['suggested_workflow']}`")
+        lines.append("")
+
+        # Manual steps explanation
+        lines.append("---")
+        lines.append("")
+        lines.append("## 人工参与说明")
+        lines.append("")
+        lines.append("以下步骤需要人工参与:")
+        lines.append("")
+
+        # Collect all manual steps from samples
+        manual_steps_seen = {}
+        for sample in samples_doc["samples"][:5]:  # Check first 5 samples
+            for ms in sample["automation_status"]["manual_steps"]:
+                step = ms["step"]
+                if step not in manual_steps_seen:
+                    manual_steps_seen[step] = ms
+
+        if manual_steps_seen:
+            lines.append("| 步骤 | 原因 | 工作量 |")
+            lines.append("|------|------|--------|")
+            for step, info in manual_steps_seen.items():
+                lines.append(f"| {step} | {info['reason']} | {info.get('effort', '中')} |")
+            lines.append("")
+        else:
+            lines.append("无需人工参与核心生产步骤，仅需抽检审核。")
+            lines.append("")
+
+        # Sample examples
+        lines.append("---")
+        lines.append("")
+        lines.append("## 样例展示")
+        lines.append("")
+        lines.append("以下是生成的样例数据示例:")
+        lines.append("")
+
+        for i, sample in enumerate(samples_doc["samples"][:3], 1):
+            lines.append(f"### 样例 {i}: {sample['id']}")
+            lines.append("")
+            lines.append(f"**任务类型**: `{sample['task_type']}`")
+            lines.append("")
+
+            # Show data fields
+            lines.append("**数据字段**:")
+            lines.append("")
+            lines.append("```json")
+            # Pretty print the data
+            import json
+            lines.append(json.dumps(sample["data"], indent=2, ensure_ascii=False))
+            lines.append("```")
+            lines.append("")
+
+            # Show think process
+            lines.append("**思考过程 (Think-Po)**:")
+            lines.append("")
+            for step_name, step_desc in sample["think_process"].items():
+                step_num = step_name.split("_")[1]
+                lines.append(f"{step_num}. {step_desc}")
+            lines.append("")
+
+            # Automation status
+            auto_status = sample["automation_status"]
+            if auto_status["can_fully_automate"]:
+                lines.append("**自动化状态**: ✅ 可完全自动化")
+            else:
+                lines.append(f"**自动化状态**: ⚠️ 部分自动化 ({auto_status['automation_rate']}%)")
+                if auto_status["manual_steps"]:
+                    lines.append("")
+                    lines.append("需人工处理:")
+                    for ms in auto_status["manual_steps"]:
+                        lines.append(f"- **{ms['step']}**: {ms['reason']}")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        # Optimization suggestions
+        if prod_notes.get("optimization_suggestions"):
+            lines.append("## 优化建议")
+            lines.append("")
+            for sug in prod_notes["optimization_suggestions"]:
+                lines.append(f"### {sug['area']}")
+                lines.append("")
+                lines.append(f"- **建议**: {sug['suggestion']}")
+                lines.append(f"- **预期效果**: {sug['impact']}")
+                lines.append("")
+
+        # File reference
+        lines.append("---")
+        lines.append("")
+        lines.append("## 文件说明")
+        lines.append("")
+        lines.append("| 文件 | 用途 | 消费者 |")
+        lines.append("|------|------|--------|")
+        lines.append("| `think_po_samples.json` | 机器可解析的完整样例 | AI Agent |")
+        lines.append("| `SAMPLE_GUIDE.md` | 人类可读的样例指南 | 标注团队/项目经理 |")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append("*本指南由 DataRecipe Think-Po Generator 自动生成*")
+
+        path = os.path.join(output_dir, subdirs["samples"], "SAMPLE_GUIDE.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(f"{subdirs['samples']}/SAMPLE_GUIDE.md")
