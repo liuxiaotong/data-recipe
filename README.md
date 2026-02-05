@@ -327,6 +327,76 @@ Claude: [调用 parse_spec_document]
 
 ---
 
+## Data Pipeline 生态
+
+DataRecipe 是 Data Pipeline 生态的核心组件，与其他三个工具协同工作：
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Data Pipeline 生态                                │
+├──────────────────┬──────────────────┬──────────────────┬────────────────────┤
+│   DataRecipe     │    DataLabel     │    DataSynth     │     DataCheck      │
+│     数据分析      │      数据标注     │      数据合成     │       数据质检      │
+├──────────────────┼──────────────────┼──────────────────┼────────────────────┤
+│  · 逆向工程分析   │  · HTML标注界面   │  · LLM批量生成    │  · 规则验证        │
+│  · Schema提取    │  · 多标注员合并    │  · 种子数据扩充   │  · 重复检测        │
+│  · 成本估算      │  · IAA一致性计算  │  · 成本追踪       │  · 分布分析        │
+│  · 样例生成      │  · 断点续标       │  · 交互/API模式   │  · 质量报告        │
+└──────────────────┴──────────────────┴──────────────────┴────────────────────┘
+```
+
+### 端到端工作流
+
+```bash
+# 1. DataRecipe: 分析数据集，生成 Schema 和样例
+datarecipe deep-analyze tencent/CL-bench -o ./output
+
+# 2. DataLabel: 生成标注界面，人工标注/校准种子数据
+datalabel generate ./output/tencent_CL-bench/
+
+# 3. DataSynth: 基于种子数据批量合成
+datasynth generate ./output/tencent_CL-bench/ -n 1000
+
+# 4. DataCheck: 质量检查
+datacheck validate ./output/tencent_CL-bench/
+```
+
+### 生态项目
+
+| 项目 | 功能 | 仓库 |
+|------|------|------|
+| **DataRecipe** | 数据集逆向分析 | [data-recipe](https://github.com/liuxiaotong/data-recipe) |
+| **DataLabel** | 轻量级标注工具 | [data-label](https://github.com/liuxiaotong/data-label) |
+| **DataSynth** | 数据合成扩充 | [data-synth](https://github.com/liuxiaotong/data-synth) |
+| **DataCheck** | 数据质量检查 | [data-check](https://github.com/liuxiaotong/data-check) |
+
+### 四合一 MCP 配置
+
+```json
+{
+  "mcpServers": {
+    "datarecipe": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/data-recipe", "run", "datarecipe-mcp"]
+    },
+    "datalabel": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/data-label", "run", "python", "-m", "datalabel.mcp_server"]
+    },
+    "datasynth": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/data-synth", "run", "python", "-m", "datasynth.mcp_server"]
+    },
+    "datacheck": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/data-check", "run", "python", "-m", "datacheck.mcp_server"]
+    }
+  }
+}
+```
+
+---
+
 ## 与 Radar 联动
 
 联合 [AI Dataset Radar](https://github.com/liuxiaotong/ai-dataset-radar) 实现完整工作流：
