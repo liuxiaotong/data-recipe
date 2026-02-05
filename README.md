@@ -22,18 +22,30 @@
 数据集 → 深度分析 → 可复用模板 → 生产指南 → 标注规范 → 成本估算
 ```
 
-| 目标 | 产出物 |
-|------|--------|
-| **快速决策** | `EXECUTIVE_SUMMARY.md` 1页执行摘要 (价值评分 + ROI) ⭐ |
-| **项目规划** | `MILESTONE_PLAN.md` 里程碑计划 (验收标准 + 风险管理) ⭐ |
-| **行业对标** | `INDUSTRY_BENCHMARK.md` 成本基准对比 (类似项目参考) ⭐ |
-| 摸清数据集构成 | `ANALYSIS_REPORT.md` 完整分析报告 |
-| **复刻数据集** | `REPRODUCTION_GUIDE.md` 可操作的复刻指南 |
-| **标注外包规范** | `ANNOTATION_SPEC.md` 前瞻性标注规范 (含质量筛选示例) |
-| **精准成本估算** | `COST_BREAKDOWN.md` 分阶段成本明细 |
-| 复用评测标准 | `rubric_templates.yaml` / `.md` 结构化模板 |
-| 提取 Prompt 策略 | `prompt_templates.json` + `context_strategy.json` |
-| 估算成本与分工 | `allocation.json` 人机比例、成本拆分 |
+### 按角色快速导航
+
+| 角色 | 目录 | 核心文件 | 用途 |
+|------|------|----------|------|
+| 👔 **决策层** | `01_决策参考/` | `EXECUTIVE_SUMMARY.md` | 价值评分、ROI、投资建议 |
+| 📋 **项目经理** | `02_项目管理/` | `MILESTONE_PLAN.md` | 里程碑、验收标准、风险管理 |
+| 📝 **标注团队** | `03_标注规范/` | `ANNOTATION_SPEC.md` | 标注指南、示例、质量标准 |
+| 🔧 **技术团队** | `04_复刻指南/` | `REPRODUCTION_GUIDE.md` | 技术方案、SOP、数据结构 |
+| 💰 **财务/预算** | `05_成本分析/` | `COST_BREAKDOWN.md` | 分阶段成本、人机分配 |
+
+### 完整产出物
+
+| 目标 | 位置 | 文件 |
+|------|------|------|
+| **快速决策** | `01_决策参考/` | `EXECUTIVE_SUMMARY.md` ⭐ |
+| **项目规划** | `02_项目管理/` | `MILESTONE_PLAN.md` ⭐ |
+| **行业对标** | `02_项目管理/` | `INDUSTRY_BENCHMARK.md` ⭐ |
+| **标注外包** | `03_标注规范/` | `ANNOTATION_SPEC.md` ⭐ |
+| **技术复刻** | `04_复刻指南/` | `REPRODUCTION_GUIDE.md` ⭐ |
+| **成本预算** | `05_成本分析/` | `COST_BREAKDOWN.md` ⭐ |
+| 分析报告 | `04_复刻指南/` | `ANALYSIS_REPORT.md` |
+| 评分模板 | `03_标注规范/` | `rubric_template.md` |
+| 成本对比 | `05_成本分析/` | `cost_comparison.json` |
+| 核心摘要 | 根目录 | `recipe_summary.json` |
 
 ## 安装
 
