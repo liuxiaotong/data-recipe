@@ -92,7 +92,7 @@ class SpecOutputGenerator:
             self._generate_ai_pipeline(analysis, output_dir, subdirs, result)
             self._generate_ai_readme(analysis, output_dir, subdirs, result)
 
-            # Generate Think-Po samples
+            # Generate sample data
             self._generate_think_po_samples(analysis, output_dir, subdirs, target_size, result)
 
             self._generate_readme(analysis, output_dir, subdirs, result)
@@ -805,7 +805,7 @@ class SpecOutputGenerator:
         lines.append("│   └── pipeline.yaml            # 可执行流水线")
         lines.append("│")
         lines.append(f"└── {subdirs['samples']}/           # 🧪 样例数据")
-        lines.append("    ├── think_po_samples.json   # Think-Po 样例")
+        lines.append("    ├── samples.json             # 样例数据")
         lines.append("    └── SAMPLE_GUIDE.md          # 样例指南")
         lines.append("```")
         lines.append("")
@@ -2503,7 +2503,7 @@ class SpecOutputGenerator:
         target_size: int,
         result: SpecOutputResult,
     ):
-        """Generate Think-Po samples with automation analysis.
+        """Generate sample data with automation analysis.
 
         Generates up to 50 sample data entries with:
         - Actual sample data for automatable tasks
@@ -2542,7 +2542,7 @@ class SpecOutputGenerator:
             "_meta": {
                 "version": "1.0",
                 "generated_at": datetime.now().isoformat(),
-                "generator": "DataRecipe Think-Po Generator",
+                "generator": "DataRecipe Sample Generator",
                 "purpose": "生产样例数据，支持人机协同理解",
                 "total_samples": len(samples),
                 "target_size": target_size,
@@ -2559,10 +2559,10 @@ class SpecOutputGenerator:
         }
 
         # Write JSON file
-        json_path = os.path.join(output_dir, subdirs["samples"], "think_po_samples.json")
+        json_path = os.path.join(output_dir, subdirs["samples"], "samples.json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(samples_doc, f, indent=2, ensure_ascii=False)
-        result.files_generated.append(f"{subdirs['samples']}/think_po_samples.json")
+        result.files_generated.append(f"{subdirs['samples']}/samples.json")
 
         # Generate human-readable guide
         self._generate_samples_guide(analysis, output_dir, subdirs, samples_doc, result)
@@ -2695,7 +2695,7 @@ class SpecOutputGenerator:
         sample_index: int,
         automation_info: dict,
     ) -> dict:
-        """Generate a single Think-Po sample."""
+        """Generate a single sample entry."""
         sample_id = f"SAMPLE_{sample_index:03d}"
 
         # Build sample structure based on fields
@@ -3000,7 +3000,7 @@ class SpecOutputGenerator:
             lines.append("")
 
             # Show think process
-            lines.append("**思考过程 (Think-Po)**:")
+            lines.append("**推理步骤**:")
             lines.append("")
             for step_name, step_desc in sample["think_process"].items():
                 step_num = step_name.split("_")[1]
@@ -3040,12 +3040,12 @@ class SpecOutputGenerator:
         lines.append("")
         lines.append("| 文件 | 用途 | 消费者 |")
         lines.append("|------|------|--------|")
-        lines.append("| `think_po_samples.json` | 机器可解析的完整样例 | AI Agent |")
+        lines.append("| `samples.json` | 机器可解析的完整样例 | AI Agent |")
         lines.append("| `SAMPLE_GUIDE.md` | 人类可读的样例指南 | 标注团队/项目经理 |")
         lines.append("")
         lines.append("---")
         lines.append("")
-        lines.append("*本指南由 DataRecipe Think-Po Generator 自动生成*")
+        lines.append("*本指南由 DataRecipe 自动生成*")
 
         path = os.path.join(output_dir, subdirs["samples"], "SAMPLE_GUIDE.md")
         with open(path, "w", encoding="utf-8") as f:
