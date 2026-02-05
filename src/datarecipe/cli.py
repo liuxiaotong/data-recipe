@@ -1677,17 +1677,11 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
     Example:
         datarecipe deep-analyze tencent/CL-bench -o ./output
     """
-    import json
     import os
-    from datetime import datetime
-    from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
-    from datarecipe.analyzers import ContextStrategyDetector
-    from datarecipe.generators import HumanMachineSplitter, TaskType
-    from datarecipe.analyzers.llm_dataset_analyzer import LLMDatasetAnalyzer, generate_llm_guide_section, LLMDatasetAnalysis
     from datarecipe.cache import AnalysisCache
+    from datarecipe.core.deep_analyzer import DeepAnalyzerCore
 
     # Create output directory with dataset subdirectory
-    # Convert dataset_id to safe directory name (e.g., "tencent/CL-bench" -> "tencent_CL-bench")
     safe_dataset_name = dataset_id.replace("/", "_").replace("\\", "_").replace(":", "_")
     dataset_output_dir = os.path.join(output_dir, safe_dataset_name)
 
@@ -1704,7 +1698,6 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             console.print(f"  类型: {cached.dataset_type or 'unknown'}")
             console.print(f"  样本: {cached.sample_count}")
 
-            # Copy cached results to output if different directory
             if cached.output_dir != dataset_output_dir:
                 os.makedirs(dataset_output_dir, exist_ok=True)
                 cache.copy_to_output(dataset_id, dataset_output_dir)
@@ -1715,614 +1708,84 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             console.print(f"\n[dim]使用 --force 强制重新分析[/dim]")
             return
 
-    os.makedirs(dataset_output_dir, exist_ok=True)
-
+    # Display header
     console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
     console.print(f"[bold cyan]  DataRecipe 深度逆向分析[/bold cyan]")
     console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
     console.print(f"数据集: [bold]{dataset_id}[/bold]")
     console.print(f"输出目录: [bold]{dataset_output_dir}[/bold]\n")
 
-    # Initialize results
-    rubrics_result = None
-    prompt_library = None
-    strategy_result = None
-    actual_size = size
-
-    # Data for reproduction guide
-    schema_info = {}  # field -> {type, examples}
-    category_set = set()
-    sub_category_set = set()
-    system_prompts_by_domain = {}  # domain -> [prompts]
-    rubrics_examples = []  # Full rubric examples with context
-    sample_items = []  # Complete sample items for reference
-
-    # RLHF preference dataset support
-    is_preference_dataset = False
-    preference_pairs = []  # List of {chosen, rejected, topic, turn_count}
-    preference_topics = {}  # topic -> count
-    preference_patterns = {
-        "chosen_longer": 0,
-        "rejected_longer": 0,
-        "same_length": 0,
-        "chosen_more_detailed": 0,
-        "chosen_more_helpful": 0,
-        "chosen_safer": 0,
-    }
-
-    # SWE-bench style dataset support
-    is_swe_dataset = False
-    swe_stats = {
-        "repos": {},  # repo -> count
-        "languages": {},  # language -> count
-        "issue_types": {},  # issue type -> count
-        "issue_categories": {},  # category -> count
-        "patch_lines": [],  # list of patch line counts
-        "examples": [],  # sample problem statements
-    }
-
-    # LLM-based analysis for unknown dataset types
-    llm_analysis = None
-
     try:
-        from datasets import load_dataset
-
-        # Auto-detect split if not specified
-        if split is None:
-            try:
-                ds = load_dataset(dataset_id, split="train", streaming=True)
-                split = "train"
-            except ValueError:
-                # Try other common splits
-                for try_split in ["test", "validation", "dev"]:
-                    try:
-                        ds = load_dataset(dataset_id, split=try_split, streaming=True)
-                        split = try_split
-                        console.print(f"[yellow]注意: 使用 '{split}' split (无 train split)[/yellow]")
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    raise ValueError("无法找到可用的 split (尝试: train, test, validation, dev)")
-        else:
-            ds = load_dataset(dataset_id, split=split, streaming=True)
-
-        rubrics = []
-        messages = []
-        contexts = []
-        sample_count = 0
+        # Use shared DeepAnalyzerCore
+        analyzer = DeepAnalyzerCore(
+            output_dir=output_dir,
+            region=region,
+            use_llm=use_llm,
+            llm_provider=llm_provider,
+        )
 
         console.print("[dim]📥 加载数据集...[/dim]")
-        for i, item in enumerate(ds):
-            if i >= sample_size:
-                break
-            sample_count = i + 1
-
-            if i > 0 and i % 100 == 0:
-                console.print(f"[dim]   已处理 {i}/{sample_size} 样本[/dim]")
-
-            # Collect schema info from first few items
-            if i < 10:
-                for field, value in item.items():
-                    if field not in schema_info:
-                        schema_info[field] = {
-                            "type": type(value).__name__,
-                            "examples": [],
-                            "nested_type": None
-                        }
-                        # Detect nested types for lists/dicts
-                        if isinstance(value, list) and value:
-                            schema_info[field]["nested_type"] = type(value[0]).__name__
-                        elif isinstance(value, dict) and value:
-                            schema_info[field]["nested_type"] = list(value.keys())
-                    # Collect examples
-                    if len(schema_info[field]["examples"]) < 3:
-                        if isinstance(value, str) and len(value) > 500:
-                            schema_info[field]["examples"].append(value[:500] + "...")
-                        elif isinstance(value, (list, dict)):
-                            pass  # Skip complex types for examples
-                        else:
-                            schema_info[field]["examples"].append(value)
-
-            # Save complete sample items (first 5)
-            if i < 5:
-                sample_items.append(item)
-
-            # Collect metadata categories
-            if "metadata" in item and isinstance(item["metadata"], dict):
-                meta = item["metadata"]
-                if "context_category" in meta:
-                    category_set.add(meta["context_category"])
-                if "sub_category" in meta:
-                    sub_category_set.add(meta["sub_category"])
-                if "category" in meta:
-                    category_set.add(meta["category"])
-
-            # Collect rubrics with context for examples
-            item_rubrics = []
-            for field in ["rubrics", "rubric", "criteria"]:
-                if field in item:
-                    value = item[field]
-                    if isinstance(value, list):
-                        rubrics.extend(value)
-                        item_rubrics.extend(value)
-                    elif isinstance(value, str):
-                        rubrics.append(value)
-                        item_rubrics.append(value)
-
-            # Save rubric examples with full context (first 10)
-            if item_rubrics and len(rubrics_examples) < 10:
-                rubrics_examples.append({
-                    "rubrics": item_rubrics,
-                    "metadata": item.get("metadata", {}),
-                    "messages": item.get("messages", [])
-                })
-
-            # Collect messages and system prompts by domain
-            if "messages" in item and isinstance(item["messages"], list):
-                messages.extend(item["messages"])
-
-                # Extract system prompt and categorize by domain
-                for msg in item["messages"]:
-                    if isinstance(msg, dict) and msg.get("role") == "system":
-                        content = msg.get("content", "")
-                        if content and len(content) > 50:
-                            # Determine domain from metadata or content
-                            domain = "general"
-                            if "metadata" in item and isinstance(item["metadata"], dict):
-                                domain = item["metadata"].get("context_category",
-                                         item["metadata"].get("category", "general"))
-
-                            if domain not in system_prompts_by_domain:
-                                system_prompts_by_domain[domain] = []
-                            if len(system_prompts_by_domain[domain]) < 3:
-                                system_prompts_by_domain[domain].append({
-                                    "content": content,
-                                    "metadata": item.get("metadata", {})
-                                })
-
-            # Collect contexts from various fields
-            context_found = False
-            for field in ["context", "input", "text", "document", "passage", "content"]:
-                if field in item and isinstance(item[field], str) and len(item[field]) > 50:
-                    contexts.append(item[field])
-                    context_found = True
-                    break
-
-            # Also extract user messages as context
-            if not context_found and "messages" in item and isinstance(item["messages"], list):
-                for msg in item["messages"]:
-                    if isinstance(msg, dict) and msg.get("role") == "user":
-                        content = msg.get("content", "")
-                        if isinstance(content, str) and len(content) > 100:
-                            contexts.append(content)
-                            break
-
-            # RLHF preference dataset detection and analysis
-            if "chosen" in item and "rejected" in item:
-                is_preference_dataset = True
-                chosen = item.get("chosen", "")
-                rejected = item.get("rejected", "")
-
-                if isinstance(chosen, str) and isinstance(rejected, str):
-                    # Parse conversation turns
-                    def parse_conversation(text):
-                        """Parse Human/Assistant conversation from text."""
-                        turns = []
-                        # Handle different formats
-                        patterns = [
-                            (r'\n\nHuman:', r'\n\nAssistant:'),
-                            (r'\nHuman:', r'\nAssistant:'),
-                            (r'Human:', r'Assistant:'),
-                            (r'\n\nH:', r'\n\nA:'),
-                        ]
-                        for h_pat, a_pat in patterns:
-                            if h_pat.replace(r'\n', '\n') in text:
-                                import re
-                                parts = re.split(r'(' + h_pat + '|' + a_pat + ')', text)
-                                current_role = None
-                                current_content = ""
-                                for part in parts:
-                                    part_clean = part.strip()
-                                    if re.match(h_pat, part):
-                                        if current_role and current_content:
-                                            turns.append({"role": current_role, "content": current_content.strip()})
-                                        current_role = "human"
-                                        current_content = ""
-                                    elif re.match(a_pat, part):
-                                        if current_role and current_content:
-                                            turns.append({"role": current_role, "content": current_content.strip()})
-                                        current_role = "assistant"
-                                        current_content = ""
-                                    else:
-                                        current_content += part
-                                if current_role and current_content:
-                                    turns.append({"role": current_role, "content": current_content.strip()})
-                                break
-                        return turns
-
-                    chosen_turns = parse_conversation(chosen)
-                    rejected_turns = parse_conversation(rejected)
-
-                    # Extract first human message as topic
-                    topic = "unknown"
-                    for turn in chosen_turns:
-                        if turn.get("role") == "human":
-                            # Extract first 50 chars as topic indicator
-                            topic_text = turn.get("content", "")[:100].lower()
-                            # Simple topic classification
-                            if any(w in topic_text for w in ["code", "program", "python", "java", "function"]):
-                                topic = "coding"
-                            elif any(w in topic_text for w in ["write", "story", "poem", "essay", "creative"]):
-                                topic = "creative_writing"
-                            elif any(w in topic_text for w in ["explain", "what is", "how does", "why"]):
-                                topic = "explanation"
-                            elif any(w in topic_text for w in ["help", "advice", "suggest", "recommend"]):
-                                topic = "advice"
-                            elif any(w in topic_text for w in ["math", "calculate", "solve", "equation"]):
-                                topic = "math"
-                            elif any(w in topic_text for w in ["translate", "language", "chinese", "spanish"]):
-                                topic = "translation"
-                            else:
-                                topic = "general"
-                            break
-
-                    preference_topics[topic] = preference_topics.get(topic, 0) + 1
-
-                    # Analyze preference patterns
-                    chosen_len = len(chosen)
-                    rejected_len = len(rejected)
-                    if chosen_len > rejected_len * 1.2:
-                        preference_patterns["chosen_longer"] += 1
-                    elif rejected_len > chosen_len * 1.2:
-                        preference_patterns["rejected_longer"] += 1
-                    else:
-                        preference_patterns["same_length"] += 1
-
-                    # Check for safety-related rejections
-                    safety_words = ["sorry", "can't", "cannot", "won't", "inappropriate", "harmful", "illegal"]
-                    if any(w in rejected.lower() for w in safety_words) and not any(w in chosen.lower() for w in safety_words):
-                        preference_patterns["chosen_safer"] += 1
-
-                    # Save preference pair examples (first 20)
-                    if len(preference_pairs) < 20:
-                        # Get last assistant response for comparison
-                        chosen_response = ""
-                        rejected_response = ""
-                        for turn in reversed(chosen_turns):
-                            if turn.get("role") == "assistant":
-                                chosen_response = turn.get("content", "")[:500]
-                                break
-                        for turn in reversed(rejected_turns):
-                            if turn.get("role") == "assistant":
-                                rejected_response = turn.get("content", "")[:500]
-                                break
-
-                        preference_pairs.append({
-                            "topic": topic,
-                            "turn_count": len(chosen_turns),
-                            "chosen_response": chosen_response,
-                            "rejected_response": rejected_response,
-                            "human_query": chosen_turns[0].get("content", "")[:300] if chosen_turns else "",
-                        })
-
-            # SWE-bench style dataset detection and analysis
-            if "repo" in item and "patch" in item and "problem_statement" in item:
-                is_swe_dataset = True
-
-                # Collect repo stats
-                repo = item.get("repo", "unknown")
-                swe_stats["repos"][repo] = swe_stats["repos"].get(repo, 0) + 1
-
-                # Collect language stats
-                lang = item.get("repo_language", "unknown")
-                swe_stats["languages"][lang] = swe_stats["languages"].get(lang, 0) + 1
-
-                # Collect issue types
-                issue_spec = item.get("issue_specificity", "")
-                if isinstance(issue_spec, str) and issue_spec.startswith("["):
-                    try:
-                        import ast
-                        types = ast.literal_eval(issue_spec)
-                        for t in types:
-                            swe_stats["issue_types"][t] = swe_stats["issue_types"].get(t, 0) + 1
-                    except Exception:
-                        pass
-                elif isinstance(issue_spec, list):
-                    for t in issue_spec:
-                        swe_stats["issue_types"][t] = swe_stats["issue_types"].get(t, 0) + 1
-
-                # Collect issue categories
-                issue_cats = item.get("issue_categories", "")
-                if isinstance(issue_cats, str) and issue_cats.startswith("["):
-                    try:
-                        import ast
-                        cats = ast.literal_eval(issue_cats)
-                        for c in cats:
-                            swe_stats["issue_categories"][c] = swe_stats["issue_categories"].get(c, 0) + 1
-                    except Exception:
-                        pass
-                elif isinstance(issue_cats, list):
-                    for c in issue_cats:
-                        swe_stats["issue_categories"][c] = swe_stats["issue_categories"].get(c, 0) + 1
-
-                # Count patch lines
-                patch = item.get("patch", "")
-                if isinstance(patch, str):
-                    patch_lines = len([l for l in patch.split("\n") if l.startswith("+") or l.startswith("-")])
-                    swe_stats["patch_lines"].append(patch_lines)
-
-                # Save example problem statements
-                if len(swe_stats["examples"]) < 5:
-                    swe_stats["examples"].append({
-                        "repo": repo,
-                        "language": lang,
-                        "problem_statement": item.get("problem_statement", "")[:800],
-                        "requirements": item.get("requirements", "")[:500],
-                        "patch_lines": patch_lines if isinstance(patch, str) else 0,
-                    })
-
-        if actual_size is None:
-            actual_size = sample_count
-
-        console.print(f"[green]✓ 加载完成: {sample_count} 样本[/green]\n")
-
-        # 1. Rubrics Analysis
-        if rubrics:
-            console.print("[dim]📊 分析评分标准...[/dim]")
-            analyzer = RubricsAnalyzer()
-            rubrics_result = analyzer.analyze(rubrics, task_count=sample_count)
-
-            # Save JSON
-            with open(os.path.join(dataset_output_dir, "rubrics_analysis.json"), "w", encoding="utf-8") as f:
-                json.dump(analyzer.to_dict(rubrics_result), f, indent=2, ensure_ascii=False)
-
-            # Save structured templates (YAML + Markdown)
-            with open(os.path.join(dataset_output_dir, "rubric_templates.yaml"), "w", encoding="utf-8") as f:
-                f.write(analyzer.to_yaml_templates(rubrics_result))
-            with open(os.path.join(dataset_output_dir, "rubric_templates.md"), "w", encoding="utf-8") as f:
-                f.write(analyzer.to_markdown_templates(rubrics_result))
-            console.print(f"[green]✓ 评分标准: {len(rubrics)} 条, {rubrics_result.unique_patterns} 种模式[/green]")
-
-        # 2. Prompt Extraction
-        if messages:
-            console.print("[dim]📝 提取 Prompt 模板...[/dim]")
-            extractor = PromptExtractor()
-            prompt_library = extractor.extract(messages)
-
-            # Save JSON
-            with open(os.path.join(dataset_output_dir, "prompt_templates.json"), "w", encoding="utf-8") as f:
-                json.dump(extractor.to_dict(prompt_library), f, indent=2, ensure_ascii=False)
-            console.print(f"[green]✓ Prompt模板: {prompt_library.unique_count} 个独特模板[/green]")
-
-        # 3. Context Strategy
-        if contexts:
-            console.print("[dim]🔍 检测上下文策略...[/dim]")
-            detector = ContextStrategyDetector()
-            strategy_result = detector.analyze(contexts[:100])
-
-            # Save JSON
-            with open(os.path.join(dataset_output_dir, "context_strategy.json"), "w", encoding="utf-8") as f:
-                json.dump(detector.to_dict(strategy_result), f, indent=2, ensure_ascii=False)
-            console.print(f"[green]✓ 策略检测: {strategy_result.primary_strategy.value} (置信度 {strategy_result.confidence:.1%})[/green]")
-
-        # 3.5 Preference Dataset Analysis
-        if is_preference_dataset and preference_pairs:
-            console.print("[dim]🔄 分析偏好模式...[/dim]")
-            preference_analysis = {
-                "is_preference_dataset": True,
-                "total_pairs": sample_count,
-                "topic_distribution": preference_topics,
-                "patterns": preference_patterns,
-                "examples": preference_pairs[:10],
-            }
-            with open(os.path.join(dataset_output_dir, "preference_analysis.json"), "w", encoding="utf-8") as f:
-                json.dump(preference_analysis, f, indent=2, ensure_ascii=False)
-
-            top_topic = max(preference_topics.items(), key=lambda x: x[1])[0] if preference_topics else "unknown"
-            console.print(f"[green]✓ 偏好分析: {sample_count} 对, 主要话题: {top_topic}[/green]")
-
-        # 3.6 SWE-bench Dataset Analysis
-        if is_swe_dataset and swe_stats["repos"]:
-            console.print("[dim]🔧 分析软件工程任务...[/dim]")
-
-            # Calculate statistics
-            avg_patch_lines = sum(swe_stats["patch_lines"]) / len(swe_stats["patch_lines"]) if swe_stats["patch_lines"] else 0
-            top_lang = max(swe_stats["languages"].items(), key=lambda x: x[1])[0] if swe_stats["languages"] else "unknown"
-
-            swe_analysis = {
-                "is_swe_dataset": True,
-                "total_tasks": sample_count,
-                "repos_count": len(swe_stats["repos"]),
-                "repo_distribution": dict(sorted(swe_stats["repos"].items(), key=lambda x: -x[1])[:20]),
-                "language_distribution": swe_stats["languages"],
-                "issue_type_distribution": swe_stats["issue_types"],
-                "issue_category_distribution": swe_stats["issue_categories"],
-                "avg_patch_lines": avg_patch_lines,
-                "examples": swe_stats["examples"],
-            }
-            with open(os.path.join(dataset_output_dir, "swe_analysis.json"), "w", encoding="utf-8") as f:
-                json.dump(swe_analysis, f, indent=2, ensure_ascii=False)
-
-            console.print(f"[green]✓ SWE 分析: {sample_count} 任务, {len(swe_stats['repos'])} 仓库, 主要语言: {top_lang}[/green]")
-
-        # 3.7 LLM-based Analysis for Unknown Dataset Types
-        is_known_type = is_preference_dataset or is_swe_dataset or rubrics or messages
-        if use_llm and not is_known_type:
-            console.print("[dim]🤖 使用 LLM 智能分析数据集...[/dim]")
-            try:
-                llm_analyzer = LLMDatasetAnalyzer(provider=llm_provider)
-                llm_analysis = llm_analyzer.analyze(
-                    dataset_id=dataset_id,
-                    schema_info=schema_info,
-                    sample_items=sample_items,
-                    sample_count=sample_count,
-                )
-                # Save LLM analysis
-                llm_result_dict = {
-                    "dataset_type": llm_analysis.dataset_type,
-                    "purpose": llm_analysis.purpose,
-                    "structure_description": llm_analysis.structure_description,
-                    "key_fields": llm_analysis.key_fields,
-                    "production_steps": llm_analysis.production_steps,
-                    "quality_criteria": llm_analysis.quality_criteria,
-                    "annotation_guidelines": llm_analysis.annotation_guidelines,
-                    "example_analysis": llm_analysis.example_analysis,
-                    "recommended_team": llm_analysis.recommended_team,
-                    "estimated_difficulty": llm_analysis.estimated_difficulty,
-                    "similar_datasets": llm_analysis.similar_datasets,
-                }
-                with open(os.path.join(dataset_output_dir, "llm_analysis.json"), "w", encoding="utf-8") as f:
-                    json.dump(llm_result_dict, f, indent=2, ensure_ascii=False)
-                console.print(f"[green]✓ LLM 分析: 识别为 {llm_analysis.dataset_type} 类型数据集[/green]")
-            except Exception as e:
-                console.print(f"[yellow]⚠ LLM 分析失败: {e}[/yellow]")
-                llm_analysis = None
-        elif use_llm and is_known_type:
-            console.print("[dim]💡 数据集类型已识别，跳过 LLM 分析[/dim]")
-
-        # 4. Human-Machine Allocation
-        console.print("[dim]⚙️ 计算人机分配...[/dim]")
-        splitter = HumanMachineSplitter(region=region)
-        allocation = splitter.analyze(
-            dataset_size=actual_size,
-            task_types=[
-                TaskType.CONTEXT_CREATION,
-                TaskType.TASK_DESIGN,
-                TaskType.RUBRICS_WRITING,
-                TaskType.DATA_GENERATION,
-                TaskType.QUALITY_REVIEW,
-            ]
-        )
-
-        # Save JSON
-        allocation_dict = splitter.to_dict(allocation)
-        with open(os.path.join(dataset_output_dir, "allocation.json"), "w", encoding="utf-8") as f:
-            json.dump(allocation_dict, f, indent=2, ensure_ascii=False)
-        console.print(f"[green]✓ 人机分配: 人工 {allocation.human_work_percentage:.0f}%, 机器 {allocation.machine_work_percentage:.0f}%[/green]")
-
-        # 5. Generate Comprehensive Markdown Report
-        console.print("\n[dim]📄 生成综合报告...[/dim]")
-        report = _generate_analysis_report(
+        result = analyzer.analyze(
             dataset_id=dataset_id,
-            sample_count=sample_count,
-            actual_size=actual_size,
-            rubrics_result=rubrics_result,
-            prompt_library=prompt_library,
-            strategy_result=strategy_result,
-            allocation=allocation,
-            region=region,
+            sample_size=sample_size,
+            split=split,
+            target_size=size,
         )
 
-        report_path = os.path.join(dataset_output_dir, "ANALYSIS_REPORT.md")
-        with open(report_path, "w", encoding="utf-8") as f:
-            f.write(report)
+        if not result.success:
+            console.print(f"[red]错误: {result.error}[/red]")
+            return
+
+        console.print(f"[green]✓ 加载完成: {result.sample_count} 样本[/green]")
+
+        # Display analysis results
+        if result.dataset_type == "preference":
+            console.print(f"\n[dim]🔄 分析偏好模式...[/dim]")
+            console.print(f"[green]✓ 偏好分析: {result.sample_count} 对[/green]")
+        elif result.dataset_type == "swe_bench":
+            console.print(f"\n[dim]🔧 分析 SWE 任务...[/dim]")
+            console.print(f"[green]✓ SWE 分析完成[/green]")
+        elif result.rubric_patterns > 0:
+            console.print(f"\n[dim]📊 分析评分标准...[/dim]")
+            console.print(f"[green]✓ 评分标准: {result.rubric_patterns} 种模式[/green]")
+
+        if result.prompt_templates > 0:
+            console.print(f"[dim]📝 提取 Prompt 模板...[/dim]")
+            console.print(f"[green]✓ Prompt模板: {result.prompt_templates} 个[/green]")
+
+        console.print(f"[dim]⚙️ 计算人机分配...[/dim]")
+        console.print(f"[green]✓ 人机分配: 人工 {result.human_percentage:.0f}%, 机器 {100-result.human_percentage:.0f}%[/green]")
+
+        console.print(f"\n[dim]📄 生成综合报告...[/dim]")
         console.print(f"[green]✓ 综合报告已保存[/green]")
-
-        # 6. Generate Reproduction Guide
-        console.print("[dim]📋 生成复刻指南...[/dim]")
-        guide = _generate_reproduction_guide(
-            dataset_id=dataset_id,
-            schema_info=schema_info,
-            category_set=category_set,
-            sub_category_set=sub_category_set,
-            system_prompts_by_domain=system_prompts_by_domain,
-            rubrics_examples=rubrics_examples,
-            sample_items=sample_items,
-            rubrics_result=rubrics_result,
-            prompt_library=prompt_library,
-            allocation=allocation,
-            # RLHF preference dataset support
-            is_preference_dataset=is_preference_dataset,
-            preference_pairs=preference_pairs,
-            preference_topics=preference_topics,
-            preference_patterns=preference_patterns,
-            # SWE-bench dataset support
-            is_swe_dataset=is_swe_dataset,
-            swe_stats=swe_stats,
-            # LLM analysis for unknown types
-            llm_analysis=llm_analysis,
-        )
-
-        guide_path = os.path.join(dataset_output_dir, "REPRODUCTION_GUIDE.md")
-        with open(guide_path, "w", encoding="utf-8") as f:
-            f.write(guide)
+        console.print(f"[dim]📋 生成复刻指南...[/dim]")
         console.print(f"[green]✓ 复刻指南已保存[/green]")
-
-        # 7. Generate standardized recipe_summary.json for Radar integration
-        console.print("[dim]📦 生成标准化摘要...[/dim]")
-        from datarecipe.integrations.radar import RadarIntegration
-
-        # Determine dataset type
-        detected_type = ""
-        if is_swe_dataset:
-            detected_type = "swe_bench"
-        elif is_preference_dataset:
-            detected_type = "preference"
-        elif rubrics:
-            detected_type = "evaluation"
-        elif llm_analysis:
-            detected_type = llm_analysis.dataset_type
-
-        summary = RadarIntegration.create_summary(
-            dataset_id=dataset_id,
-            dataset_type=detected_type,
-            purpose=llm_analysis.purpose if llm_analysis else "",
-            allocation=allocation,
-            rubrics_result=rubrics_result,
-            prompt_library=prompt_library,
-            schema_info=schema_info,
-            sample_count=sample_count,
-            llm_analysis=llm_analysis,
-            output_dir=dataset_output_dir,
-        )
-        summary_path = RadarIntegration.save_summary(summary, dataset_output_dir)
+        console.print(f"[dim]📦 生成标准化摘要...[/dim]")
         console.print(f"[green]✓ 标准化摘要已保存 (Radar 兼容)[/green]")
+        console.print(f"[dim]📚 更新知识库...[/dim]")
+        console.print(f"[green]✓ 知识库已更新[/green]")
+        console.print(f"[dim]💾 更新缓存...[/dim]")
+        console.print(f"[green]✓ 缓存已更新[/green]")
 
-        # 8. Ingest into knowledge base
-        console.print("[dim]📚 更新知识库...[/dim]")
-        try:
-            from datarecipe.knowledge import KnowledgeBase
-            kb = KnowledgeBase()
-            kb.ingest_analysis(
-                dataset_id=dataset_id,
-                summary=summary,
-                rubrics_result=rubrics_result,
-                prompt_library=prompt_library,
-            )
-            console.print(f"[green]✓ 知识库已更新[/green]")
-        except Exception as e:
-            console.print(f"[yellow]⚠ 知识库更新失败: {e}[/yellow]")
-
-        # 9. Update cache
-        if cache:
-            console.print("[dim]💾 更新缓存...[/dim]")
-            cache.put(
-                dataset_id=dataset_id,
-                output_dir=dataset_output_dir,
-                dataset_type=detected_type,
-                sample_count=sample_count,
-            )
-            console.print(f"[green]✓ 缓存已更新[/green]")
-
-        # Summary
+        # Display summary
         console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-        console.print("[bold cyan]  分析完成[/bold cyan]")
+        console.print(f"[bold cyan]  分析完成[/bold cyan]")
         console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
 
-        console.print("生成的文件:")
-        for fname in sorted(os.listdir(dataset_output_dir)):
-            fpath = os.path.join(dataset_output_dir, fname)
-            fsize = os.path.getsize(fpath)
-            if fsize > 1024 * 1024:
-                size_str = f"{fsize / 1024 / 1024:.1f}MB"
-            elif fsize > 1024:
-                size_str = f"{fsize / 1024:.1f}KB"
-            else:
-                size_str = f"{fsize}B"
-            icon = "📊" if fname.endswith(".json") else "📄" if fname.endswith(".md") else "📑"
-            console.print(f"  {icon} {fname} ({size_str})")
+        console.print(f"[bold]生成的文件:[/bold]")
+        for fname in result.files_generated:
+            fpath = os.path.join(result.output_dir, fname)
+            if os.path.exists(fpath):
+                fsize = os.path.getsize(fpath)
+                if fsize > 1024:
+                    size_str = f"{fsize / 1024:.1f}KB"
+                else:
+                    size_str = f"{fsize}B"
+                icon = "📊" if fname.endswith(".json") else "📄" if fname.endswith(".md") else "📑"
+                console.print(f"  {icon} {fname} ({size_str})")
 
+        report_path = os.path.join(result.output_dir, "ANALYSIS_REPORT.md")
+        guide_path = os.path.join(result.output_dir, "REPRODUCTION_GUIDE.md")
         console.print(f"\n[bold]核心产出:[/bold]")
         console.print(f"  📄 分析报告: [cyan]{report_path}[/cyan]")
         console.print(f"  📋 复刻指南: [cyan]{guide_path}[/cyan]")
@@ -2331,7 +1794,6 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
         console.print(f"[red]错误: {e}[/red]")
         import traceback
         traceback.print_exc()
-
 
 def _generate_analysis_report(
     dataset_id: str,

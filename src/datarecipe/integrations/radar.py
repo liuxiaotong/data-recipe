@@ -186,6 +186,27 @@ class RadarIntegration:
         ds_list = datasets if datasets is not None else self.datasets
         return [d.id for d in ds_list]
 
+    # Default purpose descriptions by dataset type
+    DATASET_TYPE_PURPOSES = {
+        "preference": "RLHF 偏好数据，用于训练奖励模型或直接偏好优化 (DPO)",
+        "evaluation": "模型能力评测数据，用于评估 AI 模型在特定任务上的表现",
+        "sft": "监督微调数据，用于训练模型遵循指令",
+        "swe_bench": "软件工程评测数据，用于评估代码生成和问题修复能力",
+        "instruction": "指令遵循数据，用于提升模型指令理解能力",
+        "chat": "对话数据，用于训练对话式 AI",
+        "unknown": "通用数据集",
+    }
+
+    # Default categories by dataset type
+    DATASET_TYPE_CATEGORIES = {
+        "preference": "rlhf",
+        "evaluation": "benchmark",
+        "sft": "instruction",
+        "swe_bench": "code",
+        "instruction": "instruction",
+        "chat": "conversation",
+    }
+
     @staticmethod
     def create_summary(
         dataset_id: str,
@@ -199,6 +220,7 @@ class RadarIntegration:
         sample_count: int = 0,
         llm_analysis: Any = None,
         output_dir: str = "",
+        complexity_metrics: Any = None,
     ) -> RecipeSummary:
         """Create a standardized RecipeSummary from analysis results.
 
@@ -214,10 +236,19 @@ class RadarIntegration:
             sample_count: Number of samples analyzed
             llm_analysis: LLMDatasetAnalysis result
             output_dir: Output directory path
+            complexity_metrics: ComplexityMetrics result
 
         Returns:
             RecipeSummary object
         """
+        # Fill in default purpose and category based on dataset type
+        if not purpose and dataset_type:
+            purpose = RadarIntegration.DATASET_TYPE_PURPOSES.get(
+                dataset_type, RadarIntegration.DATASET_TYPE_PURPOSES.get("unknown", "")
+            )
+        if not category and dataset_type:
+            category = RadarIntegration.DATASET_TYPE_CATEGORIES.get(dataset_type, "")
+
         summary = RecipeSummary(
             dataset_id=dataset_id,
             analysis_date=datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -257,7 +288,26 @@ class RadarIntegration:
         if schema_info:
             summary.fields = list(schema_info.keys())
 
-        # LLM analysis enrichment
+        # Complexity-based difficulty assessment
+        if complexity_metrics:
+            # Calculate difficulty based on complexity metrics
+            difficulty_score = getattr(complexity_metrics, 'difficulty_score', 1.0)
+            if difficulty_score <= 1.5:
+                summary.difficulty = "easy"
+            elif difficulty_score <= 2.5:
+                summary.difficulty = "medium"
+            elif difficulty_score <= 3.5:
+                summary.difficulty = "hard"
+            else:
+                summary.difficulty = "expert"
+
+            # Add domain as key pattern
+            domain = getattr(complexity_metrics, 'primary_domain', None)
+            if domain:
+                domain_value = domain.value if hasattr(domain, 'value') else str(domain)
+                summary.key_patterns.append(f"domain:{domain_value}")
+
+        # LLM analysis enrichment (overrides complexity-based values if available)
         if llm_analysis:
             if not summary.dataset_type:
                 summary.dataset_type = llm_analysis.dataset_type
@@ -267,6 +317,16 @@ class RadarIntegration:
                 summary.difficulty = llm_analysis.estimated_difficulty.split()[0]  # "medium，xxx" -> "medium"
             if llm_analysis.similar_datasets:
                 summary.similar_datasets = llm_analysis.similar_datasets
+
+        # Find similar datasets from knowledge base if not already set
+        if not summary.similar_datasets and dataset_type:
+            try:
+                from datarecipe.knowledge import KnowledgeBase
+                kb = KnowledgeBase()
+                similar = kb.find_similar_datasets(dataset_type, limit=3)
+                summary.similar_datasets = [s.dataset_id for s in similar if s.dataset_id != dataset_id]
+            except Exception:
+                pass
 
         # Output paths
         if output_dir:

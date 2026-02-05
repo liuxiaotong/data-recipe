@@ -603,6 +603,7 @@ class DeepAnalyzerCore:
                 sample_count=sample_count,
                 llm_analysis=llm_analysis,
                 output_dir=dataset_output_dir,
+                complexity_metrics=complexity_metrics,
             )
             RadarIntegration.save_summary(summary, dataset_output_dir)
             result.files_generated.append("recipe_summary.json")
