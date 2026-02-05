@@ -7,6 +7,110 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 
+# Output directory structure
+OUTPUT_SUBDIRS = {
+    "decision": "01_决策参考",      # Executive summary
+    "project": "02_项目管理",       # Milestone plan, industry benchmark
+    "annotation": "03_标注规范",    # Annotation spec, rubric templates
+    "guide": "04_复刻指南",         # Reproduction guide, analysis report
+    "cost": "05_成本分析",          # Cost breakdown, allocation, token analysis
+    "data": "06_原始数据",          # Raw analysis data
+}
+
+
+class OutputManager:
+    """Manage organized output directory structure."""
+
+    def __init__(self, base_dir: str):
+        self.base_dir = base_dir
+        self.subdirs = {}
+        self._create_structure()
+
+    def _create_structure(self):
+        """Create subdirectory structure."""
+        os.makedirs(self.base_dir, exist_ok=True)
+        for key, subdir in OUTPUT_SUBDIRS.items():
+            path = os.path.join(self.base_dir, subdir)
+            os.makedirs(path, exist_ok=True)
+            self.subdirs[key] = path
+
+    def get_path(self, category: str, filename: str) -> str:
+        """Get full path for a file in a category."""
+        if category in self.subdirs:
+            return os.path.join(self.subdirs[category], filename)
+        return os.path.join(self.base_dir, filename)
+
+    def get_relative_path(self, category: str, filename: str) -> str:
+        """Get relative path for display."""
+        if category in self.subdirs:
+            return f"{OUTPUT_SUBDIRS[category]}/{filename}"
+        return filename
+
+    def generate_readme(self, dataset_id: str, dataset_type: str) -> str:
+        """Generate README.md explaining directory structure."""
+        content = f"""# {dataset_id} 分析产出
+
+> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+> 数据类型: {dataset_type}
+
+## 目录结构
+
+```
+{os.path.basename(self.base_dir)}/
+├── README.md                    # 本文件
+├── recipe_summary.json          # 核心摘要 (Radar 兼容)
+│
+├── {OUTPUT_SUBDIRS['decision']}/           # 👔 决策层
+│   ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (价值评分、ROI)
+│   └── executive_summary.json
+│
+├── {OUTPUT_SUBDIRS['project']}/           # 📋 项目管理
+│   ├── MILESTONE_PLAN.md        # 里程碑计划 (验收标准)
+│   ├── milestone_plan.json
+│   ├── INDUSTRY_BENCHMARK.md    # 行业基准对比
+│   └── industry_benchmark.json
+│
+├── {OUTPUT_SUBDIRS['annotation']}/           # 📝 标注团队
+│   ├── ANNOTATION_SPEC.md       # 标注规范 (外包交付用)
+│   ├── annotation_spec.json
+│   ├── rubric_template.md       # 评分标准模板
+│   └── rubric_template.json
+│
+├── {OUTPUT_SUBDIRS['guide']}/           # 🔧 技术团队
+│   ├── REPRODUCTION_GUIDE.md    # 复刻指南
+│   └── ANALYSIS_REPORT.md       # 分析报告
+│
+├── {OUTPUT_SUBDIRS['cost']}/           # 💰 成本分析
+│   ├── COST_BREAKDOWN.md        # 成本明细
+│   ├── allocation.json          # 人机分配
+│   ├── phased_cost.json         # 分阶段成本
+│   ├── cost_comparison.json     # 模型成本对比
+│   ├── cost_calibration.json    # 成本校准
+│   └── token_analysis.json      # Token 分析
+│
+└── {OUTPUT_SUBDIRS['data']}/           # 📊 原始数据
+    ├── complexity_analysis.json # 复杂度分析
+    ├── prompt_templates.json    # Prompt 模板
+    └── ...                      # 其他分析数据
+```
+
+## 快速导航
+
+| 目标 | 查看文件 |
+|------|----------|
+| **快速决策** | `{OUTPUT_SUBDIRS['decision']}/EXECUTIVE_SUMMARY.md` |
+| **项目规划** | `{OUTPUT_SUBDIRS['project']}/MILESTONE_PLAN.md` |
+| **外包标注** | `{OUTPUT_SUBDIRS['annotation']}/ANNOTATION_SPEC.md` |
+| **技术复刻** | `{OUTPUT_SUBDIRS['guide']}/REPRODUCTION_GUIDE.md` |
+| **成本预算** | `{OUTPUT_SUBDIRS['cost']}/COST_BREAKDOWN.md` |
+
+---
+
+*由 DataRecipe 自动生成*
+"""
+        return content
+
+
 @dataclass
 class AnalysisResult:
     """Result of deep analysis."""
@@ -91,10 +195,10 @@ class DeepAnalyzerCore:
             from datarecipe.generators import HumanMachineSplitter, TaskType
             from datarecipe.integrations.radar import RadarIntegration
 
-            # Create output directory
+            # Create output directory with organized structure
             safe_name = dataset_id.replace("/", "_").replace("\\", "_").replace(":", "_")
             dataset_output_dir = os.path.join(self.output_dir, safe_name)
-            os.makedirs(dataset_output_dir, exist_ok=True)
+            output_mgr = OutputManager(dataset_output_dir)
             result.output_dir = dataset_output_dir
 
             # Auto-detect split
@@ -265,18 +369,19 @@ class DeepAnalyzerCore:
                 rubrics_result = analyzer.analyze(rubrics, task_count=sample_count)
                 result.rubric_patterns = rubrics_result.unique_patterns
 
-                # Save rubric templates
-                with open(os.path.join(dataset_output_dir, "rubrics_analysis.json"), "w", encoding="utf-8") as f:
+                # Save rubric analysis to data/
+                with open(output_mgr.get_path("data", "rubrics_analysis.json"), "w", encoding="utf-8") as f:
                     json.dump(analyzer.to_dict(rubrics_result), f, indent=2, ensure_ascii=False)
-                result.files_generated.append("rubrics_analysis.json")
+                result.files_generated.append(output_mgr.get_relative_path("data", "rubrics_analysis.json"))
 
-                with open(os.path.join(dataset_output_dir, "rubric_templates.yaml"), "w", encoding="utf-8") as f:
+                # Save rubric templates to annotation/
+                with open(output_mgr.get_path("annotation", "rubric_template.yaml"), "w", encoding="utf-8") as f:
                     f.write(analyzer.to_yaml_templates(rubrics_result))
-                result.files_generated.append("rubric_templates.yaml")
+                result.files_generated.append(output_mgr.get_relative_path("annotation", "rubric_template.yaml"))
 
-                with open(os.path.join(dataset_output_dir, "rubric_templates.md"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("annotation", "rubric_template.md"), "w", encoding="utf-8") as f:
                     f.write(analyzer.to_markdown_templates(rubrics_result))
-                result.files_generated.append("rubric_templates.md")
+                result.files_generated.append(output_mgr.get_relative_path("annotation", "rubric_template.md"))
 
             prompt_library = None
             if messages:
@@ -284,17 +389,17 @@ class DeepAnalyzerCore:
                 prompt_library = extractor.extract(messages)
                 result.prompt_templates = prompt_library.unique_count
 
-                with open(os.path.join(dataset_output_dir, "prompt_templates.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("data", "prompt_templates.json"), "w", encoding="utf-8") as f:
                     json.dump(extractor.to_dict(prompt_library), f, indent=2, ensure_ascii=False)
-                result.files_generated.append("prompt_templates.json")
+                result.files_generated.append(output_mgr.get_relative_path("data", "prompt_templates.json"))
 
             strategy_result = None
             if contexts:
                 detector = ContextStrategyDetector()
                 strategy_result = detector.analyze(contexts[:100])
-                with open(os.path.join(dataset_output_dir, "context_strategy.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("data", "context_strategy.json"), "w", encoding="utf-8") as f:
                     json.dump(detector.to_dict(strategy_result), f, indent=2, ensure_ascii=False)
-                result.files_generated.append("context_strategy.json")
+                result.files_generated.append(output_mgr.get_relative_path("data", "context_strategy.json"))
 
             # Preference analysis
             if is_preference_dataset and preference_pairs:
@@ -305,9 +410,9 @@ class DeepAnalyzerCore:
                     "patterns": preference_patterns,
                     "examples": preference_pairs[:10],
                 }
-                with open(os.path.join(dataset_output_dir, "preference_analysis.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("data", "preference_analysis.json"), "w", encoding="utf-8") as f:
                     json.dump(preference_analysis, f, indent=2, ensure_ascii=False)
-                result.files_generated.append("preference_analysis.json")
+                result.files_generated.append(output_mgr.get_relative_path("data", "preference_analysis.json"))
 
             # SWE analysis
             if is_swe_dataset and swe_stats["repos"]:
@@ -321,9 +426,9 @@ class DeepAnalyzerCore:
                     "avg_patch_lines": avg_patch,
                     "examples": swe_stats["examples"],
                 }
-                with open(os.path.join(dataset_output_dir, "swe_analysis.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("data", "swe_analysis.json"), "w", encoding="utf-8") as f:
                     json.dump(swe_analysis, f, indent=2, ensure_ascii=False)
-                result.files_generated.append("swe_analysis.json")
+                result.files_generated.append(output_mgr.get_relative_path("data", "swe_analysis.json"))
 
             # LLM analysis
             llm_analysis = None
@@ -350,9 +455,9 @@ class DeepAnalyzerCore:
                         "estimated_difficulty": llm_analysis.estimated_difficulty,
                         "similar_datasets": llm_analysis.similar_datasets,
                     }
-                    with open(os.path.join(dataset_output_dir, "llm_analysis.json"), "w", encoding="utf-8") as f:
+                    with open(output_mgr.get_path("data", "llm_analysis.json"), "w", encoding="utf-8") as f:
                         json.dump(llm_result_dict, f, indent=2, ensure_ascii=False)
-                    result.files_generated.append("llm_analysis.json")
+                    result.files_generated.append(output_mgr.get_relative_path("data", "llm_analysis.json"))
                 except Exception:
                     pass
 
@@ -373,10 +478,10 @@ class DeepAnalyzerCore:
                 precise_api_cost = precise_estimate.adjusted_cost
                 token_stats = precise_estimate.token_stats
 
-                # Save token analysis
-                with open(os.path.join(dataset_output_dir, "token_analysis.json"), "w", encoding="utf-8") as f:
+                # Save token analysis to cost/
+                with open(output_mgr.get_path("cost", "token_analysis.json"), "w", encoding="utf-8") as f:
                     json.dump(precise_estimate.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append("token_analysis.json")
+                result.files_generated.append(output_mgr.get_relative_path("cost", "token_analysis.json"))
 
                 # Model comparison
                 comparisons = cost_calc.compare_models(
@@ -385,9 +490,9 @@ class DeepAnalyzerCore:
                     models=["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "deepseek-v3"],
                 )
                 comparison_data = {m: e.to_dict() for m, e in comparisons.items()}
-                with open(os.path.join(dataset_output_dir, "cost_comparison.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("cost", "cost_comparison.json"), "w", encoding="utf-8") as f:
                     json.dump(comparison_data, f, indent=2, ensure_ascii=False)
-                result.files_generated.append("cost_comparison.json")
+                result.files_generated.append(output_mgr.get_relative_path("cost", "cost_comparison.json"))
 
             except Exception:
                 pass
@@ -403,10 +508,10 @@ class DeepAnalyzerCore:
                     rubrics=rubrics if rubrics else None,
                 )
 
-                # Save complexity analysis
-                with open(os.path.join(dataset_output_dir, "complexity_analysis.json"), "w", encoding="utf-8") as f:
+                # Save complexity analysis to data/
+                with open(output_mgr.get_path("data", "complexity_analysis.json"), "w", encoding="utf-8") as f:
                     json.dump(complexity_metrics.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append("complexity_analysis.json")
+                result.files_generated.append(output_mgr.get_relative_path("data", "complexity_analysis.json"))
 
             except Exception:
                 pass
@@ -449,10 +554,10 @@ class DeepAnalyzerCore:
                 human_cost = calibration_result.calibrated_human_cost
                 api_cost = calibration_result.calibrated_api_cost
 
-                # Save calibration analysis
-                with open(os.path.join(dataset_output_dir, "cost_calibration.json"), "w", encoding="utf-8") as f:
+                # Save calibration analysis to cost/
+                with open(output_mgr.get_path("cost", "cost_calibration.json"), "w", encoding="utf-8") as f:
                     json.dump(calibration_result.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append("cost_calibration.json")
+                result.files_generated.append(output_mgr.get_relative_path("cost", "cost_calibration.json"))
 
             except Exception:
                 pass
@@ -479,16 +584,16 @@ class DeepAnalyzerCore:
                     quality_requirement=quality_req,
                 )
 
-                # Save phased cost analysis
-                with open(os.path.join(dataset_output_dir, "phased_cost.json"), "w", encoding="utf-8") as f:
+                # Save phased cost analysis to cost/
+                with open(output_mgr.get_path("cost", "phased_cost.json"), "w", encoding="utf-8") as f:
                     json.dump(phased_breakdown.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append("phased_cost.json")
+                result.files_generated.append(output_mgr.get_relative_path("cost", "phased_cost.json"))
 
-                # Save phased cost report
+                # Save phased cost report to cost/
                 phased_report = phased_model.format_report(phased_breakdown)
-                with open(os.path.join(dataset_output_dir, "COST_BREAKDOWN.md"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("cost", "COST_BREAKDOWN.md"), "w", encoding="utf-8") as f:
                     f.write(phased_report)
-                result.files_generated.append("COST_BREAKDOWN.md")
+                result.files_generated.append(output_mgr.get_relative_path("cost", "COST_BREAKDOWN.md"))
 
             except Exception:
                 pass
@@ -538,18 +643,19 @@ class DeepAnalyzerCore:
                 "total": round(total_cost, 2),
             }
 
-            with open(os.path.join(dataset_output_dir, "allocation.json"), "w", encoding="utf-8") as f:
+            # Save allocation to cost/
+            with open(output_mgr.get_path("cost", "allocation.json"), "w", encoding="utf-8") as f:
                 json.dump(allocation_dict, f, indent=2, ensure_ascii=False)
-            result.files_generated.append("allocation.json")
+            result.files_generated.append(output_mgr.get_relative_path("cost", "allocation.json"))
 
-            # Generate reports
+            # Generate reports to guide/
             report = self._generate_analysis_report(
                 dataset_id, sample_count, actual_size,
                 rubrics_result, prompt_library, strategy_result, allocation, self.region
             )
-            with open(os.path.join(dataset_output_dir, "ANALYSIS_REPORT.md"), "w", encoding="utf-8") as f:
+            with open(output_mgr.get_path("guide", "ANALYSIS_REPORT.md"), "w", encoding="utf-8") as f:
                 f.write(report)
-            result.files_generated.append("ANALYSIS_REPORT.md")
+            result.files_generated.append(output_mgr.get_relative_path("guide", "ANALYSIS_REPORT.md"))
 
             guide = self._generate_reproduction_guide(
                 dataset_id, schema_info, category_set, sub_category_set,
@@ -558,9 +664,9 @@ class DeepAnalyzerCore:
                 is_preference_dataset, preference_pairs, preference_topics, preference_patterns,
                 is_swe_dataset, swe_stats, llm_analysis
             )
-            with open(os.path.join(dataset_output_dir, "REPRODUCTION_GUIDE.md"), "w", encoding="utf-8") as f:
+            with open(output_mgr.get_path("guide", "REPRODUCTION_GUIDE.md"), "w", encoding="utf-8") as f:
                 f.write(guide)
-            result.files_generated.append("REPRODUCTION_GUIDE.md")
+            result.files_generated.append(output_mgr.get_relative_path("guide", "REPRODUCTION_GUIDE.md"))
 
             # Annotation specification (forward-looking production guide)
             try:
@@ -576,17 +682,17 @@ class DeepAnalyzerCore:
                     complexity_metrics=complexity_metrics,
                 )
 
-                # Save as Markdown
+                # Save as Markdown to annotation/
                 spec_md = spec_generator.to_markdown(annotation_spec)
-                with open(os.path.join(dataset_output_dir, "ANNOTATION_SPEC.md"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("annotation", "ANNOTATION_SPEC.md"), "w", encoding="utf-8") as f:
                     f.write(spec_md)
-                result.files_generated.append("ANNOTATION_SPEC.md")
+                result.files_generated.append(output_mgr.get_relative_path("annotation", "ANNOTATION_SPEC.md"))
 
-                # Save as JSON
+                # Save as JSON to annotation/
                 spec_dict = spec_generator.to_dict(annotation_spec)
-                with open(os.path.join(dataset_output_dir, "annotation_spec.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("annotation", "annotation_spec.json"), "w", encoding="utf-8") as f:
                     json.dump(spec_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append("annotation_spec.json")
+                result.files_generated.append(output_mgr.get_relative_path("annotation", "annotation_spec.json"))
 
             except Exception:
                 pass
@@ -605,17 +711,17 @@ class DeepAnalyzerCore:
                     phased_breakdown=phased_breakdown,
                 )
 
-                # Save as Markdown
+                # Save as Markdown to project/
                 milestone_md = milestone_generator.to_markdown(milestone_plan)
-                with open(os.path.join(dataset_output_dir, "MILESTONE_PLAN.md"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("project", "MILESTONE_PLAN.md"), "w", encoding="utf-8") as f:
                     f.write(milestone_md)
-                result.files_generated.append("MILESTONE_PLAN.md")
+                result.files_generated.append(output_mgr.get_relative_path("project", "MILESTONE_PLAN.md"))
 
-                # Save as JSON
+                # Save as JSON to project/
                 milestone_dict = milestone_generator.to_dict(milestone_plan)
-                with open(os.path.join(dataset_output_dir, "milestone_plan.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("project", "milestone_plan.json"), "w", encoding="utf-8") as f:
                     json.dump(milestone_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append("milestone_plan.json")
+                result.files_generated.append(output_mgr.get_relative_path("project", "milestone_plan.json"))
 
             except Exception:
                 pass
@@ -635,7 +741,7 @@ class DeepAnalyzerCore:
                     llm_analysis=llm_analysis,
                 )
 
-                # Save as Markdown
+                # Save as Markdown to decision/
                 exec_md = exec_generator.to_markdown(
                     assessment=exec_assessment,
                     dataset_id=dataset_id,
@@ -643,15 +749,15 @@ class DeepAnalyzerCore:
                     reproduction_cost=result.reproduction_cost,
                     phased_breakdown=phased_breakdown,
                 )
-                with open(os.path.join(dataset_output_dir, "EXECUTIVE_SUMMARY.md"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("decision", "EXECUTIVE_SUMMARY.md"), "w", encoding="utf-8") as f:
                     f.write(exec_md)
-                result.files_generated.append("EXECUTIVE_SUMMARY.md")
+                result.files_generated.append(output_mgr.get_relative_path("decision", "EXECUTIVE_SUMMARY.md"))
 
-                # Save as JSON
+                # Save as JSON to decision/
                 exec_dict = exec_generator.to_dict(exec_assessment)
-                with open(os.path.join(dataset_output_dir, "executive_summary.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("decision", "executive_summary.json"), "w", encoding="utf-8") as f:
                     json.dump(exec_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append("executive_summary.json")
+                result.files_generated.append(output_mgr.get_relative_path("decision", "executive_summary.json"))
 
             except Exception:
                 pass
@@ -668,22 +774,22 @@ class DeepAnalyzerCore:
                     human_percentage=result.human_percentage,
                 )
 
-                # Save as Markdown
+                # Save as Markdown to project/
                 benchmark_md = benchmark_generator.to_markdown(benchmark_comparison)
-                with open(os.path.join(dataset_output_dir, "INDUSTRY_BENCHMARK.md"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("project", "INDUSTRY_BENCHMARK.md"), "w", encoding="utf-8") as f:
                     f.write(benchmark_md)
-                result.files_generated.append("INDUSTRY_BENCHMARK.md")
+                result.files_generated.append(output_mgr.get_relative_path("project", "INDUSTRY_BENCHMARK.md"))
 
-                # Save as JSON
+                # Save as JSON to project/
                 benchmark_dict = benchmark_generator.to_dict(benchmark_comparison)
-                with open(os.path.join(dataset_output_dir, "industry_benchmark.json"), "w", encoding="utf-8") as f:
+                with open(output_mgr.get_path("project", "industry_benchmark.json"), "w", encoding="utf-8") as f:
                     json.dump(benchmark_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append("industry_benchmark.json")
+                result.files_generated.append(output_mgr.get_relative_path("project", "industry_benchmark.json"))
 
             except Exception:
                 pass
 
-            # Recipe summary
+            # Recipe summary (stays in root)
             summary = RadarIntegration.create_summary(
                 dataset_id=dataset_id,
                 dataset_type=detected_type,
@@ -699,6 +805,12 @@ class DeepAnalyzerCore:
             )
             RadarIntegration.save_summary(summary, dataset_output_dir)
             result.files_generated.append("recipe_summary.json")
+
+            # Generate README.md for directory navigation
+            readme_content = output_mgr.generate_readme(dataset_id, detected_type or "unknown")
+            with open(os.path.join(dataset_output_dir, "README.md"), "w", encoding="utf-8") as f:
+                f.write(readme_content)
+            result.files_generated.append("README.md")
 
             # Update knowledge base
             try:

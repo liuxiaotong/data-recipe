@@ -121,35 +121,48 @@ datarecipe deploy AI-MO/NuminaMath-CoT -o ./my_project
 datarecipe deep-analyze tencent/CL-bench -o ./output
 ```
 
-输出目录结构：
+输出目录结构（按用途分类）：
 
 ```
 output/
 └── tencent_CL-bench/
-    ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (价值评分 + ROI) ⭐
-    ├── MILESTONE_PLAN.md        # 里程碑计划 (验收标准 + 风险) ⭐
-    ├── INDUSTRY_BENCHMARK.md    # 行业基准对比 ⭐
-    ├── ANALYSIS_REPORT.md       # 统计分析报告
-    ├── REPRODUCTION_GUIDE.md    # 复刻指南
-    ├── ANNOTATION_SPEC.md       # 标注规范 (含质量筛选示例)
-    ├── COST_BREAKDOWN.md        # 分阶段成本明细
-    ├── recipe_summary.json      # 标准化摘要 (含相似数据集)
-    ├── executive_summary.json   # 执行摘要 (JSON)
-    ├── milestone_plan.json      # 里程碑计划 (JSON)
-    ├── industry_benchmark.json  # 行业基准 (JSON)
-    ├── rubric_templates.yaml    # 评分标准模板
-    ├── rubric_templates.md      # 评分标准文档
-    ├── prompt_templates.json    # Prompt 模板库
-    ├── context_strategy.json    # 上下文策略
-    ├── allocation.json          # 人机分配方案
-    ├── rubrics_analysis.json    # 原始分析数据
-    ├── annotation_spec.json     # 标注规范 (JSON)
-    ├── token_analysis.json      # Token 统计与 API 成本
-    ├── cost_comparison.json     # 多模型成本对比
-    ├── complexity_analysis.json # 内容复杂度分析
-    ├── cost_calibration.json    # 历史基准校准
-    ├── phased_cost.json         # 分阶段成本模型
-    └── llm_analysis.json        # LLM 智能分析 (--use-llm)
+    ├── README.md                        # 目录导航说明
+    ├── recipe_summary.json              # 核心摘要 (Radar 兼容)
+    │
+    ├── 01_决策参考/                      # 👔 面向决策层
+    │   ├── EXECUTIVE_SUMMARY.md         # 执行摘要 (价值评分 + ROI) ⭐
+    │   └── executive_summary.json
+    │
+    ├── 02_项目管理/                      # 📋 面向项目经理
+    │   ├── MILESTONE_PLAN.md            # 里程碑计划 (验收标准) ⭐
+    │   ├── milestone_plan.json
+    │   ├── INDUSTRY_BENCHMARK.md        # 行业基准对比 ⭐
+    │   └── industry_benchmark.json
+    │
+    ├── 03_标注规范/                      # 📝 面向标注团队/外包
+    │   ├── ANNOTATION_SPEC.md           # 标注规范 ⭐
+    │   ├── annotation_spec.json
+    │   ├── rubric_template.md           # 评分标准模板
+    │   └── rubric_template.yaml
+    │
+    ├── 04_复刻指南/                      # 🔧 面向技术团队
+    │   ├── REPRODUCTION_GUIDE.md        # 复刻指南 ⭐
+    │   └── ANALYSIS_REPORT.md           # 分析报告
+    │
+    ├── 05_成本分析/                      # 💰 成本相关
+    │   ├── COST_BREAKDOWN.md            # 成本明细 ⭐
+    │   ├── allocation.json              # 人机分配方案
+    │   ├── phased_cost.json             # 分阶段成本模型
+    │   ├── cost_comparison.json         # 多模型成本对比
+    │   ├── cost_calibration.json        # 历史基准校准
+    │   └── token_analysis.json          # Token 统计
+    │
+    └── 06_原始数据/                      # 📊 分析原始数据
+        ├── complexity_analysis.json     # 复杂度分析
+        ├── preference_analysis.json     # 偏好分析 (或其他类型)
+        ├── prompt_templates.json        # Prompt 模板库
+        ├── context_strategy.json        # 上下文策略
+        └── llm_analysis.json            # LLM 智能分析 (--use-llm)
 ```
 
 ### 复刻指南 (REPRODUCTION_GUIDE.md)
@@ -842,35 +855,22 @@ datarecipe knowledge --report -o ./knowledge_report.md
 
 ### MCP 产出物
 
-调用 `deep_analyze` 会在 `./analysis_output/<dataset>/` 生成完整文件：
+调用 `deep_analyze` 会在 `./analysis_output/<dataset>/` 生成按用途分类的文件结构：
 
 ```
 analysis_output/
 └── tencent_CL-bench/
-    ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (价值评分 + ROI) ⭐
-    ├── MILESTONE_PLAN.md        # 里程碑计划 ⭐
-    ├── INDUSTRY_BENCHMARK.md    # 行业基准对比 ⭐
-    ├── REPRODUCTION_GUIDE.md    # 复刻指南
-    ├── ANALYSIS_REPORT.md       # 分析报告
-    ├── ANNOTATION_SPEC.md       # 标注规范
-    ├── COST_BREAKDOWN.md        # 成本明细
-    ├── recipe_summary.json      # 标准化摘要 (含相似数据集)
-    ├── executive_summary.json   # 执行摘要 (JSON)
-    ├── milestone_plan.json      # 里程碑计划 (JSON)
-    ├── industry_benchmark.json  # 行业基准 (JSON)
-    ├── rubric_templates.yaml    # 评分模板
-    ├── rubric_templates.md      # 评分文档
-    ├── prompt_templates.json    # Prompt 模板
-    ├── context_strategy.json    # 上下文策略
-    ├── allocation.json          # 人机分配
-    ├── annotation_spec.json     # 标注规范 (JSON)
-    ├── token_analysis.json      # Token 分析
-    ├── cost_comparison.json     # 模型成本对比
-    ├── complexity_analysis.json # 复杂度分析
-    ├── cost_calibration.json    # 成本校准
-    ├── phased_cost.json         # 分阶段成本
-    └── llm_analysis.json        # LLM 分析 (可选)
+    ├── README.md                        # 目录导航
+    ├── recipe_summary.json              # 核心摘要
+    ├── 01_决策参考/                      # 👔 决策层
+    ├── 02_项目管理/                      # 📋 项目经理
+    ├── 03_标注规范/                      # 📝 标注团队
+    ├── 04_复刻指南/                      # 🔧 技术团队
+    ├── 05_成本分析/                      # 💰 成本相关
+    └── 06_原始数据/                      # 📊 原始数据
 ```
+
+详细结构见 [输出目录结构](#深度分析)。
 
 ### 使用示例
 
