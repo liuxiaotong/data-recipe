@@ -656,6 +656,33 @@ class DeepAnalyzerCore:
             except Exception:
                 pass
 
+            # Industry benchmark comparison
+            try:
+                from datarecipe.generators.industry_benchmark import IndustryBenchmarkGenerator
+                benchmark_generator = IndustryBenchmarkGenerator()
+                benchmark_comparison = benchmark_generator.generate(
+                    dataset_id=dataset_id,
+                    dataset_type=detected_type or "unknown",
+                    sample_count=actual_size,
+                    reproduction_cost=result.reproduction_cost,
+                    human_percentage=result.human_percentage,
+                )
+
+                # Save as Markdown
+                benchmark_md = benchmark_generator.to_markdown(benchmark_comparison)
+                with open(os.path.join(dataset_output_dir, "INDUSTRY_BENCHMARK.md"), "w", encoding="utf-8") as f:
+                    f.write(benchmark_md)
+                result.files_generated.append("INDUSTRY_BENCHMARK.md")
+
+                # Save as JSON
+                benchmark_dict = benchmark_generator.to_dict(benchmark_comparison)
+                with open(os.path.join(dataset_output_dir, "industry_benchmark.json"), "w", encoding="utf-8") as f:
+                    json.dump(benchmark_dict, f, indent=2, ensure_ascii=False)
+                result.files_generated.append("industry_benchmark.json")
+
+            except Exception:
+                pass
+
             # Recipe summary
             summary = RadarIntegration.create_summary(
                 dataset_id=dataset_id,

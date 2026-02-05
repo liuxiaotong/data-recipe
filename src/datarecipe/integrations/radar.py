@@ -318,15 +318,36 @@ class RadarIntegration:
             if llm_analysis.similar_datasets:
                 summary.similar_datasets = llm_analysis.similar_datasets
 
-        # Find similar datasets from knowledge base if not already set
+        # Find similar datasets from catalog and knowledge base
         if not summary.similar_datasets and dataset_type:
             try:
-                from datarecipe.knowledge import KnowledgeBase
-                kb = KnowledgeBase()
-                similar = kb.find_similar_datasets(dataset_type, limit=3)
-                summary.similar_datasets = [s.dataset_id for s in similar if s.dataset_id != dataset_id]
+                from datarecipe.knowledge import DatasetCatalog
+                catalog = DatasetCatalog()
+                similar = catalog.find_similar_datasets(
+                    dataset_id=dataset_id,
+                    category=dataset_type,
+                    limit=5,
+                )
+                summary.similar_datasets = [
+                    s.dataset_id for s in similar
+                    if s.dataset_id.lower() != dataset_id.lower()
+                ][:3]
             except Exception:
                 pass
+
+            # Fallback to knowledge base patterns if catalog didn't find enough
+            if len(summary.similar_datasets) < 3:
+                try:
+                    from datarecipe.knowledge import KnowledgeBase
+                    kb = KnowledgeBase()
+                    similar = kb.find_similar_datasets(dataset_type, dataset_id=dataset_id, limit=5)
+                    for s in similar:
+                        if s.dataset_id.lower() != dataset_id.lower() and s.dataset_id not in summary.similar_datasets:
+                            summary.similar_datasets.append(s.dataset_id)
+                            if len(summary.similar_datasets) >= 3:
+                                break
+                except Exception:
+                    pass
 
         # Output paths
         if output_dir:

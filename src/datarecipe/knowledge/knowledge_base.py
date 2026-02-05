@@ -354,6 +354,53 @@ class KnowledgeBase:
         sorted_datasets = sorted(dataset_scores.items(), key=lambda x: -x[1])
         return [ds for ds, _ in sorted_datasets[:limit]]
 
+    def find_similar_datasets(
+        self,
+        dataset_type: str,
+        dataset_id: str = None,
+        limit: int = 5,
+    ) -> List["DatasetInfo"]:
+        """Find similar datasets from the catalog.
+
+        This method combines knowledge from:
+        1. The pre-populated dataset catalog
+        2. Patterns learned from previous analyses
+
+        Args:
+            dataset_type: Type of dataset (preference, evaluation, sft, etc.)
+            dataset_id: Optional specific dataset to find similar to
+            limit: Maximum number of results
+
+        Returns:
+            List of DatasetInfo objects from the catalog
+        """
+        from datarecipe.knowledge.dataset_catalog import DatasetCatalog
+
+        catalog = DatasetCatalog()
+
+        # Try to find similar datasets from catalog
+        if dataset_id:
+            results = catalog.find_similar_datasets(
+                dataset_id=dataset_id,
+                category=dataset_type,
+                limit=limit,
+            )
+        else:
+            results = catalog.find_by_category(dataset_type, limit=limit)
+
+        # If we have learned patterns, try to find additional similar datasets
+        if dataset_id:
+            pattern_similar = self.get_similar_patterns(dataset_id, limit=limit)
+            # Add any pattern-based matches that have catalog entries
+            for ds_id in pattern_similar:
+                catalog_entry = catalog.get_dataset(ds_id)
+                if catalog_entry and catalog_entry not in results:
+                    results.append(catalog_entry)
+                    if len(results) >= limit:
+                        break
+
+        return results[:limit]
+
     def get_recommendations(self, dataset_type: str) -> Dict[str, Any]:
         """Get recommendations based on accumulated knowledge."""
         benchmark = self.trends.get_cost_benchmark(dataset_type)
