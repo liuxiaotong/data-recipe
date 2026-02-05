@@ -28,6 +28,10 @@ class SpecificationAnalysis:
     forbidden_items: List[str] = field(default_factory=list)  # 禁止项
     difficulty_criteria: str = ""  # 难度标准
 
+    # Difficulty validation config (extracted from spec, None if not specified)
+    difficulty_validation: Optional[Dict[str, Any]] = None  # 难度验证配置
+    # Example: {"model": "doubao1.8", "settings": "高思考深度", "test_count": 3, "max_correct": 1, "requires_record": True}
+
     # Data structure
     fields: List[Dict[str, str]] = field(default_factory=list)  # 字段定义
     field_requirements: Dict[str, str] = field(default_factory=dict)  # 字段要求
@@ -62,6 +66,7 @@ class SpecificationAnalysis:
             "quality_constraints": self.quality_constraints,
             "forbidden_items": self.forbidden_items,
             "difficulty_criteria": self.difficulty_criteria,
+            "difficulty_validation": self.difficulty_validation,
             "fields": self.fields,
             "field_requirements": self.field_requirements,
             "examples": self.examples,
@@ -73,6 +78,10 @@ class SpecificationAnalysis:
             "has_images": self.has_images,
             "image_count": self.image_count,
         }
+
+    def has_difficulty_validation(self) -> bool:
+        """Check if difficulty validation is required."""
+        return self.difficulty_validation is not None
 
 
 class SpecAnalyzer:
@@ -100,7 +109,17 @@ class SpecAnalyzer:
   "data_requirements": ["数据要求1", "数据要求2"],
   "quality_constraints": ["质量约束1", "质量约束2"],
   "forbidden_items": ["禁止项1（如禁止AI内容）", "禁止项2"],
-  "difficulty_criteria": "难度验证标准描述",
+  "difficulty_criteria": "难度验证标准描述（如有）",
+
+  "difficulty_validation": {{
+    "enabled": true,
+    "model": "用于验证难度的模型名称（如doubao1.8、gpt-4等）",
+    "settings": "模型设置（如高思考深度）",
+    "test_count": 3,
+    "max_correct": 1,
+    "pass_criteria": "通过标准描述（如：跑3次最多1次正确）",
+    "requires_record": true
+  }},
 
   "fields": [
     {{"name": "字段名", "type": "类型", "required": true, "description": "说明"}}
@@ -134,6 +153,7 @@ class SpecAnalyzer:
 1. 如果某项信息在文档中没有，请合理推断或留空
 2. examples 数组最多包含 3 个示例
 3. 确保返回有效的 JSON 格式
+4. difficulty_validation: 如果文档中没有提到需要用模型验证难度，则设置 enabled 为 false 或整个字段设为 null
 """
 
     def __init__(self, provider: str = "anthropic"):
@@ -214,6 +234,20 @@ class SpecAnalyzer:
         analysis.estimated_domain = extracted.get("estimated_domain", "")
         analysis.estimated_human_percentage = extracted.get("estimated_human_percentage", 95)
         analysis.similar_datasets = extracted.get("similar_datasets", [])
+
+        # Handle difficulty validation config
+        diff_val = extracted.get("difficulty_validation")
+        if diff_val and isinstance(diff_val, dict):
+            # Check if validation is enabled (explicit false means disabled)
+            if diff_val.get("enabled", True) and diff_val.get("model"):
+                analysis.difficulty_validation = {
+                    "model": diff_val.get("model", ""),
+                    "settings": diff_val.get("settings", ""),
+                    "test_count": diff_val.get("test_count", 3),
+                    "max_correct": diff_val.get("max_correct", 1),
+                    "pass_criteria": diff_val.get("pass_criteria", ""),
+                    "requires_record": diff_val.get("requires_record", True),
+                }
 
         return analysis
 

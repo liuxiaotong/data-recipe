@@ -57,6 +57,7 @@ class SpecOutputGenerator:
                 "guide": "04_复刻指南",
                 "cost": "05_成本分析",
                 "data": "06_原始数据",
+                "templates": "07_模板",
             }
             for key, subdir in subdirs.items():
                 os.makedirs(os.path.join(output_dir, subdir), exist_ok=True)
@@ -70,6 +71,18 @@ class SpecOutputGenerator:
             self._generate_cost_breakdown(analysis, output_dir, subdirs, target_size, region, result)
             self._generate_industry_benchmark(analysis, output_dir, subdirs, target_size, region, result)
             self._generate_raw_analysis(analysis, output_dir, subdirs, result)
+
+            # Generate production documents
+            self._generate_training_guide(analysis, output_dir, subdirs, result)
+            self._generate_qa_checklist(analysis, output_dir, subdirs, result)
+            self._generate_data_template(analysis, output_dir, subdirs, result)
+            self._generate_production_sop(analysis, output_dir, subdirs, result)
+            self._generate_data_schema(analysis, output_dir, subdirs, result)
+
+            # Conditionally generate difficulty validation guide
+            if analysis.has_difficulty_validation():
+                self._generate_difficulty_validation(analysis, output_dir, subdirs, result)
+
             self._generate_readme(analysis, output_dir, subdirs, result)
 
         except Exception as e:
@@ -754,10 +767,21 @@ class SpecOutputGenerator:
         lines.append("│   └── INDUSTRY_BENCHMARK.md    # 行业基准")
         lines.append("│")
         lines.append(f"├── {subdirs['annotation']}/           # 📝 标注团队")
-        lines.append("│   └── ANNOTATION_SPEC.md       # 标注规范")
+        lines.append("│   ├── ANNOTATION_SPEC.md       # 标注规范")
+        lines.append("│   ├── TRAINING_GUIDE.md        # 培训手册")
+        lines.append("│   └── QA_CHECKLIST.md          # 质检清单")
+        lines.append("│")
+        lines.append(f"├── {subdirs['guide']}/           # 📖 复刻指南")
+        lines.append("│   ├── PRODUCTION_SOP.md        # 生产流程")
+        lines.append("│   ├── DATA_SCHEMA.json         # 数据格式")
+        if analysis.has_difficulty_validation():
+            lines.append("│   └── DIFFICULTY_VALIDATION.md # 难度验证")
         lines.append("│")
         lines.append(f"├── {subdirs['cost']}/           # 💰 成本分析")
         lines.append("│   └── COST_BREAKDOWN.md        # 成本明细")
+        lines.append("│")
+        lines.append(f"├── {subdirs['templates']}/              # 📋 模板")
+        lines.append("│   └── data_template.json       # 数据模板")
         lines.append("│")
         lines.append(f"└── {subdirs['data']}/           # 📊 原始数据")
         lines.append("    └── spec_analysis.json       # 分析数据")
@@ -770,6 +794,9 @@ class SpecOutputGenerator:
         lines.append(f"| **快速决策** | `{subdirs['decision']}/EXECUTIVE_SUMMARY.md` |")
         lines.append(f"| **项目规划** | `{subdirs['project']}/MILESTONE_PLAN.md` |")
         lines.append(f"| **标注外包** | `{subdirs['annotation']}/ANNOTATION_SPEC.md` |")
+        lines.append(f"| **标注培训** | `{subdirs['annotation']}/TRAINING_GUIDE.md` |")
+        lines.append(f"| **生产流程** | `{subdirs['guide']}/PRODUCTION_SOP.md` |")
+        lines.append(f"| **数据模板** | `{subdirs['templates']}/data_template.json` |")
         lines.append(f"| **成本预算** | `{subdirs['cost']}/COST_BREAKDOWN.md` |")
         lines.append("")
         lines.append("---")
@@ -780,6 +807,946 @@ class SpecOutputGenerator:
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
         result.files_generated.append("README.md")
+
+    def _generate_training_guide(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate TRAINING_GUIDE.md - annotator training manual."""
+        lines = []
+        lines.append(f"# {analysis.project_name} 标注员培训手册")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Section 1: Project Overview
+        lines.append("## 一、项目概述")
+        lines.append("")
+        lines.append("### 1.1 项目目标")
+        lines.append("")
+        lines.append(f"{analysis.description or analysis.task_description}")
+        lines.append("")
+
+        lines.append("### 1.2 核心能力要求")
+        lines.append("")
+        if analysis.cognitive_requirements:
+            for req in analysis.cognitive_requirements:
+                lines.append(f"- {req}")
+        lines.append("")
+
+        if analysis.reasoning_chain:
+            lines.append("### 1.3 推理链")
+            lines.append("")
+            lines.append("```")
+            lines.append(" → ".join(analysis.reasoning_chain))
+            lines.append("```")
+            lines.append("")
+
+        # Section 2: Data Requirements
+        lines.append("---")
+        lines.append("")
+        lines.append("## 二、数据要求")
+        lines.append("")
+
+        if analysis.forbidden_items:
+            lines.append("### 2.1 必须遵守的规则")
+            lines.append("")
+            for item in analysis.forbidden_items:
+                lines.append(f"- ❌ {item}")
+            lines.append("")
+
+        if analysis.quality_constraints:
+            lines.append("### 2.2 质量标准")
+            lines.append("")
+            for constraint in analysis.quality_constraints:
+                lines.append(f"- ✅ {constraint}")
+            lines.append("")
+
+        # Section 3: Field Descriptions
+        lines.append("---")
+        lines.append("")
+        lines.append("## 三、字段说明")
+        lines.append("")
+
+        if analysis.fields:
+            for f in analysis.fields:
+                name = f.get("name", "")
+                ftype = f.get("type", "string")
+                required = "是" if f.get("required", True) else "否"
+                desc = f.get("description", "")
+                lines.append(f"### {name}")
+                lines.append("")
+                lines.append(f"- **类型**: {ftype}")
+                lines.append(f"- **必填**: {required}")
+                lines.append(f"- **说明**: {desc}")
+                if analysis.field_requirements.get(name):
+                    lines.append(f"- **具体要求**: {analysis.field_requirements[name]}")
+                lines.append("")
+
+        # Section 4: Examples
+        lines.append("---")
+        lines.append("")
+        lines.append("## 四、示例讲解")
+        lines.append("")
+
+        for i, example in enumerate(analysis.examples[:3], 1):
+            lines.append(f"### 4.{i} 优秀示例分析")
+            lines.append("")
+            lines.append(f"#### 示例 {i}")
+            lines.append("")
+
+            if example.get("question"):
+                lines.append(f"**题目**: {example['question'][:100]}...")
+                lines.append("")
+
+            if example.get("answer"):
+                lines.append(f"**答案**: {example['answer']}")
+                lines.append("")
+
+            if example.get("scoring_rubric"):
+                lines.append(f"**评分标准**: {example['scoring_rubric']}")
+                lines.append("")
+
+            lines.append("**优秀原因**:")
+            lines.append("- 题意清晰，无歧义")
+            lines.append("- 答案明确")
+            lines.append("- 评分标准具体")
+            lines.append("")
+
+        # Section 5: Common Errors
+        lines.append("---")
+        lines.append("")
+        lines.append("## 五、常见错误")
+        lines.append("")
+
+        lines.append("### 5.1 题目设计错误")
+        lines.append("")
+        lines.append("| 错误类型 | 示例 | 正确做法 |")
+        lines.append("|----------|------|----------|")
+        lines.append("| 题意模糊 | \"找最好的路线\" | \"找距离最短的路线\" |")
+        lines.append("| 信息不足 | 缺少关键数据 | 确保所有必要信息都已给出 |")
+        lines.append("| 答案不唯一 | 未说明多解情况 | 列出所有正确答案 |")
+        lines.append("")
+
+        if analysis.has_images:
+            lines.append("### 5.2 图片制作错误")
+            lines.append("")
+            lines.append("| 错误类型 | 后果 | 避免方法 |")
+            lines.append("|----------|------|----------|")
+            lines.append("| 使用 AI 生图 | 数据作废，不支付费用 | 仅使用手绘/软件绘图/照片 |")
+            lines.append("| 图片模糊 | 无法评测 | 确保分辨率 ≥ 800x600 |")
+            lines.append("| 图文不匹配 | 题目无效 | 核对图片与题目描述一致 |")
+            lines.append("")
+
+        lines.append("### 5.3 评分标准错误")
+        lines.append("")
+        lines.append("| 错误类型 | 示例 | 正确做法 |")
+        lines.append("|----------|------|----------|")
+        lines.append("| 标准模糊 | \"回答正确得分\" | 明确什么样的回答算正确 |")
+        lines.append("| 遗漏情况 | 只写满分条件 | 包含满分、部分分、零分条件 |")
+        lines.append("")
+
+        # Section 6: Self-Check List
+        lines.append("---")
+        lines.append("")
+        lines.append("## 六、自检清单")
+        lines.append("")
+        lines.append("提交前请逐项检查：")
+        lines.append("")
+
+        if analysis.has_images:
+            lines.append("### 图片")
+            lines.append("- [ ] 非 AI 生成")
+            lines.append("- [ ] 清晰度达标")
+            lines.append("- [ ] 与题目强相关")
+            lines.append("")
+
+        lines.append("### 题目")
+        lines.append("- [ ] 题意清晰")
+        lines.append("- [ ] 无歧义")
+        lines.append("- [ ] 格式要求明确")
+        lines.append("")
+
+        lines.append("### 答案")
+        lines.append("- [ ] 答案正确")
+        lines.append("- [ ] 多解已全部列出")
+        lines.append("- [ ] 格式符合要求")
+        lines.append("")
+
+        lines.append("### 解析")
+        lines.append("- [ ] 步骤完整")
+        lines.append("- [ ] 逻辑清晰")
+        lines.append("- [ ] 与答案一致")
+        lines.append("")
+
+        lines.append("### 评分标准")
+        lines.append("- [ ] 包含满分条件")
+        lines.append("- [ ] 包含零分条件")
+        lines.append("- [ ] 条件具体可判")
+        lines.append("")
+
+        # Add difficulty validation to checklist if enabled
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            lines.append("### 难度验证")
+            lines.append(f"- [ ] 已完成 {diff_val.get('test_count', 3)} 次测试")
+            lines.append(f"- [ ] 正确次数 ≤ {diff_val.get('max_correct', 1)}")
+            lines.append("- [ ] 记录已保存")
+            lines.append("")
+
+        # FAQ
+        lines.append("---")
+        lines.append("")
+        lines.append("## 七、FAQ")
+        lines.append("")
+        lines.append("**Q: 图片可以用网上下载的吗？**")
+        lines.append("A: 不可以，存在版权风险，且可能被 AI 识别。请使用原创图片。")
+        lines.append("")
+
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            max_correct = diff_val.get("max_correct", 1)
+            lines.append(f"**Q: 如果模型答对 {max_correct + 1} 次怎么办？**")
+            lines.append("A: 题目无效，需要增加难度后重新验证。")
+            lines.append("")
+
+        lines.append("**Q: 评分标准必须是 1 分和 0 分吗？**")
+        lines.append("A: 可以有部分得分（如 0.5 分），但需明确说明条件。")
+        lines.append("")
+
+        lines.append("**Q: 多轮对话题目怎么处理？**")
+        lines.append("A: 每轮作为独立字段，明确标注轮次和前后依赖关系。")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("*本手册由 DataRecipe 自动生成*")
+
+        path = os.path.join(output_dir, subdirs["annotation"], "TRAINING_GUIDE.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(f"{subdirs['annotation']}/TRAINING_GUIDE.md")
+
+    def _generate_qa_checklist(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate QA_CHECKLIST.md - quality assurance checklist."""
+        lines = []
+        lines.append(f"# {analysis.project_name} 质量检查清单")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Section 1: Single Data Check
+        lines.append("## 一、单条数据检查")
+        lines.append("")
+
+        if analysis.has_images:
+            lines.append("### 1.1 图片检查")
+            lines.append("")
+            lines.append("| 检查项 | 通过标准 | 检查结果 |")
+            lines.append("|--------|----------|----------|")
+            lines.append("| 原创性 | 非 AI 生成，无版权问题 | ☐ 通过 ☐ 不通过 |")
+            lines.append("| 清晰度 | 分辨率 ≥ 800x600，文字可读 | ☐ 通过 ☐ 不通过 |")
+            lines.append("| 相关性 | 图片与题目强相关，无图无法解题 | ☐ 通过 ☐ 不通过 |")
+            lines.append("| 格式 | PNG/JPG，大小 ≤ 5MB | ☐ 通过 ☐ 不通过 |")
+            lines.append("")
+
+        lines.append("### 1.2 题目检查")
+        lines.append("")
+        lines.append("| 检查项 | 通过标准 | 检查结果 |")
+        lines.append("|--------|----------|----------|")
+        lines.append("| 清晰度 | 题意明确，无歧义 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 完整性 | 解题所需信息完整 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 原创性 | 非 AI 生成 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 格式要求 | 已说明答案输出格式 | ☐ 通过 ☐ 不通过 |")
+        lines.append("")
+
+        lines.append("### 1.3 答案检查")
+        lines.append("")
+        lines.append("| 检查项 | 通过标准 | 检查结果 |")
+        lines.append("|--------|----------|----------|")
+        lines.append("| 正确性 | 答案正确，可验证 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 完整性 | 多解已全部列出 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 格式 | 符合题目要求的格式 | ☐ 通过 ☐ 不通过 |")
+        lines.append("")
+
+        lines.append("### 1.4 解析检查")
+        lines.append("")
+        lines.append("| 检查项 | 通过标准 | 检查结果 |")
+        lines.append("|--------|----------|----------|")
+        lines.append("| 完整性 | 步骤完整，从题目到答案 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 正确性 | 逻辑正确，与答案一致 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 原创性 | 非 AI 生成 | ☐ 通过 ☐ 不通过 |")
+        lines.append("")
+
+        lines.append("### 1.5 评分标准检查")
+        lines.append("")
+        lines.append("| 检查项 | 通过标准 | 检查结果 |")
+        lines.append("|--------|----------|----------|")
+        lines.append("| 满分条件 | 已明确说明 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 零分条件 | 已明确说明 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 可操作性 | 条件具体，可客观判定 | ☐ 通过 ☐ 不通过 |")
+        lines.append("")
+
+        # Difficulty validation check if enabled
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            lines.append("### 1.6 难度验证检查")
+            lines.append("")
+            lines.append("| 检查项 | 通过标准 | 检查结果 |")
+            lines.append("|--------|----------|----------|")
+            lines.append(f"| 测试次数 | 已完成 {diff_val.get('test_count', 3)} 次测试 | ☐ 通过 ☐ 不通过 |")
+            lines.append(f"| 正确次数 | ≤ {diff_val.get('max_correct', 1)} 次 | ☐ 通过 ☐ 不通过 |")
+            lines.append("| 记录完整 | 三次回答和判定都有记录 | ☐ 通过 ☐ 不通过 |")
+            lines.append("")
+
+        # Section 2: Batch Check
+        lines.append("---")
+        lines.append("")
+        lines.append("## 二、批量数据检查")
+        lines.append("")
+
+        lines.append("### 2.1 数据完整性")
+        lines.append("")
+        lines.append("| 检查项 | 通过标准 | 检查结果 |")
+        lines.append("|--------|----------|----------|")
+        lines.append("| 数量 | 达到目标数量 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 必填字段 | 所有必填字段已填写 | ☐ 通过 ☐ 不通过 |")
+        if analysis.has_images:
+            lines.append("| 图片文件 | 所有图片文件存在且可访问 | ☐ 通过 ☐ 不通过 |")
+        lines.append("")
+
+        lines.append("### 2.2 数据格式")
+        lines.append("")
+        lines.append("| 检查项 | 通过标准 | 检查结果 |")
+        lines.append("|--------|----------|----------|")
+        lines.append("| JSON 有效性 | JSON 格式正确，可解析 | ☐ 通过 ☐ 不通过 |")
+        lines.append("| Schema 符合 | 符合 DATA_SCHEMA.json | ☐ 通过 ☐ 不通过 |")
+        lines.append("| 编码格式 | UTF-8 编码 | ☐ 通过 ☐ 不通过 |")
+        lines.append("")
+
+        lines.append("### 2.3 抽检统计")
+        lines.append("")
+        lines.append("| 指标 | 目标 | 实际 | 达标 |")
+        lines.append("|------|------|------|------|")
+        lines.append("| 抽检率 | ≥ 20% | ___ % | ☐ |")
+        lines.append("| 通过率 | ≥ 95% | ___ % | ☐ |")
+        lines.append("| 返工率 | ≤ 10% | ___ % | ☐ |")
+        lines.append("")
+
+        # Section 3: Review Process
+        lines.append("---")
+        lines.append("")
+        lines.append("## 三、审核流程")
+        lines.append("")
+
+        lines.append("### 3.1 自检（生产者）")
+        lines.append("")
+        lines.append("```")
+        lines.append("完成数据 → 对照清单自检 → 修正问题 → 提交互审")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("### 3.2 互审（同级）")
+        lines.append("")
+        lines.append("```")
+        lines.append("接收数据 → 交叉检查 → 标记问题 → 反馈/通过")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("### 3.3 专家抽检（QA）")
+        lines.append("")
+        lines.append("```")
+        lines.append("随机抽取 20% → 深度检查 → 汇总问题 → 反馈/终审")
+        lines.append("```")
+        lines.append("")
+
+        # Section 4: Issue Tracking
+        lines.append("---")
+        lines.append("")
+        lines.append("## 四、问题记录表")
+        lines.append("")
+        lines.append("| 题目ID | 问题类型 | 问题描述 | 严重程度 | 处理状态 |")
+        lines.append("|--------|----------|----------|----------|----------|")
+        lines.append("| | | | ☐高 ☐中 ☐低 | ☐待修 ☐已修 ☐已验 |")
+        lines.append("| | | | ☐高 ☐中 ☐低 | ☐待修 ☐已修 ☐已验 |")
+        lines.append("| | | | ☐高 ☐中 ☐低 | ☐待修 ☐已修 ☐已验 |")
+        lines.append("")
+
+        # Section 5: Acceptance Criteria
+        lines.append("---")
+        lines.append("")
+        lines.append("## 五、验收标准")
+        lines.append("")
+        lines.append("| 指标 | 阈值 | 说明 |")
+        lines.append("|------|------|------|")
+        lines.append("| 数据完整率 | 100% | 所有必填字段完整 |")
+        lines.append("| 专家审核通过率 | ≥ 95% | 抽检通过比例 |")
+        if analysis.has_difficulty_validation():
+            lines.append("| 难度验证通过率 | 100% | 所有数据通过模型验证 |")
+        lines.append("| 格式正确率 | 100% | JSON 格式和 Schema 符合 |")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("*本检查清单由 DataRecipe 自动生成*")
+
+        path = os.path.join(output_dir, subdirs["annotation"], "QA_CHECKLIST.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(f"{subdirs['annotation']}/QA_CHECKLIST.md")
+
+    def _generate_difficulty_validation(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate DIFFICULTY_VALIDATION.md - only when difficulty validation is configured."""
+        diff_val = analysis.difficulty_validation
+        if not diff_val:
+            return
+
+        model_name = diff_val.get("model", "未指定模型")
+        settings = diff_val.get("settings", "默认设置")
+        test_count = diff_val.get("test_count", 3)
+        max_correct = diff_val.get("max_correct", 1)
+        pass_criteria = diff_val.get("pass_criteria", f"跑 {test_count} 次，正确次数 ≤ {max_correct} 次")
+
+        lines = []
+        lines.append(f"# {analysis.project_name} 难度验证流程")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Section 1: Purpose
+        lines.append("## 一、验证目的")
+        lines.append("")
+        lines.append("确保题目对当前主流大模型具有足够难度，避免生产无效数据。")
+        lines.append("")
+        lines.append(f"**有效数据标准：** {model_name} {settings}跑 {test_count} 次，正确次数 ≤ {max_correct} 次")
+        lines.append("")
+
+        # Section 2: Environment Setup
+        lines.append("---")
+        lines.append("")
+        lines.append("## 二、验证环境配置")
+        lines.append("")
+
+        lines.append("### 2.1 模型设置")
+        lines.append("")
+        lines.append("| 配置项 | 值 |")
+        lines.append("|--------|-----|")
+        lines.append(f"| 模型名称 | {model_name} |")
+        lines.append(f"| 配置设置 | {settings} |")
+        lines.append("| 温度 | 默认 |")
+        lines.append("| 最大 token | 默认 |")
+        lines.append("")
+
+        lines.append("### 2.2 测试平台")
+        lines.append("")
+        lines.append("推荐使用以下平台进行测试：")
+        lines.append(f"- {model_name} 官方 Web 界面")
+        lines.append("- API 调用（如有权限）")
+        lines.append("")
+
+        # Section 3: Validation Process
+        lines.append("---")
+        lines.append("")
+        lines.append("## 三、验证流程")
+        lines.append("")
+
+        lines.append("### 步骤 1: 准备测试输入")
+        lines.append("")
+        if analysis.has_images:
+            lines.append("将题目图片和文字组合成完整的 prompt：")
+            lines.append("")
+            lines.append("```")
+            lines.append("[上传图片]")
+            lines.append("")
+            lines.append("{题目文字}")
+            lines.append("```")
+        else:
+            lines.append("准备完整的题目文字作为 prompt。")
+        lines.append("")
+
+        lines.append(f"### 步骤 2: 执行测试（{test_count}次）")
+        lines.append("")
+        for i in range(1, test_count + 1):
+            lines.append(f"{i}. **第{i}次测试**" + ("（新对话）" if i > 1 else ""))
+            if i > 1:
+                lines.append("   - 开启新对话")
+            lines.append("   - 发送 prompt")
+            lines.append("   - 等待模型回复")
+            lines.append("   - 记录完整回答")
+            lines.append("   - 判定正确/错误")
+            lines.append("")
+
+        lines.append("### 步骤 3: 判定结果")
+        lines.append("")
+        lines.append("| 正确次数 | 判定 | 处理 |")
+        lines.append("|----------|------|------|")
+        for i in range(test_count + 1):
+            if i <= max_correct:
+                lines.append(f"| {i} 次 | ✅ 有效 | 可提交 |")
+            else:
+                lines.append(f"| {i} 次 | ❌ 无效 | 需修改 |")
+        lines.append("")
+
+        # Section 4: Recording Template
+        lines.append("---")
+        lines.append("")
+        lines.append("## 四、记录模板")
+        lines.append("")
+
+        lines.append("### 4.1 单题测试记录")
+        lines.append("")
+        lines.append("```markdown")
+        lines.append("## 题目 ID: [XXX]")
+        lines.append("")
+        lines.append("### 测试配置")
+        lines.append(f"- 模型: {model_name}")
+        lines.append(f"- 配置: {settings}")
+        lines.append("- 测试日期: YYYY-MM-DD")
+        lines.append("")
+        lines.append("### 测试结果")
+        lines.append("")
+        for i in range(1, test_count + 1):
+            lines.append(f"**第 {i} 次测试：**")
+            lines.append("- 模型回答: [完整回答]")
+            lines.append("- 判定: ✅正确 / ❌错误")
+            lines.append("- 原因: [简要说明]")
+            lines.append("")
+        lines.append("### 最终判定")
+        lines.append(f"- 正确次数: X/{test_count}")
+        lines.append("- 有效性: ✅有效 / ❌无效")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("### 4.2 批量记录表格")
+        lines.append("")
+        header = "| 题目ID |"
+        separator = "|--------|"
+        for i in range(1, test_count + 1):
+            header += f" 测试{i} |"
+            separator += "-------|"
+        header += " 正确数 | 有效性 |"
+        separator += "--------|--------|"
+        lines.append(header)
+        lines.append(separator)
+
+        # Example rows
+        lines.append("| 001 |" + " ❌ |" * test_count + " 0 | ✅ |")
+        if max_correct >= 1:
+            lines.append("| 002 |" + " ❌ |" * (test_count - 1) + " ✅ | 1 | ✅ |")
+        if test_count > 2:
+            lines.append("| 003 |" + " ✅ |" * 2 + " ❌ |" * (test_count - 2) + f" 2 | {'❌' if max_correct < 2 else '✅'} |")
+        lines.append("")
+
+        # Section 5: Handling Invalid Questions
+        lines.append("---")
+        lines.append("")
+        lines.append("## 五、无效题目处理")
+        lines.append("")
+
+        lines.append("### 5.1 常见原因")
+        lines.append("")
+        lines.append("1. **题目过于简单**：推理步骤少，模型容易猜对")
+        lines.append("2. **规则不够复杂**：规则简单，模型能轻松理解")
+        lines.append("3. **答案选项有限**：答案空间小，猜中概率高")
+        lines.append("")
+
+        lines.append("### 5.2 修改策略")
+        lines.append("")
+        lines.append("| 问题 | 修改方向 |")
+        lines.append("|------|----------|")
+        lines.append("| 推理步骤少 | 增加中间步骤，嵌套更多规则 |")
+        lines.append("| 规则简单 | 添加例外条件、特殊情况 |")
+        lines.append("| 答案空间小 | 设计开放式问题，增加计算量 |")
+        if analysis.has_images:
+            lines.append("| 图文信息少 | 增加图中信息量，减少文字提示 |")
+        lines.append("")
+
+        lines.append("### 5.3 修改后重新验证")
+        lines.append("")
+        lines.append(f"修改后必须重新执行完整的 {test_count} 次测试流程。")
+        lines.append("")
+
+        # Section 6: Notes
+        lines.append("---")
+        lines.append("")
+        lines.append("## 六、注意事项")
+        lines.append("")
+        lines.append("1. **每次测试使用新对话**：避免上下文影响")
+        lines.append("2. **保持 prompt 一致**：三次测试使用完全相同的输入")
+        lines.append("3. **客观判定**：根据评分标准判定，不主观放宽")
+        lines.append("4. **保留记录**：所有测试记录需保留用于交付")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("*本流程由 DataRecipe 自动生成*")
+
+        path = os.path.join(output_dir, subdirs["guide"], "DIFFICULTY_VALIDATION.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(f"{subdirs['guide']}/DIFFICULTY_VALIDATION.md")
+
+    def _generate_data_template(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate data_template.json - single data entry template."""
+        template = {
+            "id": "EXAMPLE_001",
+        }
+
+        # Add image field if needed
+        if analysis.has_images:
+            template["image"] = {
+                "path": "images/example_001.png",
+                "type": "software",
+                "description": "包含规则定义和待解决问题的图示",
+            }
+
+        template["question"] = "请在此填写完整的题目文字描述..."
+        template["answer"] = {
+            "value": "标准答案",
+            "is_unique": True,
+            "alternatives": [],
+        }
+        template["explanation"] = "第一步：...\\n第二步：...\\n第三步：...\\n因此答案是..."
+        template["scoring_rubric"] = {
+            "full_score": "1分：完整正确回答，答案与标准答案一致",
+            "partial_score": "0.5分：部分正确（如适用）",
+            "zero_score": "0分：回答错误或无关",
+        }
+
+        # Add model test section if difficulty validation is enabled
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            model_name = diff_val.get("model", "未指定模型")
+            settings = diff_val.get("settings", "默认设置")
+            test_count = diff_val.get("test_count", 3)
+
+            template["model_test"] = {
+                "model": model_name,
+                "settings": settings,
+                "results": [
+                    {
+                        "attempt": i,
+                        "response": f"模型第{i}次的回答...",
+                        "is_correct": i == test_count,  # Last one correct for example
+                    }
+                    for i in range(1, test_count + 1)
+                ],
+                "valid": True,
+            }
+
+        template["metadata"] = {
+            "category": analysis.estimated_domain or analysis.dataset_type,
+            "difficulty": analysis.estimated_difficulty,
+            "created_by": "标注员姓名",
+            "created_at": datetime.now().strftime("%Y-%m-%d"),
+            "reviewed_by": "",
+            "reviewed_at": "",
+        }
+
+        path = os.path.join(output_dir, subdirs["templates"], "data_template.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(template, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(f"{subdirs['templates']}/data_template.json")
+
+    def _generate_production_sop(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate PRODUCTION_SOP.md - production standard operating procedure."""
+        lines = []
+        lines.append(f"# {analysis.project_name} 生产标准操作流程 (SOP)")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"> 数据类型: {analysis.dataset_type}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Phase 1: Preparation
+        lines.append("## 阶段一：准备阶段")
+        lines.append("")
+        lines.append("### 1.1 环境准备")
+        lines.append("")
+        lines.append("- [ ] 创建工作目录结构")
+        lines.append("- [ ] 准备标注工具")
+        lines.append("- [ ] 配置质检流程")
+        lines.append("")
+
+        lines.append("### 1.2 资料准备")
+        lines.append("")
+        lines.append("- [ ] 阅读 `03_标注规范/ANNOTATION_SPEC.md`")
+        lines.append("- [ ] 阅读 `03_标注规范/TRAINING_GUIDE.md`")
+        if analysis.has_difficulty_validation():
+            lines.append("- [ ] 阅读 `04_复刻指南/DIFFICULTY_VALIDATION.md`")
+        lines.append("- [ ] 准备 `07_模板/data_template.json` 模板")
+        lines.append("")
+
+        # Phase 2: Content Creation
+        lines.append("---")
+        lines.append("")
+        lines.append("## 阶段二：内容创作")
+        lines.append("")
+
+        if analysis.has_images:
+            lines.append("### 2.1 图片制作")
+            lines.append("")
+            lines.append("**要求**：")
+            for item in analysis.forbidden_items:
+                if "AI" in item or "图" in item:
+                    lines.append(f"- ❌ {item}")
+            lines.append("- ✅ 使用手绘、软件绘图或照片")
+            lines.append("- ✅ 确保分辨率 ≥ 800x600")
+            lines.append("")
+
+        lines.append("### 2.2 题目设计")
+        lines.append("")
+        lines.append("**要求**：")
+        lines.append("- 题意清晰，无歧义")
+        lines.append("- 与图片强相关（无图无法解题）")
+        lines.append("- 明确输出格式要求")
+        lines.append("")
+
+        lines.append("### 2.3 答案编写")
+        lines.append("")
+        lines.append("**要求**：")
+        lines.append("- 答案正确且可验证")
+        lines.append("- 如有多解，全部列出")
+        lines.append("- 格式符合题目要求")
+        lines.append("")
+
+        lines.append("### 2.4 解析编写")
+        lines.append("")
+        lines.append("**要求**：")
+        lines.append("- 步骤完整，从题目到答案")
+        lines.append("- 逻辑清晰，易于理解")
+        lines.append("- 非 AI 生成")
+        lines.append("")
+
+        # Phase 3: Difficulty Validation (if enabled)
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            model_name = diff_val.get("model", "未指定模型")
+            settings = diff_val.get("settings", "默认设置")
+            test_count = diff_val.get("test_count", 3)
+            max_correct = diff_val.get("max_correct", 1)
+
+            lines.append("---")
+            lines.append("")
+            lines.append("## 阶段三：难度验证")
+            lines.append("")
+            lines.append(f"使用 **{model_name}** ({settings}) 进行验证。")
+            lines.append("")
+            lines.append("### 验证步骤")
+            lines.append("")
+            lines.append(f"1. 将题目输入 {model_name}（{settings}）")
+            lines.append(f"2. 记录模型回答")
+            lines.append(f"3. 判定正确/错误")
+            lines.append(f"4. 重复 {test_count} 次（每次新对话）")
+            lines.append("")
+            lines.append("### 判定标准")
+            lines.append("")
+            lines.append(f"- ✅ 有效：正确次数 ≤ {max_correct}")
+            lines.append(f"- ❌ 无效：正确次数 > {max_correct}，需增加难度后重新验证")
+            lines.append("")
+            phase_num = 4
+        else:
+            phase_num = 3
+
+        # Phase 4/3: Quality Check
+        lines.append("---")
+        lines.append("")
+        lines.append(f"## 阶段{phase_num}：质量检查")
+        lines.append("")
+        lines.append("### 自检清单")
+        lines.append("")
+        lines.append("对照 `03_标注规范/QA_CHECKLIST.md` 逐项检查：")
+        lines.append("")
+        if analysis.has_images:
+            lines.append("- [ ] 图片：原创、清晰、相关")
+        lines.append("- [ ] 题目：清晰、完整、无歧义")
+        lines.append("- [ ] 答案：正确、完整、格式规范")
+        lines.append("- [ ] 解析：完整、逻辑清晰")
+        lines.append("- [ ] 评分标准：具体、可操作")
+        if analysis.has_difficulty_validation():
+            lines.append("- [ ] 难度验证：已通过")
+        lines.append("")
+
+        # Phase 5/4: Submission
+        phase_num += 1
+        lines.append("---")
+        lines.append("")
+        lines.append(f"## 阶段{phase_num}：提交")
+        lines.append("")
+        lines.append("### 提交格式")
+        lines.append("")
+        lines.append("按照 `04_复刻指南/DATA_SCHEMA.json` 格式提交数据。")
+        lines.append("")
+        lines.append("### 提交检查")
+        lines.append("")
+        lines.append("- [ ] JSON 格式正确")
+        lines.append("- [ ] 所有必填字段已填写")
+        if analysis.has_images:
+            lines.append("- [ ] 图片文件已上传")
+        if analysis.has_difficulty_validation():
+            lines.append("- [ ] 难度验证记录已附上")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("*本 SOP 由 DataRecipe 自动生成*")
+
+        path = os.path.join(output_dir, subdirs["guide"], "PRODUCTION_SOP.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(f"{subdirs['guide']}/PRODUCTION_SOP.md")
+
+    def _generate_data_schema(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate DATA_SCHEMA.json - JSON schema for data format."""
+        schema = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": f"{analysis.project_name} 数据格式",
+            "type": "object",
+            "required": ["id", "question", "answer", "explanation", "scoring_rubric", "metadata"],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "唯一标识符",
+                    "pattern": "^[A-Z]+_[0-9]+$",
+                },
+                "question": {
+                    "type": "string",
+                    "description": "题目文字",
+                    "minLength": 10,
+                },
+                "answer": {
+                    "type": "object",
+                    "properties": {
+                        "value": {"type": "string", "description": "标准答案"},
+                        "is_unique": {"type": "boolean", "description": "答案是否唯一"},
+                        "alternatives": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "其他可接受的答案",
+                        },
+                    },
+                    "required": ["value", "is_unique"],
+                },
+                "explanation": {
+                    "type": "string",
+                    "description": "解题过程",
+                    "minLength": 20,
+                },
+                "scoring_rubric": {
+                    "type": "object",
+                    "properties": {
+                        "full_score": {"type": "string", "description": "满分条件"},
+                        "partial_score": {"type": "string", "description": "部分得分条件"},
+                        "zero_score": {"type": "string", "description": "零分条件"},
+                    },
+                    "required": ["full_score", "zero_score"],
+                },
+                "metadata": {
+                    "type": "object",
+                    "properties": {
+                        "category": {"type": "string"},
+                        "difficulty": {"type": "string", "enum": ["easy", "medium", "hard", "expert"]},
+                        "created_by": {"type": "string"},
+                        "created_at": {"type": "string", "format": "date"},
+                        "reviewed_by": {"type": "string"},
+                        "reviewed_at": {"type": "string"},
+                    },
+                    "required": ["category", "difficulty", "created_by", "created_at"],
+                },
+            },
+        }
+
+        # Add image field if needed
+        if analysis.has_images:
+            schema["required"].insert(1, "image")
+            schema["properties"]["image"] = {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "图片路径"},
+                    "type": {
+                        "type": "string",
+                        "enum": ["hand_drawn", "software", "photo"],
+                        "description": "图片类型",
+                    },
+                    "description": {"type": "string", "description": "图片描述"},
+                },
+                "required": ["path", "type"],
+            }
+
+        # Add model_test field if difficulty validation is enabled
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            test_count = diff_val.get("test_count", 3)
+
+            schema["required"].append("model_test")
+            schema["properties"]["model_test"] = {
+                "type": "object",
+                "properties": {
+                    "model": {"type": "string", "description": "测试使用的模型"},
+                    "settings": {"type": "string", "description": "模型配置"},
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "attempt": {"type": "integer"},
+                                "response": {"type": "string"},
+                                "is_correct": {"type": "boolean"},
+                            },
+                            "required": ["attempt", "response", "is_correct"],
+                        },
+                        "minItems": test_count,
+                        "maxItems": test_count,
+                    },
+                    "valid": {"type": "boolean", "description": "是否通过难度验证"},
+                },
+                "required": ["model", "results", "valid"],
+            }
+
+        path = os.path.join(output_dir, subdirs["guide"], "DATA_SCHEMA.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(schema, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(f"{subdirs['guide']}/DATA_SCHEMA.json")
 
     def _estimate_cost_per_item(self, analysis: SpecificationAnalysis, region: str) -> float:
         """Estimate cost per item based on analysis."""
