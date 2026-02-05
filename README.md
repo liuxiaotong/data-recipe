@@ -24,10 +24,12 @@
 
 | 目标 | 产出物 |
 |------|--------|
-| **快速决策** | `EXECUTIVE_SUMMARY.md` 1页执行摘要 ⭐ |
+| **快速决策** | `EXECUTIVE_SUMMARY.md` 1页执行摘要 (价值评分 + ROI) ⭐ |
+| **项目规划** | `MILESTONE_PLAN.md` 里程碑计划 (验收标准 + 风险管理) ⭐ |
+| **行业对标** | `INDUSTRY_BENCHMARK.md` 成本基准对比 (类似项目参考) ⭐ |
 | 摸清数据集构成 | `ANALYSIS_REPORT.md` 完整分析报告 |
 | **复刻数据集** | `REPRODUCTION_GUIDE.md` 可操作的复刻指南 |
-| **标注外包规范** | `ANNOTATION_SPEC.md` 前瞻性标注规范 |
+| **标注外包规范** | `ANNOTATION_SPEC.md` 前瞻性标注规范 (含质量筛选示例) |
 | **精准成本估算** | `COST_BREAKDOWN.md` 分阶段成本明细 |
 | 复用评测标准 | `rubric_templates.yaml` / `.md` 结构化模板 |
 | 提取 Prompt 策略 | `prompt_templates.json` + `context_strategy.json` |
@@ -124,13 +126,17 @@ datarecipe deep-analyze tencent/CL-bench -o ./output
 ```
 output/
 └── tencent_CL-bench/
-    ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (决策用) ⭐
+    ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (价值评分 + ROI) ⭐
+    ├── MILESTONE_PLAN.md        # 里程碑计划 (验收标准 + 风险) ⭐
+    ├── INDUSTRY_BENCHMARK.md    # 行业基准对比 ⭐
     ├── ANALYSIS_REPORT.md       # 统计分析报告
     ├── REPRODUCTION_GUIDE.md    # 复刻指南
-    ├── ANNOTATION_SPEC.md       # 标注规范 (外包交付用)
+    ├── ANNOTATION_SPEC.md       # 标注规范 (含质量筛选示例)
     ├── COST_BREAKDOWN.md        # 分阶段成本明细
-    ├── recipe_summary.json      # 标准化摘要 (Radar 兼容)
+    ├── recipe_summary.json      # 标准化摘要 (含相似数据集)
     ├── executive_summary.json   # 执行摘要 (JSON)
+    ├── milestone_plan.json      # 里程碑计划 (JSON)
+    ├── industry_benchmark.json  # 行业基准 (JSON)
     ├── rubric_templates.yaml    # 评分标准模板
     ├── rubric_templates.md      # 评分标准文档
     ├── prompt_templates.json    # Prompt 模板库
@@ -431,6 +437,127 @@ datarecipe deep-analyze dataset/id -o ./output
 
 </details>
 
+### 项目管理产出
+
+#### 执行摘要 (EXECUTIVE_SUMMARY.md)
+
+面向决策者的 1 页执行摘要，包含：
+
+| 部分 | 内容 |
+|------|------|
+| 决策建议 | 推荐/有条件推荐/不推荐 + 评分 (1-10) |
+| 关键指标 | 总成本、人工成本占比、ROI |
+| 用途与价值 | 主要用途、次要用途、预期成果 |
+| ROI 分析 | 投资回报率、回报场景 |
+| 风险评估 | 风险等级、描述、缓解措施 |
+| 替代方案 | 可选的替代数据集 |
+
+#### 里程碑计划 (MILESTONE_PLAN.md)
+
+面向项目经理的里程碑计划，包含：
+
+| 部分 | 内容 |
+|------|------|
+| 项目概览 | 阶段进度可视化、团队配置 |
+| 里程碑详情 | M1-M5 阶段定义、交付物、验收标准 |
+| 验收标准 | Cohen's Kappa、通过率、空值率等 |
+| 风险管理 | 风险等级、缓解措施、应急预案 |
+| 启动检查清单 | 项目各阶段检查项 |
+
+<details>
+<summary>MILESTONE_PLAN.md 示例</summary>
+
+```markdown
+# Anthropic/hh-rlhf 里程碑计划
+
+> 目标规模: 20 条
+> 预估工期: 21 工作日
+
+## 项目概览
+
+阶段进度:
+M1 项目启动与规范制定    ███                  15%
+M2 试点标注与标准校准    ██                   10%
+M3 主体标注 - 第一批次  ██████               30%
+M4 主体标注 - 第二批次  ██████               30%
+M5 质量审核与交付      ███                  15%
+
+### 团队配置
+
+| 角色 | 人数 |
+|------|------|
+| 项目经理 | 1 |
+| 领域专家 | 2 |
+| QA | 1 |
+| 标注员 | 2 |
+
+## 验收标准
+
+| 类别 | 指标 | 阈值 |
+|------|------|------|
+| 一致性 | Cohen's Kappa | ≥ 0.7 |
+| 准确性 | 专家审核通过率 | ≥ 95% |
+| 完整性 | 空值率 | = 0% |
+```
+
+</details>
+
+#### 行业基准对比 (INDUSTRY_BENCHMARK.md)
+
+将项目成本与行业基准对比：
+
+| 部分 | 内容 |
+|------|------|
+| 项目概况 | 样本数、总成本、单条成本、人工占比 |
+| 行业基准 | 单条成本基准 (最低/平均/最高) |
+| 对比分析 | 成本定位可视化、与行业差异 |
+| 类似项目参考 | 已知类似数据集的规模和成本 |
+| 建议 | 基于对比结果的优化建议 |
+
+<details>
+<summary>INDUSTRY_BENCHMARK.md 示例</summary>
+
+```markdown
+# Anthropic/hh-rlhf 行业基准对比
+
+## 项目概况
+
+| 指标 | 数值 |
+|------|------|
+| 样本数量 | 20 |
+| 总成本 | $175 |
+| 单条成本 | $8.73 |
+| 人工占比 | 100% |
+
+## 行业基准
+
+**数据类型**: RLHF/DPO 偏好标注数据
+
+### 单条成本基准
+
+最低: $1.00/条
+平均: $3.00/条
+最高: $10.00/条
+
+## 对比分析
+
+**成本评级**: 🟡 成本略高于行业平均，但在合理范围内
+**与行业平均差异**: +191%
+
+## 类似项目参考
+
+| 数据集 | 规模 | 估计成本 |
+|--------|------|----------|
+| Anthropic/hh-rlhf | 170,000 | $500,000 |
+
+## 建议
+
+- 成本略高于平均，但在合理范围内
+- 人工比例较高，可探索引入 AI 辅助标注降低成本
+```
+
+</details>
+
 ---
 
 ## 命令参考
@@ -546,10 +673,17 @@ datarecipe batch-from-radar ./report.json --use-llm
 {
   "dataset_id": "Anthropic/hh-rlhf",
   "dataset_type": "preference",
+  "category": "rlhf",
+  "purpose": "RLHF 偏好数据，用于训练奖励模型或直接偏好优化 (DPO)",
   "reproduction_cost": {"human": 5000, "api": 200, "total": 5200},
   "difficulty": "medium",
   "human_percentage": 84.0,
-  "key_patterns": ["rubric:include", "rubric:explain"],
+  "key_patterns": ["domain:code", "rubric:include"],
+  "similar_datasets": [
+    "OpenAI/summarize_from_feedback",
+    "stanfordnlp/SHP",
+    "Dahoas/rm-static"
+  ],
   "report_path": "./output/Anthropic_hh-rlhf/ANALYSIS_REPORT.md",
   "guide_path": "./output/Anthropic_hh-rlhf/REPRODUCTION_GUIDE.md"
 }
@@ -713,13 +847,17 @@ datarecipe knowledge --report -o ./knowledge_report.md
 ```
 analysis_output/
 └── tencent_CL-bench/
-    ├── EXECUTIVE_SUMMARY.md     # 执行摘要 ⭐
+    ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (价值评分 + ROI) ⭐
+    ├── MILESTONE_PLAN.md        # 里程碑计划 ⭐
+    ├── INDUSTRY_BENCHMARK.md    # 行业基准对比 ⭐
     ├── REPRODUCTION_GUIDE.md    # 复刻指南
     ├── ANALYSIS_REPORT.md       # 分析报告
     ├── ANNOTATION_SPEC.md       # 标注规范
     ├── COST_BREAKDOWN.md        # 成本明细
-    ├── recipe_summary.json      # 标准化摘要
+    ├── recipe_summary.json      # 标准化摘要 (含相似数据集)
     ├── executive_summary.json   # 执行摘要 (JSON)
+    ├── milestone_plan.json      # 里程碑计划 (JSON)
+    ├── industry_benchmark.json  # 行业基准 (JSON)
     ├── rubric_templates.yaml    # 评分模板
     ├── rubric_templates.md      # 评分文档
     ├── prompt_templates.json    # Prompt 模板
@@ -777,13 +915,19 @@ src/datarecipe/
 │   ├── calibrator.py        # 历史数据校准
 │   └── phased_model.py      # 分阶段成本模型
 ├── generators/              # 文档生成器
-│   ├── annotation_spec.py   # 标注规范生成 ⭐
+│   ├── executive_summary.py # 执行摘要生成 ⭐
+│   ├── milestone_plan.py    # 里程碑计划生成 ⭐
+│   ├── industry_benchmark.py # 行业基准对比 ⭐
+│   ├── annotation_spec.py   # 标注规范生成
 │   ├── reproduction_guide.py # 复刻指南生成
 │   └── ...
 ├── extractors/              # 模式提取器
 │   ├── rubric_extractor.py  # 评分标准提取
 │   ├── prompt_extractor.py  # Prompt 模板提取
 │   └── ...
+├── knowledge/               # 知识库模块
+│   ├── knowledge_base.py    # 模式积累与趋势分析
+│   └── dataset_catalog.py   # 数据集目录与行业基准 ⭐
 ├── sources/                 # 数据源适配
 │   ├── huggingface.py       # HuggingFace 数据集
 │   ├── github.py            # GitHub 数据集
