@@ -24,10 +24,11 @@
 
 | 目标 | 产出物 |
 |------|--------|
+| **快速决策** | `EXECUTIVE_SUMMARY.md` 1页执行摘要 ⭐ |
 | 摸清数据集构成 | `ANALYSIS_REPORT.md` 完整分析报告 |
 | **复刻数据集** | `REPRODUCTION_GUIDE.md` 可操作的复刻指南 |
-| **标注外包规范** | `ANNOTATION_SPEC.md` 前瞻性标注规范 ⭐ |
-| **精准成本估算** | `COST_BREAKDOWN.md` 分阶段成本明细 ⭐ |
+| **标注外包规范** | `ANNOTATION_SPEC.md` 前瞻性标注规范 |
+| **精准成本估算** | `COST_BREAKDOWN.md` 分阶段成本明细 |
 | 复用评测标准 | `rubric_templates.yaml` / `.md` 结构化模板 |
 | 提取 Prompt 策略 | `prompt_templates.json` + `context_strategy.json` |
 | 估算成本与分工 | `allocation.json` 人机比例、成本拆分 |
@@ -123,11 +124,13 @@ datarecipe deep-analyze tencent/CL-bench -o ./output
 ```
 output/
 └── tencent_CL-bench/
+    ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (决策用) ⭐
     ├── ANALYSIS_REPORT.md       # 统计分析报告
-    ├── REPRODUCTION_GUIDE.md    # 复刻指南 ⭐
-    ├── ANNOTATION_SPEC.md       # 标注规范 (外包交付用) ⭐
-    ├── COST_BREAKDOWN.md        # 分阶段成本明细 ⭐
+    ├── REPRODUCTION_GUIDE.md    # 复刻指南
+    ├── ANNOTATION_SPEC.md       # 标注规范 (外包交付用)
+    ├── COST_BREAKDOWN.md        # 分阶段成本明细
     ├── recipe_summary.json      # 标准化摘要 (Radar 兼容)
+    ├── executive_summary.json   # 执行摘要 (JSON)
     ├── rubric_templates.yaml    # 评分标准模板
     ├── rubric_templates.md      # 评分标准文档
     ├── prompt_templates.json    # Prompt 模板库
@@ -710,11 +713,13 @@ datarecipe knowledge --report -o ./knowledge_report.md
 ```
 analysis_output/
 └── tencent_CL-bench/
-    ├── REPRODUCTION_GUIDE.md    # 复刻指南 ⭐
-    ├── ANALYSIS_REPORT.md       # 分析报告 ⭐
-    ├── ANNOTATION_SPEC.md       # 标注规范 ⭐
-    ├── COST_BREAKDOWN.md        # 成本明细 ⭐
+    ├── EXECUTIVE_SUMMARY.md     # 执行摘要 ⭐
+    ├── REPRODUCTION_GUIDE.md    # 复刻指南
+    ├── ANALYSIS_REPORT.md       # 分析报告
+    ├── ANNOTATION_SPEC.md       # 标注规范
+    ├── COST_BREAKDOWN.md        # 成本明细
     ├── recipe_summary.json      # 标准化摘要
+    ├── executive_summary.json   # 执行摘要 (JSON)
     ├── rubric_templates.yaml    # 评分模板
     ├── rubric_templates.md      # 评分文档
     ├── prompt_templates.json    # Prompt 模板

@@ -591,6 +591,42 @@ class DeepAnalyzerCore:
             except Exception:
                 pass
 
+            # Executive summary (for decision makers)
+            try:
+                from datarecipe.generators.executive_summary import ExecutiveSummaryGenerator
+                exec_generator = ExecutiveSummaryGenerator()
+                exec_assessment = exec_generator.generate(
+                    dataset_id=dataset_id,
+                    dataset_type=detected_type or "unknown",
+                    sample_count=sample_count,
+                    reproduction_cost=result.reproduction_cost,
+                    human_percentage=result.human_percentage,
+                    complexity_metrics=complexity_metrics,
+                    phased_breakdown=phased_breakdown,
+                    llm_analysis=llm_analysis,
+                )
+
+                # Save as Markdown
+                exec_md = exec_generator.to_markdown(
+                    assessment=exec_assessment,
+                    dataset_id=dataset_id,
+                    dataset_type=detected_type or "unknown",
+                    reproduction_cost=result.reproduction_cost,
+                    phased_breakdown=phased_breakdown,
+                )
+                with open(os.path.join(dataset_output_dir, "EXECUTIVE_SUMMARY.md"), "w", encoding="utf-8") as f:
+                    f.write(exec_md)
+                result.files_generated.append("EXECUTIVE_SUMMARY.md")
+
+                # Save as JSON
+                exec_dict = exec_generator.to_dict(exec_assessment)
+                with open(os.path.join(dataset_output_dir, "executive_summary.json"), "w", encoding="utf-8") as f:
+                    json.dump(exec_dict, f, indent=2, ensure_ascii=False)
+                result.files_generated.append("executive_summary.json")
+
+            except Exception:
+                pass
+
             # Recipe summary
             summary = RadarIntegration.create_summary(
                 dataset_id=dataset_id,
