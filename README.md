@@ -35,18 +35,22 @@
 
 ### 输出物一览
 
-| 文件 | 用途 |
-|------|------|
-| `EXECUTIVE_SUMMARY.md` | 决策摘要 (评分 + ROI) |
-| `MILESTONE_PLAN.md` | 里程碑计划 |
-| `ANNOTATION_SPEC.md` | 标注规范 |
-| `TRAINING_GUIDE.md` | 标注员培训手册 |
-| `QA_CHECKLIST.md` | 质量检查清单 |
-| `PRODUCTION_SOP.md` | 生产标准流程 |
-| `DATA_SCHEMA.json` | 数据格式定义 |
-| `DIFFICULTY_VALIDATION.md` | 难度验证流程 (按需) |
-| `COST_BREAKDOWN.md` | 成本明细 |
-| `data_template.json` | 数据录入模板 |
+| 文件 | 用途 | 消费者 |
+|------|------|--------|
+| `EXECUTIVE_SUMMARY.md` | 决策摘要 (评分 + ROI) | 人类 |
+| `MILESTONE_PLAN.md` | 里程碑计划 | 人类 |
+| `ANNOTATION_SPEC.md` | 标注规范 | 人类 |
+| `TRAINING_GUIDE.md` | 标注员培训手册 | 人类 |
+| `QA_CHECKLIST.md` | 质量检查清单 | 人类 |
+| `PRODUCTION_SOP.md` | 生产标准流程 | 人类 |
+| `DATA_SCHEMA.json` | 数据格式定义 | 人类 + Agent |
+| `DIFFICULTY_VALIDATION.md` | 难度验证流程 (按需) | 人类 |
+| `COST_BREAKDOWN.md` | 成本明细 | 人类 |
+| `data_template.json` | 数据录入模板 | 人类 + Agent |
+| `agent_context.json` | 聚合入口 | Agent |
+| `workflow_state.json` | 工作流状态 | Agent |
+| `reasoning_traces.json` | 推理链 | Agent + 人类 |
+| `pipeline.yaml` | 可执行流水线 | Agent |
 
 ## 安装
 
@@ -179,9 +183,31 @@ output/
     ├── 06_原始数据/                      # 📊 分析数据
     │   └── spec_analysis.json
     │
-    └── 07_模板/                          # 📋 模板
-        └── data_template.json           # 数据录入模板
+    ├── 07_模板/                          # 📋 模板
+    │   └── data_template.json           # 数据录入模板
+    │
+    └── 08_AI_Agent/                      # 🤖 AI Agent 入口
+        ├── agent_context.json           # 聚合上下文
+        ├── workflow_state.json          # 工作流状态
+        ├── reasoning_traces.json        # 推理链
+        └── pipeline.yaml                # 可执行流水线
 ```
+
+### AI Agent 友好设计
+
+输出同时面向人类和 AI Agent：
+
+| 人类文档 | AI Agent 文件 | 用途 |
+|----------|---------------|------|
+| `EXECUTIVE_SUMMARY.md` | `reasoning_traces.json` | 决策依据 |
+| `MILESTONE_PLAN.md` | `workflow_state.json` | 进度追踪 |
+| `PRODUCTION_SOP.md` | `pipeline.yaml` | 执行步骤 |
+
+AI Agent 文件特点：
+- **推理链**: 每个结论都有可验证的推理步骤
+- **置信度**: 明确标注不确定性范围
+- **引用**: 通过路径引用详细文档，不重复内容
+- **可执行**: pipeline.yaml 可直接被 Agent 执行
 
 ### LLM 智能分析
 
