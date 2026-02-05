@@ -521,7 +521,6 @@ async def _extract_prompts(arguments: dict[str, Any]) -> list[TextContent]:
             "unique_count": library.unique_count,
             "total_extracted": library.total_extracted,
             "deduplication_ratio": library.deduplication_ratio,
-            "avg_length": library.avg_length,
             "category_counts": dict(library.category_counts),
             "domain_counts": dict(library.domain_counts),
             "sample_prompts": [
@@ -530,7 +529,7 @@ async def _extract_prompts(arguments: dict[str, Any]) -> list[TextContent]:
                     "domain": p.domain,
                     "preview": p.content[:200] + "..." if len(p.content) > 200 else p.content
                 }
-                for p in list(library.prompts.values())[:5]
+                for p in library.templates[:5]
             ]
         }
 
@@ -593,18 +592,20 @@ async def _profile_dataset(arguments: dict[str, Any]) -> list[TextContent]:
         profiler = AnnotatorProfiler()
         profile = profiler.generate_profile(recipe, region=region)
 
+        profile_dict = profile.to_dict()
         output = {
             "success": True,
             "dataset_id": dataset_id,
             "region": region,
-            "profile": profile.to_dict(),
+            "profile": profile_dict,
             "summary": {
-                "required_skills": profile.required_skills,
-                "education_level": profile.education_level,
-                "experience_years": profile.experience_years,
-                "team_size": profile.recommended_team_size,
-                "estimated_duration_days": profile.estimated_duration_days,
-                "total_cost": profile.total_cost,
+                "skill_requirements": [s.get("name", "") for s in profile_dict.get("skill_requirements", [])[:5]],
+                "education_level": profile_dict.get("education_level", ""),
+                "experience_level": profile_dict.get("experience", {}).get("level", ""),
+                "min_experience_years": profile_dict.get("experience", {}).get("min_years", 0),
+                "team_size": profile_dict.get("team", {}).get("size", 0),
+                "estimated_person_days": profile_dict.get("workload", {}).get("estimated_person_days", 0),
+                "hourly_rate_range": profile_dict.get("hourly_rate_range", {}),
             }
         }
 
