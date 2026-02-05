@@ -358,6 +358,59 @@ class DeepAnalyzerCore:
 
             result.dataset_type = detected_type
 
+            # Precise token-based API cost calculation
+            precise_api_cost = None
+            token_stats = None
+            try:
+                from datarecipe.cost import PreciseCostCalculator
+                cost_calc = PreciseCostCalculator()
+                precise_estimate = cost_calc.calculate(
+                    samples=sample_items,
+                    target_size=actual_size,
+                    model="gpt-4o",
+                    iteration_factor=1.2,
+                )
+                precise_api_cost = precise_estimate.adjusted_cost
+                token_stats = precise_estimate.token_stats
+
+                # Save token analysis
+                with open(os.path.join(dataset_output_dir, "token_analysis.json"), "w", encoding="utf-8") as f:
+                    json.dump(precise_estimate.to_dict(), f, indent=2, ensure_ascii=False)
+                result.files_generated.append("token_analysis.json")
+
+                # Model comparison
+                comparisons = cost_calc.compare_models(
+                    samples=sample_items,
+                    target_size=actual_size,
+                    models=["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "deepseek-v3"],
+                )
+                comparison_data = {m: e.to_dict() for m, e in comparisons.items()}
+                with open(os.path.join(dataset_output_dir, "cost_comparison.json"), "w", encoding="utf-8") as f:
+                    json.dump(comparison_data, f, indent=2, ensure_ascii=False)
+                result.files_generated.append("cost_comparison.json")
+
+            except Exception:
+                pass
+
+            # Complexity analysis for dynamic cost adjustment
+            complexity_metrics = None
+            try:
+                from datarecipe.cost import ComplexityAnalyzer
+                complexity_analyzer = ComplexityAnalyzer()
+                complexity_metrics = complexity_analyzer.analyze(
+                    samples=sample_items,
+                    schema_info=schema_info,
+                    rubrics=rubrics if rubrics else None,
+                )
+
+                # Save complexity analysis
+                with open(os.path.join(dataset_output_dir, "complexity_analysis.json"), "w", encoding="utf-8") as f:
+                    json.dump(complexity_metrics.to_dict(), f, indent=2, ensure_ascii=False)
+                result.files_generated.append("complexity_analysis.json")
+
+            except Exception:
+                pass
+
             # Human-machine allocation
             splitter = HumanMachineSplitter(region=self.region)
             allocation = splitter.analyze(
@@ -370,15 +423,123 @@ class DeepAnalyzerCore:
                     TaskType.QUALITY_REVIEW,
                 ]
             )
+
+            # Apply complexity multipliers to human cost
+            human_cost = allocation.total_human_cost
+            if complexity_metrics:
+                human_cost = human_cost * complexity_metrics.cost_multiplier
+
+            # Use precise API cost if available, otherwise use allocation estimate
+            api_cost = precise_api_cost if precise_api_cost else allocation.total_machine_cost
+
+            # Calibrate using historical data
+            calibration_result = None
+            try:
+                from datarecipe.cost import CostCalibrator
+                calibrator = CostCalibrator()
+                calibration_result = calibrator.calibrate(
+                    dataset_type=detected_type or "unknown",
+                    human_cost=human_cost,
+                    api_cost=api_cost,
+                    complexity_metrics=complexity_metrics,
+                    sample_count=sample_count,
+                )
+
+                # Use calibrated costs
+                human_cost = calibration_result.calibrated_human_cost
+                api_cost = calibration_result.calibrated_api_cost
+
+                # Save calibration analysis
+                with open(os.path.join(dataset_output_dir, "cost_calibration.json"), "w", encoding="utf-8") as f:
+                    json.dump(calibration_result.to_dict(), f, indent=2, ensure_ascii=False)
+                result.files_generated.append("cost_calibration.json")
+
+            except Exception:
+                pass
+
+            total_cost = human_cost + api_cost
+
+            # Phased cost breakdown
+            phased_breakdown = None
+            try:
+                from datarecipe.cost import PhasedCostModel
+                phased_model = PhasedCostModel(region=self.region)
+
+                # Calculate API cost per sample for phased model
+                api_per_sample = api_cost / actual_size if actual_size > 0 else 0.01
+                complexity_mult = complexity_metrics.cost_multiplier if complexity_metrics else 1.0
+                quality_req = complexity_metrics.quality_requirement if complexity_metrics else "standard"
+
+                phased_breakdown = phased_model.calculate(
+                    target_size=actual_size,
+                    dataset_type=detected_type or "unknown",
+                    human_percentage=allocation.human_work_percentage,
+                    api_cost_per_sample=api_per_sample,
+                    complexity_multiplier=complexity_mult,
+                    quality_requirement=quality_req,
+                )
+
+                # Save phased cost analysis
+                with open(os.path.join(dataset_output_dir, "phased_cost.json"), "w", encoding="utf-8") as f:
+                    json.dump(phased_breakdown.to_dict(), f, indent=2, ensure_ascii=False)
+                result.files_generated.append("phased_cost.json")
+
+                # Save phased cost report
+                phased_report = phased_model.format_report(phased_breakdown)
+                with open(os.path.join(dataset_output_dir, "COST_BREAKDOWN.md"), "w", encoding="utf-8") as f:
+                    f.write(phased_report)
+                result.files_generated.append("COST_BREAKDOWN.md")
+
+            except Exception:
+                pass
+
             result.reproduction_cost = {
-                "human": round(allocation.total_human_cost, 2),
-                "api": round(allocation.total_machine_cost, 2),
-                "total": round(allocation.total_cost, 2),
+                "human": round(human_cost, 2),
+                "api": round(api_cost, 2),
+                "total": round(total_cost, 2),
             }
-            result.human_percentage = round(allocation.human_work_percentage, 1)
+
+            # Add phased total if available (includes contingency)
+            if phased_breakdown:
+                result.reproduction_cost["phased_total"] = round(phased_breakdown.grand_total, 2)
+
+            result.human_percentage = round(
+                human_cost / total_cost * 100 if total_cost > 0 else 0, 1
+            )
+
+            # Add analysis details to allocation output
+            allocation_dict = splitter.to_dict(allocation)
+            if token_stats:
+                allocation_dict["token_analysis"] = token_stats.to_dict()
+            if precise_api_cost:
+                allocation_dict["precise_api_cost"] = round(precise_api_cost, 2)
+            if complexity_metrics:
+                allocation_dict["complexity"] = {
+                    "domain": complexity_metrics.primary_domain.value,
+                    "difficulty_score": complexity_metrics.difficulty_score,
+                    "time_multiplier": complexity_metrics.time_multiplier,
+                    "cost_multiplier": complexity_metrics.cost_multiplier,
+                }
+            if calibration_result:
+                allocation_dict["calibration"] = {
+                    "method": calibration_result.calibration_method,
+                    "confidence": calibration_result.confidence,
+                    "based_on": calibration_result.based_on_datasets,
+                    "range": {
+                        "low": round(calibration_result.cost_range_low, 2),
+                        "high": round(calibration_result.cost_range_high, 2),
+                    },
+                }
+
+            # Final adjusted costs
+            allocation_dict["final_costs"] = {
+                "human": round(human_cost, 2),
+                "api": round(api_cost, 2),
+                "total": round(total_cost, 2),
+            }
 
             with open(os.path.join(dataset_output_dir, "allocation.json"), "w", encoding="utf-8") as f:
-                json.dump(splitter.to_dict(allocation), f, indent=2, ensure_ascii=False)
+                json.dump(allocation_dict, f, indent=2, ensure_ascii=False)
             result.files_generated.append("allocation.json")
 
             # Generate reports
