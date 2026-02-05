@@ -10,6 +10,7 @@ from .llm_dataset_analyzer import (
     LLMDatasetAnalysis,
     generate_llm_guide_section,
 )
+from .spec_analyzer import SpecAnalyzer, SpecificationAnalysis
 
 __all__ = [
     "ContextStrategyDetector",
@@ -18,4 +19,6 @@ __all__ = [
     "LLMDatasetAnalyzer",
     "LLMDatasetAnalysis",
     "generate_llm_guide_section",
+    "SpecAnalyzer",
+    "SpecificationAnalysis",
 ]

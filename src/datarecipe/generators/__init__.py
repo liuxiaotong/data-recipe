@@ -8,6 +8,7 @@ from .human_machine_split import (
 )
 from .enhanced_guide import EnhancedGuideGenerator, EnhancedProductionGuide
 from .pattern_generator import PatternGenerator, GeneratedDataItem
+from .spec_output import SpecOutputGenerator, SpecOutputResult
 
 __all__ = [
     "HumanMachineSplitter",
@@ -18,4 +19,6 @@ __all__ = [
     "EnhancedProductionGuide",
     "PatternGenerator",
     "GeneratedDataItem",
+    "SpecOutputGenerator",
+    "SpecOutputResult",
 ]

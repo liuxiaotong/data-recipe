@@ -1,729 +1,340 @@
-#!/usr/bin/env python3
-"""
-DataRecipe MCP Server
+"""MCP Server for DataRecipe.
 
-让 Claude App 可以调用 DataRecipe 功能进行数据集分析。
+This server exposes DataRecipe functionality as MCP tools,
+allowing Claude Desktop/Claude Code to directly use datarecipe
+without requiring external API calls.
 
 Usage:
-    # 启动 server
-    python -m datarecipe.mcp_server
-
-    # 或者通过入口点
-    datarecipe-mcp
-"""
-
-import json
-import asyncio
-from typing import Any
-
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
-
-# 创建 MCP Server
-server = Server("datarecipe")
-
-
-def analyze_dataset(dataset_id: str) -> dict:
-    """分析数据集"""
-    from datarecipe.analyzer import DatasetAnalyzer
-
-    analyzer = DatasetAnalyzer()
-    recipe = analyzer.analyze(dataset_id)
-
-    return {
-        "name": recipe.name,
-        "source_type": recipe.source_type.value,
-        "generation": {
-            "synthetic_ratio": recipe.synthetic_ratio,
-            "human_ratio": recipe.human_ratio,
-            "type": recipe.generation_type.value if recipe.generation_type else "unknown",
-        },
-        "teacher_models": recipe.teacher_models or [],
-        "reproducibility": {
-            "score": recipe.reproducibility.score if recipe.reproducibility else None,
-            "available": recipe.reproducibility.available if recipe.reproducibility else [],
-            "missing": recipe.reproducibility.missing if recipe.reproducibility else [],
-        },
-        "cost": {
-            "estimated_total_usd": recipe.cost.estimated_total_usd if recipe.cost else None,
-            "confidence": recipe.cost.confidence if recipe.cost else None,
-        },
-        "metadata": {
-            "num_examples": recipe.num_examples,
-            "languages": recipe.languages,
-            "license": recipe.license,
+    # Add to Claude Desktop config (~/.config/claude/claude_desktop_config.json):
+    {
+        "mcpServers": {
+            "datarecipe": {
+                "command": "python",
+                "args": ["-m", "datarecipe.mcp_server"]
+            }
         }
     }
 
+    # Or run directly:
+    python -m datarecipe.mcp_server
+"""
 
-def profile_annotators(dataset_id: str, region: str = "china") -> dict:
-    """生成标注专家画像"""
-    from datarecipe.analyzer import DatasetAnalyzer
-    from datarecipe.profiler import AnnotatorProfiler
+import json
+import sys
+from typing import Any
 
-    analyzer = DatasetAnalyzer()
-    profiler = AnnotatorProfiler()
-
-    recipe = analyzer.analyze(dataset_id)
-    profile = profiler.generate_profile(recipe, region=region)
-
-    # 计算成本
-    hourly_rate = (profile.hourly_rate_range.get("min", 15) + profile.hourly_rate_range.get("max", 45)) / 2
-    estimated_labor_cost = profile.estimated_person_days * 8 * hourly_rate
-
-    return {
-        "dataset": dataset_id,
-        "region": region,
-        "skills": [
-            {
-                "name": s.name,
-                "level": s.level,
-                "required": s.required,
-            }
-            for s in profile.skill_requirements
-        ],
-        "requirements": {
-            "experience_level": profile.experience_level.value,
-            "education_level": profile.education_level.value,
-            "min_experience_years": profile.min_experience_years,
-            "languages": profile.language_requirements,
-            "domain_knowledge": profile.domain_knowledge,
-        },
-        "workload": {
-            "team_size": profile.team_size,
-            "team_structure": profile.team_structure,
-            "person_days": profile.estimated_person_days,
-            "hours_per_example": profile.estimated_hours_per_example,
-        },
-        "cost": {
-            "hourly_rate_range": profile.hourly_rate_range,
-            "hourly_rate_avg": hourly_rate,
-            "estimated_labor_cost": estimated_labor_cost,
-        },
-        "screening_criteria": profile.screening_criteria,
-        "recommended_platforms": profile.recommended_platforms,
-    }
+# MCP SDK imports
+try:
+    from mcp.server import Server
+    from mcp.server.stdio import stdio_server
+    from mcp.types import Tool, TextContent
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
 
 
-def deploy_project(dataset_id: str, output: str = None, region: str = "china") -> dict:
-    """生成投产部署项目"""
-    from datarecipe.analyzer import DatasetAnalyzer
-    from datarecipe.deployer import ProductionDeployer
-    from datarecipe.profiler import AnnotatorProfiler
-    from datarecipe.schema import DataRecipe
+def create_server() -> "Server":
+    """Create and configure the MCP server."""
+    server = Server("datarecipe")
 
-    # 默认输出目录
-    if not output:
-        safe_name = dataset_id.replace("/", "_").replace(" ", "_").lower()
-        output = f"./projects/{safe_name}"
+    @server.list_tools()
+    async def list_tools() -> list[Tool]:
+        """List available tools."""
+        return [
+            Tool(
+                name="parse_spec_document",
+                description="Parse a specification document (PDF, Word, image, text) and extract text content. Returns the document text and a prompt for LLM analysis.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the document file (PDF, docx, png, jpg, txt, md)"
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            ),
+            Tool(
+                name="generate_spec_output",
+                description="Generate project artifacts (annotation spec, executive summary, milestone plan, cost breakdown) from analysis JSON.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "analysis_json": {
+                            "type": "object",
+                            "description": "Analysis result with project_name, dataset_type, task_type, fields, examples, etc."
+                        },
+                        "output_dir": {
+                            "type": "string",
+                            "description": "Output directory path",
+                            "default": "./spec_output"
+                        },
+                        "target_size": {
+                            "type": "integer",
+                            "description": "Target dataset size for cost estimation",
+                            "default": 100
+                        },
+                        "region": {
+                            "type": "string",
+                            "description": "Region for cost calculation (china/us)",
+                            "default": "china"
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional: original document path for metadata"
+                        }
+                    },
+                    "required": ["analysis_json"]
+                }
+            ),
+            Tool(
+                name="analyze_huggingface_dataset",
+                description="Run deep analysis on a HuggingFace dataset and generate reproduction guide.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dataset_id": {
+                            "type": "string",
+                            "description": "HuggingFace dataset ID (e.g., 'tencent/CL-bench')"
+                        },
+                        "output_dir": {
+                            "type": "string",
+                            "description": "Output directory path",
+                            "default": "./analysis_output"
+                        },
+                        "sample_size": {
+                            "type": "integer",
+                            "description": "Number of samples to analyze",
+                            "default": 500
+                        },
+                        "target_size": {
+                            "type": "integer",
+                            "description": "Target dataset size for cost estimation"
+                        },
+                        "region": {
+                            "type": "string",
+                            "description": "Region for cost calculation",
+                            "default": "china"
+                        }
+                    },
+                    "required": ["dataset_id"]
+                }
+            ),
+            Tool(
+                name="get_extraction_prompt",
+                description="Get the LLM extraction prompt template for analyzing a specification document. Use this when you want to analyze a document yourself instead of using an external API.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+        ]
 
-    analyzer = DatasetAnalyzer()
-    deployer = ProductionDeployer()
-    profiler = AnnotatorProfiler()
+    @server.call_tool()
+    async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+        """Handle tool calls."""
 
-    recipe = analyzer.analyze(dataset_id)
-    profile = profiler.generate_profile(recipe, region=region)
+        if name == "parse_spec_document":
+            return await _parse_spec_document(arguments)
+        elif name == "generate_spec_output":
+            return await _generate_spec_output(arguments)
+        elif name == "analyze_huggingface_dataset":
+            return await _analyze_huggingface_dataset(arguments)
+        elif name == "get_extraction_prompt":
+            return await _get_extraction_prompt(arguments)
+        else:
+            return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
-    # 转换为 DataRecipe
-    data_recipe = DataRecipe(
-        name=recipe.name,
-        version=recipe.version,
-        source_type=recipe.source_type,
-        source_id=recipe.source_id,
-        num_examples=recipe.num_examples,
-        languages=recipe.languages or [],
-        license=recipe.license,
-        description=recipe.description,
-        generation_type=recipe.generation_type,
-        synthetic_ratio=recipe.synthetic_ratio,
-        human_ratio=recipe.human_ratio,
-        generation_methods=recipe.generation_methods or [],
-        teacher_models=recipe.teacher_models or [],
-        tags=recipe.tags or [],
-    )
-
-    config = deployer.generate_config(data_recipe, profile=profile)
-    result = deployer.deploy(data_recipe, output, provider="local", config=config, profile=profile)
-
-    return {
-        "success": result.success,
-        "project_id": result.project_handle.project_id if result.project_handle else None,
-        "output_path": output,
-        "files_created": result.details.get("files_created", []),
-        "error": result.error,
-    }
+    return server
 
 
-def list_providers() -> dict:
-    """列出可用的 Provider"""
-    from datarecipe.providers import list_providers
+async def _parse_spec_document(arguments: dict[str, Any]) -> list[TextContent]:
+    """Parse a specification document."""
+    from datarecipe.analyzers.spec_analyzer import SpecAnalyzer
 
-    providers = list_providers()
-    return {
-        "providers": providers,
-        "count": len(providers),
-    }
-
-
-def deep_analyze_dataset(dataset_id: str, sample_size: int = 200, use_llm: bool = False) -> dict:
-    """深度分析数据集，生成完整复刻指南和分析报告
-
-    使用 DeepAnalyzerCore 进行完整分析，生成与 CLI 相同的所有输出文件：
-    - REPRODUCTION_GUIDE.md: 复刻指南
-    - ANALYSIS_REPORT.md: 分析报告
-    - rubric_templates.yaml/md: 评分模板
-    - prompt_templates.json: Prompt 模板
-    - recipe_summary.json: 分析摘要
-    - 等其他分析产物
-    """
-    from datarecipe.core import DeepAnalyzerCore
+    file_path = arguments.get("file_path")
+    if not file_path:
+        return [TextContent(type="text", text="Error: file_path is required")]
 
     try:
-        # Use core analyzer for full analysis
+        analyzer = SpecAnalyzer()
+        doc = analyzer.parse_document(file_path)
+        prompt = analyzer.get_extraction_prompt(doc)
+
+        result = {
+            "success": True,
+            "file_path": file_path,
+            "file_type": doc.file_type,
+            "text_length": len(doc.text_content),
+            "has_images": doc.has_images(),
+            "image_count": len(doc.images),
+            "pages": doc.pages,
+            "extraction_prompt": prompt,
+            "instructions": "Please analyze the document content in the extraction_prompt and return a JSON object with the extracted information. The JSON should include: project_name, dataset_type, task_type, task_description, cognitive_requirements, reasoning_chain, data_requirements, quality_constraints, forbidden_items, difficulty_criteria, fields, field_requirements, examples, scoring_rubric, estimated_difficulty, estimated_domain, estimated_human_percentage, similar_datasets."
+        }
+
+        return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
+
+    except FileNotFoundError:
+        return [TextContent(type="text", text=f"Error: File not found: {file_path}")]
+    except ValueError as e:
+        return [TextContent(type="text", text=f"Error: {e}")]
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error parsing document: {e}")]
+
+
+async def _generate_spec_output(arguments: dict[str, Any]) -> list[TextContent]:
+    """Generate project artifacts from analysis JSON."""
+    from datarecipe.analyzers.spec_analyzer import SpecAnalyzer
+    from datarecipe.generators.spec_output import SpecOutputGenerator
+
+    analysis_json = arguments.get("analysis_json")
+    if not analysis_json:
+        return [TextContent(type="text", text="Error: analysis_json is required")]
+
+    output_dir = arguments.get("output_dir", "./spec_output")
+    target_size = arguments.get("target_size", 100)
+    region = arguments.get("region", "china")
+    file_path = arguments.get("file_path")
+
+    try:
+        analyzer = SpecAnalyzer()
+
+        # Parse original document if provided
+        doc = None
+        if file_path:
+            try:
+                doc = analyzer.parse_document(file_path)
+            except Exception:
+                pass
+
+        # Create analysis from JSON
+        analysis = analyzer.create_analysis_from_json(analysis_json, doc)
+
+        # Generate outputs
+        generator = SpecOutputGenerator(output_dir=output_dir)
+        result = generator.generate(
+            analysis=analysis,
+            target_size=target_size,
+            region=region,
+        )
+
+        if not result.success:
+            return [TextContent(type="text", text=f"Error: {result.error}")]
+
+        output = {
+            "success": True,
+            "output_dir": result.output_dir,
+            "files_generated": result.files_generated,
+            "project_name": analysis.project_name,
+            "key_files": {
+                "executive_summary": f"{result.output_dir}/01_决策参考/EXECUTIVE_SUMMARY.md",
+                "milestone_plan": f"{result.output_dir}/02_项目管理/MILESTONE_PLAN.md",
+                "annotation_spec": f"{result.output_dir}/03_标注规范/ANNOTATION_SPEC.md",
+                "cost_breakdown": f"{result.output_dir}/05_成本分析/COST_BREAKDOWN.md",
+            }
+        }
+
+        return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error generating output: {e}")]
+
+
+async def _analyze_huggingface_dataset(arguments: dict[str, Any]) -> list[TextContent]:
+    """Run deep analysis on a HuggingFace dataset."""
+    from datarecipe.core.deep_analyzer import DeepAnalyzerCore
+
+    dataset_id = arguments.get("dataset_id")
+    if not dataset_id:
+        return [TextContent(type="text", text="Error: dataset_id is required")]
+
+    output_dir = arguments.get("output_dir", "./analysis_output")
+    sample_size = arguments.get("sample_size", 500)
+    target_size = arguments.get("target_size")
+    region = arguments.get("region", "china")
+
+    try:
         analyzer = DeepAnalyzerCore(
-            output_dir="./analysis_output",
-            region="china",
-            use_llm=use_llm,
-            llm_provider="anthropic",
+            output_dir=output_dir,
+            region=region,
+            use_llm=False,  # Don't use external LLM
         )
 
         result = analyzer.analyze(
             dataset_id=dataset_id,
             sample_size=sample_size,
+            target_size=target_size,
         )
 
         if not result.success:
-            return {"error": result.error, "dataset_id": dataset_id}
+            return [TextContent(type="text", text=f"Error: {result.error}")]
 
-        return {
+        output = {
+            "success": True,
             "dataset_id": dataset_id,
-            "dataset_type": result.dataset_type or "unknown",
+            "output_dir": result.output_dir,
+            "dataset_type": result.dataset_type,
             "sample_count": result.sample_count,
-            "fields": result.fields,
-            "reproduction_cost": result.reproduction_cost,
-            "human_percentage": result.human_percentage,
             "rubric_patterns": result.rubric_patterns,
             "prompt_templates": result.prompt_templates,
-            "output_dir": result.output_dir,
-            "files": result.files_generated,
+            "human_percentage": result.human_percentage,
+            "files_generated": result.files_generated,
+            "key_files": {
+                "analysis_report": f"{result.output_dir}/01_决策参考/ANALYSIS_REPORT.md",
+                "reproduction_guide": f"{result.output_dir}/04_复刻指南/REPRODUCTION_GUIDE.md",
+            }
         }
 
-    except Exception as e:
-        return {"error": str(e), "dataset_id": dataset_id}
-
-
-def compare_datasets(dataset_ids: list[str]) -> dict:
-    """对比多个数据集的构建方式"""
-    import os
-    from datarecipe.integrations.radar import RadarIntegration, RecipeSummary
-
-    results = []
-    for dataset_id in dataset_ids:
-        safe_name = dataset_id.replace("/", "_").replace("\\", "_")
-        summary_path = f"./analysis_output/{safe_name}/recipe_summary.json"
-
-        if os.path.exists(summary_path):
-            summary = RadarIntegration.load_summary(summary_path)
-            results.append(summary)
-        else:
-            # Run quick analysis
-            result = deep_analyze_dataset(dataset_id, sample_size=100)
-            if "error" not in result:
-                summary = RadarIntegration.load_summary(f"./analysis_output/{safe_name}/recipe_summary.json")
-                results.append(summary)
-
-    if not results:
-        return {"error": "No datasets could be analyzed", "dataset_ids": dataset_ids}
-
-    # Build comparison
-    comparison = {
-        "datasets": [],
-        "summary": {
-            "total_datasets": len(results),
-            "type_distribution": {},
-            "avg_human_percentage": 0,
-            "total_reproduction_cost": 0,
-        }
-    }
-
-    for s in results:
-        comparison["datasets"].append({
-            "id": s.dataset_id,
-            "type": s.dataset_type,
-            "cost": s.reproduction_cost.get("total", 0),
-            "human_pct": s.human_percentage,
-            "fields": s.fields,
-            "rubric_patterns": s.rubric_patterns,
-            "difficulty": s.difficulty,
-        })
-
-        # Aggregate
-        if s.dataset_type:
-            comparison["summary"]["type_distribution"][s.dataset_type] = \
-                comparison["summary"]["type_distribution"].get(s.dataset_type, 0) + 1
-        comparison["summary"]["total_reproduction_cost"] += s.reproduction_cost.get("total", 0)
-
-    comparison["summary"]["avg_human_percentage"] = \
-        sum(d["human_pct"] for d in comparison["datasets"]) / len(comparison["datasets"])
-
-    return comparison
-
-
-def get_reproduction_guide(dataset_id: str) -> dict:
-    """获取已分析数据集的复刻指南
-
-    如果分析不存在，会自动进行完整分析生成所有文件。
-    """
-    import os
-
-    safe_name = dataset_id.replace("/", "_").replace("\\", "_")
-    output_dir = f"./analysis_output/{safe_name}"
-    guide_path = f"{output_dir}/REPRODUCTION_GUIDE.md"
-    report_path = f"{output_dir}/ANALYSIS_REPORT.md"
-    summary_path = f"{output_dir}/recipe_summary.json"
-
-    if not os.path.exists(summary_path):
-        # Run full analysis first (generates all files)
-        result = deep_analyze_dataset(dataset_id, sample_size=200)
-        if "error" in result:
-            return result
-
-    # Load summary
-    from datarecipe.integrations.radar import RadarIntegration
-    summary = RadarIntegration.load_summary(summary_path)
-
-    # Load guide
-    guide_content = ""
-    if os.path.exists(guide_path):
-        with open(guide_path, "r", encoding="utf-8") as f:
-            guide_content = f.read()
-
-    # Load report
-    report_content = ""
-    if os.path.exists(report_path):
-        with open(report_path, "r", encoding="utf-8") as f:
-            report_content = f.read()
-
-    # List all available files
-    available_files = []
-    if os.path.exists(output_dir):
-        available_files = os.listdir(output_dir)
-
-    return {
-        "dataset_id": dataset_id,
-        "output_dir": output_dir,
-        "summary": summary.to_dict(),
-        "available_files": available_files,
-        "guide_path": guide_path,
-        "guide_available": os.path.exists(guide_path),
-        "guide_content": guide_content,
-        "report_path": report_path,
-        "report_available": os.path.exists(report_path),
-        "report_preview": report_content[:2000] + "..." if len(report_content) > 2000 else report_content,
-    }
-
-
-def batch_analyze_from_radar(radar_report_path: str, limit: int = 5, orgs: list[str] = None) -> dict:
-    """从 Radar 报告批量分析数据集"""
-    from datarecipe.integrations.radar import RadarIntegration
-
-    try:
-        integration = RadarIntegration()
-        datasets = integration.load_radar_report(radar_report_path)
-
-        # Filter
-        if orgs:
-            datasets = [d for d in datasets if d.org.lower() in [o.lower() for o in orgs]]
-
-        # Limit
-        datasets = datasets[:limit]
-
-        # Analyze each
-        results = []
-        for ds in datasets:
-            result = deep_analyze_dataset(ds.id, sample_size=100)
-            results.append({
-                "dataset_id": ds.id,
-                "category": ds.category,
-                "downloads": ds.downloads,
-                "analysis": result,
-            })
-
-        # Aggregate
-        successful = [r for r in results if "error" not in r["analysis"]]
-
-        return {
-            "total_datasets": len(datasets),
-            "analyzed": len(successful),
-            "failed": len(results) - len(successful),
-            "results": results,
-            "total_cost": sum(
-                r["analysis"].get("reproduction_cost", {}).get("total", 0)
-                for r in successful
-            ),
-        }
+        return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
 
     except Exception as e:
-        return {"error": str(e)}
+        import traceback
+        return [TextContent(type="text", text=f"Error analyzing dataset: {e}\n{traceback.format_exc()}")]
 
 
-def find_similar_datasets(dataset_id: str) -> dict:
-    """基于已分析的数据集找相似的数据集"""
-    import os
-    from datarecipe.integrations.radar import RadarIntegration
+async def _get_extraction_prompt(arguments: dict[str, Any]) -> list[TextContent]:
+    """Get the extraction prompt template."""
+    from datarecipe.analyzers.spec_analyzer import SpecAnalyzer
 
-    # First ensure the target is analyzed
-    safe_name = dataset_id.replace("/", "_").replace("\\", "_")
-    summary_path = f"./analysis_output/{safe_name}/recipe_summary.json"
+    prompt_template = SpecAnalyzer.EXTRACTION_PROMPT
 
-    if not os.path.exists(summary_path):
-        result = deep_analyze_dataset(dataset_id, sample_size=100, use_llm=True)
-        if "error" in result:
-            return result
-
-    target_summary = RadarIntegration.load_summary(summary_path)
-
-    # Scan all analyzed datasets
-    similar = []
-    analysis_dir = "./analysis_output"
-
-    if os.path.exists(analysis_dir):
-        for name in os.listdir(analysis_dir):
-            if name == safe_name:
-                continue
-            other_path = os.path.join(analysis_dir, name, "recipe_summary.json")
-            if os.path.exists(other_path):
-                try:
-                    other = RadarIntegration.load_summary(other_path)
-
-                    # Calculate similarity score
-                    score = 0
-                    if other.dataset_type == target_summary.dataset_type:
-                        score += 50
-                    if set(other.fields) & set(target_summary.fields):
-                        score += 20
-                    if abs(other.human_percentage - target_summary.human_percentage) < 10:
-                        score += 15
-                    if other.difficulty == target_summary.difficulty:
-                        score += 15
-
-                    if score > 30:
-                        similar.append({
-                            "dataset_id": other.dataset_id,
-                            "type": other.dataset_type,
-                            "similarity_score": score,
-                            "cost": other.reproduction_cost.get("total", 0),
-                            "fields": other.fields,
-                        })
-                except Exception:
-                    continue
-
-    # Sort by similarity
-    similar.sort(key=lambda x: x["similarity_score"], reverse=True)
-
-    # Also include LLM suggestions if available
-    llm_suggestions = target_summary.similar_datasets or []
-
-    return {
-        "dataset_id": dataset_id,
-        "dataset_type": target_summary.dataset_type,
-        "analyzed_similar": similar[:10],
-        "llm_suggested": llm_suggestions,
+    result = {
+        "prompt_template": prompt_template,
+        "usage": "Replace {document_content} with the actual document text, then analyze and return JSON.",
+        "output_fields": [
+            "project_name", "dataset_type", "description",
+            "task_type", "task_description", "cognitive_requirements", "reasoning_chain",
+            "data_requirements", "quality_constraints", "forbidden_items", "difficulty_criteria",
+            "fields", "field_requirements", "examples", "scoring_rubric",
+            "estimated_difficulty", "estimated_domain", "estimated_human_percentage", "similar_datasets"
+        ]
     }
 
-
-def estimate_cost(dataset_id: str, target_size: int = None, model: str = "gpt-4o") -> dict:
-    """估算数据集生产成本"""
-    from datarecipe.analyzer import DatasetAnalyzer
-    from datarecipe.cost_calculator import CostCalculator
-
-    analyzer = DatasetAnalyzer()
-    calculator = CostCalculator()
-
-    recipe = analyzer.analyze(dataset_id)
-    target = target_size or recipe.num_examples or 10000
-
-    breakdown = calculator.estimate_from_recipe(recipe, target, model)
-
-    return {
-        "dataset": dataset_id,
-        "target_size": target,
-        "model": model,
-        "cost": {
-            "api": {
-                "low": breakdown.api_cost.low,
-                "expected": breakdown.api_cost.expected,
-                "high": breakdown.api_cost.high,
-            },
-            "human_annotation": {
-                "low": breakdown.human_annotation_cost.low,
-                "expected": breakdown.human_annotation_cost.expected,
-                "high": breakdown.human_annotation_cost.high,
-            },
-            "compute": {
-                "low": breakdown.compute_cost.low,
-                "expected": breakdown.compute_cost.expected,
-                "high": breakdown.compute_cost.high,
-            },
-            "total": {
-                "low": breakdown.total.low,
-                "expected": breakdown.total.expected,
-                "high": breakdown.total.high,
-            },
-        },
-        "assumptions": breakdown.assumptions,
-    }
-
-
-# 注册工具
-@server.list_tools()
-async def list_tools() -> list[Tool]:
-    """列出可用的工具"""
-    return [
-        Tool(
-            name="analyze_dataset",
-            description="分析 AI 数据集，提取元数据、检测生成方法、教师模型和可复现性评分。支持 HuggingFace 数据集。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_id": {
-                        "type": "string",
-                        "description": "数据集 ID，如 'Anthropic/hh-rlhf' 或 'AI-MO/NuminaMath-CoT'",
-                    },
-                },
-                "required": ["dataset_id"],
-            },
-        ),
-        Tool(
-            name="profile_annotators",
-            description="生成标注专家画像，包括技能要求、学历要求、团队规模和人力成本估算。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_id": {
-                        "type": "string",
-                        "description": "数据集 ID",
-                    },
-                    "region": {
-                        "type": "string",
-                        "description": "地区，用于成本估算。可选: china, us, europe, india, sea",
-                        "default": "china",
-                    },
-                },
-                "required": ["dataset_id"],
-            },
-        ),
-        Tool(
-            name="deploy_project",
-            description="生成完整的标注投产项目，包括标注指南、质量规则、验收标准、时间线等。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_id": {
-                        "type": "string",
-                        "description": "数据集 ID",
-                    },
-                    "output": {
-                        "type": "string",
-                        "description": "输出目录路径，默认为 ./projects/<dataset_name>/",
-                    },
-                    "region": {
-                        "type": "string",
-                        "description": "地区，用于成本估算",
-                        "default": "china",
-                    },
-                },
-                "required": ["dataset_id"],
-            },
-        ),
-        Tool(
-            name="estimate_cost",
-            description="估算数据集生产成本，包括 API 调用、人工标注和计算资源成本。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_id": {
-                        "type": "string",
-                        "description": "数据集 ID",
-                    },
-                    "target_size": {
-                        "type": "integer",
-                        "description": "目标数据量",
-                    },
-                    "model": {
-                        "type": "string",
-                        "description": "用于成本估算的模型，如 gpt-4o, claude-3-sonnet",
-                        "default": "gpt-4o",
-                    },
-                },
-                "required": ["dataset_id"],
-            },
-        ),
-        Tool(
-            name="list_providers",
-            description="列出可用的部署 Provider。",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-            },
-        ),
-        Tool(
-            name="deep_analyze",
-            description="深度分析数据集，生成完整的复刻指南和分析报告。输出包括: REPRODUCTION_GUIDE.md(复刻指南), ANALYSIS_REPORT.md(分析报告), rubric_templates.yaml(评分模板), prompt_templates.json(Prompt模板), recipe_summary.json(分析摘要)等。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_id": {
-                        "type": "string",
-                        "description": "数据集 ID，如 'tencent/CL-bench'",
-                    },
-                    "sample_size": {
-                        "type": "integer",
-                        "description": "分析的样本数量，默认 200",
-                        "default": 200,
-                    },
-                    "use_llm": {
-                        "type": "boolean",
-                        "description": "是否使用 LLM 分析未知类型数据集",
-                        "default": False,
-                    },
-                },
-                "required": ["dataset_id"],
-            },
-        ),
-        Tool(
-            name="compare_datasets",
-            description="对比多个数据集的构建方式、成本和复杂度。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "要对比的数据集 ID 列表",
-                    },
-                },
-                "required": ["dataset_ids"],
-            },
-        ),
-        Tool(
-            name="get_reproduction_guide",
-            description="获取数据集的复刻指南和分析报告。如果不存在会自动进行完整分析。返回完整的 REPRODUCTION_GUIDE.md 内容、ANALYSIS_REPORT.md 预览和所有生成的文件列表。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_id": {
-                        "type": "string",
-                        "description": "数据集 ID",
-                    },
-                },
-                "required": ["dataset_id"],
-            },
-        ),
-        Tool(
-            name="batch_analyze_from_radar",
-            description="从 ai-dataset-radar 报告批量分析数据集。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "radar_report_path": {
-                        "type": "string",
-                        "description": "Radar 报告 JSON 文件路径",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "最多分析的数据集数量",
-                        "default": 5,
-                    },
-                    "orgs": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "按组织筛选",
-                    },
-                },
-                "required": ["radar_report_path"],
-            },
-        ),
-        Tool(
-            name="find_similar_datasets",
-            description="找与指定数据集相似的数据集。",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_id": {
-                        "type": "string",
-                        "description": "数据集 ID",
-                    },
-                },
-                "required": ["dataset_id"],
-            },
-        ),
-    ]
-
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    """处理工具调用"""
-    try:
-        if name == "analyze_dataset":
-            result = analyze_dataset(arguments["dataset_id"])
-        elif name == "profile_annotators":
-            result = profile_annotators(
-                arguments["dataset_id"],
-                arguments.get("region", "china"),
-            )
-        elif name == "deploy_project":
-            result = deploy_project(
-                arguments["dataset_id"],
-                arguments.get("output"),
-                arguments.get("region", "china"),
-            )
-        elif name == "estimate_cost":
-            result = estimate_cost(
-                arguments["dataset_id"],
-                arguments.get("target_size"),
-                arguments.get("model", "gpt-4o"),
-            )
-        elif name == "list_providers":
-            result = list_providers()
-        elif name == "deep_analyze":
-            result = deep_analyze_dataset(
-                arguments["dataset_id"],
-                arguments.get("sample_size", 200),
-                arguments.get("use_llm", False),
-            )
-        elif name == "compare_datasets":
-            result = compare_datasets(arguments["dataset_ids"])
-        elif name == "get_reproduction_guide":
-            result = get_reproduction_guide(arguments["dataset_id"])
-        elif name == "batch_analyze_from_radar":
-            result = batch_analyze_from_radar(
-                arguments["radar_report_path"],
-                arguments.get("limit", 5),
-                arguments.get("orgs"),
-            )
-        elif name == "find_similar_datasets":
-            result = find_similar_datasets(arguments["dataset_id"])
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
-
-        return [TextContent(type="text", text=json.dumps(result, indent=2, ensure_ascii=False))]
-
-    except Exception as e:
-        return [TextContent(type="text", text=f"Error: {str(e)}")]
+    return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
 
 
 async def main():
-    """运行 MCP Server"""
+    """Run the MCP server."""
+    if not MCP_AVAILABLE:
+        print("Error: MCP SDK not installed. Run: pip install mcp", file=sys.stderr)
+        print("\nAlternatively, use the CLI with --interactive mode:", file=sys.stderr)
+        print("  datarecipe analyze-spec document.pdf --interactive", file=sys.stderr)
+        sys.exit(1)
+
+    server = create_server()
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
-def run():
-    """入口点"""
+if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
 
 
-if __name__ == "__main__":
-    run()
+def run():
+    """Entry point for datarecipe-mcp command."""
+    import asyncio
+    asyncio.run(main())
