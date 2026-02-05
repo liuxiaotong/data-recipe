@@ -28,9 +28,10 @@
 |------|------|----------|------|
 | 👔 **决策层** | `01_决策参考/` | `EXECUTIVE_SUMMARY.md` | 价值评分、ROI、投资建议 |
 | 📋 **项目经理** | `02_项目管理/` | `MILESTONE_PLAN.md` | 里程碑、验收标准、风险管理 |
-| 📝 **标注团队** | `03_标注规范/` | `ANNOTATION_SPEC.md` | 标注指南、示例、质量标准 |
-| 🔧 **技术团队** | `04_复刻指南/` | `REPRODUCTION_GUIDE.md` | 技术方案、SOP、数据结构 |
+| 📝 **标注团队** | `03_标注规范/` | `ANNOTATION_SPEC.md`, `TRAINING_GUIDE.md`, `QA_CHECKLIST.md` | 标注指南、培训手册、质检清单 |
+| 🔧 **技术团队** | `04_复刻指南/` | `PRODUCTION_SOP.md`, `DATA_SCHEMA.json` | 生产流程、数据结构 |
 | 💰 **财务/预算** | `05_成本分析/` | `COST_BREAKDOWN.md` | 分阶段成本、人机分配 |
+| 📋 **模板** | `07_模板/` | `data_template.json` | 数据录入模板 |
 
 ### 完整产出物
 
@@ -40,8 +41,14 @@
 | **项目规划** | `02_项目管理/` | `MILESTONE_PLAN.md` ⭐ |
 | **行业对标** | `02_项目管理/` | `INDUSTRY_BENCHMARK.md` ⭐ |
 | **标注外包** | `03_标注规范/` | `ANNOTATION_SPEC.md` ⭐ |
-| **技术复刻** | `04_复刻指南/` | `REPRODUCTION_GUIDE.md` ⭐ |
+| **标注培训** | `03_标注规范/` | `TRAINING_GUIDE.md` ⭐ |
+| **质量检查** | `03_标注规范/` | `QA_CHECKLIST.md` ⭐ |
+| **生产流程** | `04_复刻指南/` | `PRODUCTION_SOP.md` ⭐ |
+| **数据格式** | `04_复刻指南/` | `DATA_SCHEMA.json` ⭐ |
+| **难度验证** | `04_复刻指南/` | `DIFFICULTY_VALIDATION.md` (按需) |
+| **数据模板** | `07_模板/` | `data_template.json` ⭐ |
 | **成本预算** | `05_成本分析/` | `COST_BREAKDOWN.md` ⭐ |
+| 技术复刻 | `04_复刻指南/` | `REPRODUCTION_GUIDE.md` |
 | 分析报告 | `04_复刻指南/` | `ANALYSIS_REPORT.md` |
 | 评分模板 | `03_标注规范/` | `rubric_template.md` |
 | 成本对比 | `05_成本分析/` | `cost_comparison.json` |
@@ -396,19 +403,37 @@ datarecipe analyze-spec requirements.pdf --interactive
 ```
 spec_output/
 └── ICL_多模态推理/
-    ├── README.md                    # 目录导航
+    ├── README.md                        # 目录导航
     ├── 01_决策参考/
-    │   └── EXECUTIVE_SUMMARY.md     # 执行摘要 ⭐
+    │   └── EXECUTIVE_SUMMARY.md         # 执行摘要 ⭐
     ├── 02_项目管理/
-    │   ├── MILESTONE_PLAN.md        # 里程碑计划 ⭐
-    │   └── INDUSTRY_BENCHMARK.md    # 行业基准
+    │   ├── MILESTONE_PLAN.md            # 里程碑计划 ⭐
+    │   └── INDUSTRY_BENCHMARK.md        # 行业基准
     ├── 03_标注规范/
-    │   └── ANNOTATION_SPEC.md       # 标注规范 ⭐
+    │   ├── ANNOTATION_SPEC.md           # 标注规范 ⭐
+    │   ├── TRAINING_GUIDE.md            # 标注员培训手册 ⭐
+    │   └── QA_CHECKLIST.md              # 质量检查清单 ⭐
+    ├── 04_复刻指南/
+    │   ├── PRODUCTION_SOP.md            # 生产标准流程 ⭐
+    │   ├── DATA_SCHEMA.json             # 数据格式定义
+    │   └── DIFFICULTY_VALIDATION.md     # 难度验证流程 (按需生成)
     ├── 05_成本分析/
-    │   └── COST_BREAKDOWN.md        # 成本明细
-    └── 06_原始数据/
-        └── spec_analysis.json       # 分析数据
+    │   └── COST_BREAKDOWN.md            # 成本明细
+    ├── 06_原始数据/
+    │   └── spec_analysis.json           # 分析数据
+    └── 07_模板/
+        └── data_template.json           # 数据录入模板
 ```
+
+### 智能难度验证
+
+当需求文档中包含难度验证要求时（如「用 doubao1.8 跑 3 次，最多 1 次正确」），系统会：
+
+1. **自动提取验证配置**：模型名称、设置、测试次数、通过标准
+2. **生成 DIFFICULTY_VALIDATION.md**：包含完整的验证流程和记录模板
+3. **更新相关文档**：培训手册、质检清单、数据模板都会包含验证要求
+
+如果文档中没有难度验证要求，则不会生成 `DIFFICULTY_VALIDATION.md`。
 
 ### 支持的文件格式
 
@@ -1011,10 +1036,11 @@ analysis_output/
     ├── recipe_summary.json              # 核心摘要
     ├── 01_决策参考/                      # 👔 决策层
     ├── 02_项目管理/                      # 📋 项目经理
-    ├── 03_标注规范/                      # 📝 标注团队
-    ├── 04_复刻指南/                      # 🔧 技术团队
+    ├── 03_标注规范/                      # 📝 标注团队 (含培训手册、质检清单)
+    ├── 04_复刻指南/                      # 🔧 技术团队 (含 SOP、Schema、难度验证)
     ├── 05_成本分析/                      # 💰 成本相关
-    └── 06_原始数据/                      # 📊 原始数据
+    ├── 06_原始数据/                      # 📊 原始数据
+    └── 07_模板/                          # 📋 数据模板
 ```
 
 详细结构见 [输出目录结构](#深度分析)。
@@ -1030,12 +1056,18 @@ Claude: [调用 parse_spec_document]
         📄 文档解析完成 (包含 6 张图片)
 
         [Claude 分析文档内容，提取结构化信息]
+        [自动识别难度验证要求: doubao1.8 跑 3 次，最多 1 次正确]
 
         [调用 generate_spec_output]
-        ✅ 项目文档已生成:
+        ✅ 项目文档已生成 (17 个文件):
         - 执行摘要: ./spec_output/项目名/01_决策参考/EXECUTIVE_SUMMARY.md
         - 里程碑计划: ./spec_output/项目名/02_项目管理/MILESTONE_PLAN.md
         - 标注规范: ./spec_output/项目名/03_标注规范/ANNOTATION_SPEC.md
+        - 培训手册: ./spec_output/项目名/03_标注规范/TRAINING_GUIDE.md
+        - 质检清单: ./spec_output/项目名/03_标注规范/QA_CHECKLIST.md
+        - 生产流程: ./spec_output/项目名/04_复刻指南/PRODUCTION_SOP.md
+        - 难度验证: ./spec_output/项目名/04_复刻指南/DIFFICULTY_VALIDATION.md
+        - 数据模板: ./spec_output/项目名/07_模板/data_template.json
 ```
 
 #### 分析数据集
