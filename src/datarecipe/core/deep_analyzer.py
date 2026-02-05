@@ -591,6 +591,35 @@ class DeepAnalyzerCore:
             except Exception:
                 pass
 
+            # Milestone plan (for project management)
+            try:
+                from datarecipe.generators.milestone_plan import MilestonePlanGenerator
+                milestone_generator = MilestonePlanGenerator()
+                milestone_plan = milestone_generator.generate(
+                    dataset_id=dataset_id,
+                    dataset_type=detected_type or "unknown",
+                    target_size=actual_size,
+                    reproduction_cost=result.reproduction_cost,
+                    human_percentage=result.human_percentage,
+                    complexity_metrics=complexity_metrics,
+                    phased_breakdown=phased_breakdown,
+                )
+
+                # Save as Markdown
+                milestone_md = milestone_generator.to_markdown(milestone_plan)
+                with open(os.path.join(dataset_output_dir, "MILESTONE_PLAN.md"), "w", encoding="utf-8") as f:
+                    f.write(milestone_md)
+                result.files_generated.append("MILESTONE_PLAN.md")
+
+                # Save as JSON
+                milestone_dict = milestone_generator.to_dict(milestone_plan)
+                with open(os.path.join(dataset_output_dir, "milestone_plan.json"), "w", encoding="utf-8") as f:
+                    json.dump(milestone_dict, f, indent=2, ensure_ascii=False)
+                result.files_generated.append("milestone_plan.json")
+
+            except Exception:
+                pass
+
             # Executive summary (for decision makers)
             try:
                 from datarecipe.generators.executive_summary import ExecutiveSummaryGenerator

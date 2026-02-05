@@ -321,6 +321,102 @@ class AnnotationSpecGenerator:
 
         spec.format_requirements = requirements
 
+    def _score_example_quality(self, item: Dict[str, Any], dataset_type: str) -> float:
+        """Score the quality of an example for selection.
+
+        Returns a score from 0-10, higher is better.
+        """
+        score = 5.0  # Base score
+
+        # Check for preference dataset quality
+        if dataset_type == "preference":
+            chosen = item.get("chosen", "")
+            rejected = item.get("rejected", "")
+
+            if isinstance(chosen, str) and isinstance(rejected, str):
+                # Penalize if both are very similar
+                if chosen == rejected:
+                    return 0  # Duplicate, skip
+
+                # Check length difference (some difference is good)
+                len_diff = abs(len(chosen) - len(rejected))
+                if len_diff > 50:
+                    score += 1  # Good differentiation
+
+                # Penalize very short responses
+                if len(chosen) < 20 or len(rejected) < 20:
+                    score -= 2
+
+                # Check for multi-turn conversations (better examples)
+                if "Human:" in chosen and "Assistant:" in chosen:
+                    # Count turns
+                    turns = chosen.count("Human:")
+                    if turns >= 2:
+                        score += 1  # Multi-turn is more interesting
+
+                # Penalize if chosen seems worse than rejected (quality issue)
+                # Simple heuristic: chosen should not be much shorter if it's supposed to be better
+                if len(chosen) < len(rejected) * 0.3 and len(rejected) > 100:
+                    score -= 2  # Suspicious - chosen much shorter
+
+                # Check for harmful content markers (prefer safe examples)
+                harmful_markers = ["fuck", "shit", "kill", "steal", "hack"]
+                if any(m in chosen.lower() for m in harmful_markers):
+                    score -= 1  # Less suitable as example
+
+                # Prefer examples with clear topic
+                clear_topics = ["explain", "what is", "how to", "help me", "can you"]
+                human_query = ""
+                if "Human:" in chosen:
+                    parts = chosen.split("Human:")
+                    if len(parts) > 1:
+                        human_query = parts[1].split("Assistant:")[0].lower()
+
+                if any(t in human_query for t in clear_topics):
+                    score += 1  # Clear, instructive topic
+
+        else:
+            # For other dataset types
+            # Prefer items with more complete data
+            non_empty_fields = sum(
+                1 for v in item.values()
+                if v and (not isinstance(v, str) or len(v) > 10)
+            )
+            score += non_empty_fields * 0.5
+
+            # Prefer items with reasonable text length
+            for v in item.values():
+                if isinstance(v, str):
+                    if 100 <= len(v) <= 2000:
+                        score += 0.5  # Good length
+
+        return max(0, min(10, score))
+
+    def _select_best_examples(
+        self,
+        sample_items: List[Dict[str, Any]],
+        dataset_type: str,
+        count: int = 3,
+    ) -> List[Dict[str, Any]]:
+        """Select the best examples based on quality scoring."""
+        if not sample_items:
+            return []
+
+        # Score all items
+        scored = [
+            (item, self._score_example_quality(item, dataset_type))
+            for item in sample_items
+        ]
+
+        # Filter out very low quality
+        scored = [(item, score) for item, score in scored if score >= 3]
+
+        # Sort by score descending
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        # Return top N
+        return [item for item, score in scored[:count]]
+
     def _generate_examples(
         self,
         spec: AnnotationSpec,
@@ -330,7 +426,12 @@ class AnnotationSpecGenerator:
         """Generate example items section."""
         examples = []
 
-        for i, item in enumerate(sample_items[:3]):  # Top 3 examples
+        # Select best examples based on quality
+        best_items = self._select_best_examples(
+            sample_items, spec.dataset_type, count=3
+        )
+
+        for i, item in enumerate(best_items):
             example = ExampleItem(
                 id=i + 1,
                 question_text="",
