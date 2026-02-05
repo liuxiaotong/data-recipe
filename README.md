@@ -2,7 +2,7 @@
 
 # DataRecipe
 
-**AI 数据集逆向工程与生产指南生成器**
+**面向人工智能数据集的逆向工程框架**
 
 [![PyPI](https://img.shields.io/pypi/v/datarecipe?color=blue)](https://pypi.org/project/datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -15,12 +15,12 @@
 
 ---
 
-从数据集或需求文档中提取构建模式，生成完整的生产级资产：标注规范、培训手册、成本估算、复刻指南。
+从数据集样本或需求规格中自动提取构建范式，生成可复用的标注规范与成本模型，支持人机协同的可解释性输出。
 
-## 核心价值
+## 核心能力
 
 ```
-数据集/需求文档 → 深度分析 → 标注规范 + 培训手册 + 成本估算 + 复刻指南
+输入源 (数据集样本 / 需求规格) → 逆向工程分析 → 结构化产出 (人类可读 + 机器可解析)
 ```
 
 ### 按角色快速导航
@@ -149,7 +149,7 @@ datarecipe analyze-spec requirements.pdf --from-json analysis.json
 
 ## 深度分析
 
-从数据集中提取可复用的模式，生成可操作的复刻指南。
+从数据集样本中提取构建范式与质量标准，生成可复用的生产规范。
 
 ### 输出目录结构
 
@@ -193,21 +193,21 @@ output/
         └── pipeline.yaml                # 可执行流水线
 ```
 
-### AI Agent 友好设计
+### 人机协同的可解释性输出
 
-输出同时面向人类和 AI Agent：
+所有分析管道均生成双重格式输出，支持人类审阅与 AI Agent 自动化消费：
 
-| 人类文档 | AI Agent 文件 | 用途 |
-|----------|---------------|------|
-| `EXECUTIVE_SUMMARY.md` | `reasoning_traces.json` | 决策依据 |
-| `MILESTONE_PLAN.md` | `workflow_state.json` | 进度追踪 |
-| `PRODUCTION_SOP.md` | `pipeline.yaml` | 执行步骤 |
+| 人类可读文档 | 机器可解析文件 | 语义映射 |
+|--------------|----------------|----------|
+| `EXECUTIVE_SUMMARY.md` | `reasoning_traces.json` | 决策依据与推理链 |
+| `MILESTONE_PLAN.md` | `workflow_state.json` | 进度状态与阻塞项 |
+| `PRODUCTION_SOP.md` | `pipeline.yaml` | 可执行工作流定义 |
 
-AI Agent 文件特点：
-- **推理链**: 每个结论都有可验证的推理步骤
-- **置信度**: 明确标注不确定性范围
-- **引用**: 通过路径引用详细文档，不重复内容
-- **可执行**: pipeline.yaml 可直接被 Agent 执行
+机器可解析文件的设计原则：
+- **推理可追溯**: 每个结论附带完整的证据链与推理步骤
+- **置信度量化**: 明确标注不确定性范围与假设条件
+- **引用而非复制**: 通过相对路径引用详细文档，避免信息冗余
+- **声明式流水线**: pipeline.yaml 可被 AI Agent 直接解析执行
 
 ### LLM 智能分析
 
@@ -222,7 +222,7 @@ datarecipe deep-analyze unknown/dataset --use-llm
 
 ## 需求文档分析
 
-从需求文档直接生成项目资产，无需现有数据集。
+从需求规格文档直接提取数据构建范式，无需现有数据集样本。
 
 ### 支持格式
 
@@ -393,5 +393,5 @@ src/datarecipe/
 ---
 
 <div align="center">
-<sub>为数据团队、标注外包和所有需要复刻 AI 数据集的人而建</sub>
+<sub>为数据工程团队、标注服务商及 AI 数据集研究者提供可复用的逆向工程方法论</sub>
 </div>

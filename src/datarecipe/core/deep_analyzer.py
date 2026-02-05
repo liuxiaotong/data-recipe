@@ -15,6 +15,7 @@ OUTPUT_SUBDIRS = {
     "guide": "04_复刻指南",         # Reproduction guide, analysis report
     "cost": "05_成本分析",          # Cost breakdown, allocation, token analysis
     "data": "06_原始数据",          # Raw analysis data
+    "ai_agent": "08_AI_Agent",      # AI Agent layer
 }
 
 
@@ -88,10 +89,17 @@ class OutputManager:
 │   ├── cost_calibration.json    # 成本校准
 │   └── token_analysis.json      # Token 分析
 │
-└── {OUTPUT_SUBDIRS['data']}/           # 📊 原始数据
-    ├── complexity_analysis.json # 复杂度分析
-    ├── prompt_templates.json    # Prompt 模板
-    └── ...                      # 其他分析数据
+├── {OUTPUT_SUBDIRS['data']}/           # 📊 原始数据
+│   ├── complexity_analysis.json # 复杂度分析
+│   ├── prompt_templates.json    # Prompt 模板
+│   └── ...                      # 其他分析数据
+│
+└── {OUTPUT_SUBDIRS['ai_agent']}/          # 🤖 AI Agent
+    ├── agent_context.json       # 聚合入口
+    ├── workflow_state.json      # 工作流状态
+    ├── reasoning_traces.json    # 推理链
+    ├── pipeline.yaml            # 可执行流水线
+    └── README.md                # Agent 说明
 ```
 
 ## 快速导航
@@ -103,6 +111,7 @@ class OutputManager:
 | **外包标注** | `{OUTPUT_SUBDIRS['annotation']}/ANNOTATION_SPEC.md` |
 | **技术复刻** | `{OUTPUT_SUBDIRS['guide']}/REPRODUCTION_GUIDE.md` |
 | **成本预算** | `{OUTPUT_SUBDIRS['cost']}/COST_BREAKDOWN.md` |
+| **AI Agent** | `{OUTPUT_SUBDIRS['ai_agent']}/agent_context.json` |
 
 ---
 
@@ -812,6 +821,26 @@ class DeepAnalyzerCore:
                 f.write(readme_content)
             result.files_generated.append("README.md")
 
+            # Generate AI Agent layer
+            try:
+                self._generate_ai_agent_layer(
+                    output_mgr=output_mgr,
+                    result=result,
+                    dataset_id=dataset_id,
+                    dataset_type=detected_type or "unknown",
+                    sample_count=sample_count,
+                    actual_size=actual_size,
+                    allocation=allocation,
+                    complexity_metrics=complexity_metrics,
+                    rubrics_result=rubrics_result,
+                    prompt_library=prompt_library,
+                    llm_analysis=llm_analysis,
+                    is_preference_dataset=is_preference_dataset,
+                    is_swe_dataset=is_swe_dataset,
+                )
+            except Exception:
+                pass
+
             # Update knowledge base
             try:
                 from datarecipe.knowledge import KnowledgeBase
@@ -1042,3 +1071,623 @@ class DeepAnalyzerCore:
         lines.append("*指南由 DataRecipe 自动生成*")
 
         return "\n".join(lines)
+
+    def _generate_ai_agent_layer(
+        self,
+        output_mgr: "OutputManager",
+        result: AnalysisResult,
+        dataset_id: str,
+        dataset_type: str,
+        sample_count: int,
+        actual_size: int,
+        allocation: Any,
+        complexity_metrics: Any,
+        rubrics_result: Any,
+        prompt_library: Any,
+        llm_analysis: Any,
+        is_preference_dataset: bool,
+        is_swe_dataset: bool,
+    ):
+        """Generate AI Agent layer files."""
+        subdirs = OUTPUT_SUBDIRS
+
+        # Generate agent_context.json
+        self._generate_ai_agent_context(
+            output_mgr, result, dataset_id, dataset_type, sample_count, actual_size,
+            allocation, complexity_metrics, subdirs
+        )
+
+        # Generate workflow_state.json
+        self._generate_ai_workflow_state(
+            output_mgr, result, dataset_id, dataset_type, subdirs
+        )
+
+        # Generate reasoning_traces.json
+        self._generate_ai_reasoning_traces(
+            output_mgr, result, dataset_id, dataset_type, actual_size,
+            allocation, complexity_metrics, rubrics_result, prompt_library, subdirs
+        )
+
+        # Generate pipeline.yaml
+        self._generate_ai_pipeline(
+            output_mgr, result, dataset_id, dataset_type,
+            is_preference_dataset, is_swe_dataset, subdirs
+        )
+
+        # Generate README.md for AI Agent directory
+        self._generate_ai_agent_readme(
+            output_mgr, result, dataset_id, dataset_type, subdirs
+        )
+
+    def _generate_ai_agent_context(
+        self,
+        output_mgr: "OutputManager",
+        result: AnalysisResult,
+        dataset_id: str,
+        dataset_type: str,
+        sample_count: int,
+        actual_size: int,
+        allocation: Any,
+        complexity_metrics: Any,
+        subdirs: dict,
+    ):
+        """Generate agent_context.json - aggregated entry point for AI agents."""
+        context = {
+            "_meta": {
+                "version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "generator": "DataRecipe",
+                "purpose": "AI Agent 聚合入口，引用其他文件而非复制"
+            },
+            "project": {
+                "name": dataset_id,
+                "type": dataset_type or "unknown",
+                "source": "huggingface",
+                "sample_count": sample_count,
+                "target_size": actual_size,
+            },
+            "summary": {
+                "total_cost": result.reproduction_cost.get("total", 0),
+                "human_cost": result.reproduction_cost.get("human", 0),
+                "api_cost": result.reproduction_cost.get("api", 0),
+                "human_percentage": result.human_percentage,
+                "rubric_patterns": result.rubric_patterns,
+                "prompt_templates": result.prompt_templates,
+                "field_count": len(result.fields),
+            },
+            "key_decisions": [
+                {
+                    "decision": "dataset_type",
+                    "value": dataset_type or "unknown",
+                    "reasoning_ref": "#/reasoning/dataset_type"
+                },
+                {
+                    "decision": "human_percentage",
+                    "value": result.human_percentage,
+                    "reasoning_ref": "#/reasoning/human_percentage"
+                },
+                {
+                    "decision": "cost_estimate",
+                    "value": result.reproduction_cost.get("total", 0),
+                    "reasoning_ref": "#/reasoning/cost"
+                }
+            ],
+            "complexity": None,
+            "file_references": {
+                "executive_summary": f"../{subdirs['decision']}/EXECUTIVE_SUMMARY.md",
+                "milestone_plan": f"../{subdirs['project']}/MILESTONE_PLAN.md",
+                "annotation_spec": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
+                "reproduction_guide": f"../{subdirs['guide']}/REPRODUCTION_GUIDE.md",
+                "cost_breakdown": f"../{subdirs['cost']}/COST_BREAKDOWN.md",
+                "allocation": f"../{subdirs['cost']}/allocation.json",
+                "recipe_summary": "../recipe_summary.json",
+            },
+            "quick_actions": [
+                {
+                    "action": "review_spec",
+                    "description": "审核标注规范",
+                    "file": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
+                    "assignee": "human"
+                },
+                {
+                    "action": "review_cost",
+                    "description": "审核成本估算",
+                    "file": f"../{subdirs['cost']}/COST_BREAKDOWN.md",
+                    "assignee": "human"
+                },
+                {
+                    "action": "start_reproduction",
+                    "description": "开始复刻生产",
+                    "file": f"../{subdirs['guide']}/REPRODUCTION_GUIDE.md",
+                    "assignee": "human"
+                }
+            ]
+        }
+
+        # Add complexity info if available
+        if complexity_metrics:
+            context["complexity"] = {
+                "domain": complexity_metrics.primary_domain.value if hasattr(complexity_metrics.primary_domain, 'value') else str(complexity_metrics.primary_domain),
+                "difficulty_score": complexity_metrics.difficulty_score,
+                "time_multiplier": complexity_metrics.time_multiplier,
+                "cost_multiplier": complexity_metrics.cost_multiplier,
+            }
+
+        path = output_mgr.get_path("ai_agent", "agent_context.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(context, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(output_mgr.get_relative_path("ai_agent", "agent_context.json"))
+
+    def _generate_ai_workflow_state(
+        self,
+        output_mgr: "OutputManager",
+        result: AnalysisResult,
+        dataset_id: str,
+        dataset_type: str,
+        subdirs: dict,
+    ):
+        """Generate workflow_state.json - workflow state tracking."""
+        state = {
+            "_meta": {
+                "version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "purpose": "工作流状态追踪，供 AI Agent 了解当前进度和下一步"
+            },
+            "current_phase": "analysis_complete",
+            "phases": {
+                "data_loading": {
+                    "status": "completed",
+                    "description": "数据集加载",
+                },
+                "analysis": {
+                    "status": "completed",
+                    "description": "深度逆向分析",
+                    "outputs": [
+                        f"../{subdirs['data']}/complexity_analysis.json",
+                        f"../{subdirs['cost']}/allocation.json",
+                    ]
+                },
+                "report_generation": {
+                    "status": "completed",
+                    "description": "报告生成",
+                    "outputs": [
+                        f"../{subdirs['decision']}/EXECUTIVE_SUMMARY.md",
+                        f"../{subdirs['project']}/MILESTONE_PLAN.md",
+                        f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
+                        f"../{subdirs['guide']}/REPRODUCTION_GUIDE.md",
+                    ]
+                },
+                "review": {
+                    "status": "pending",
+                    "description": "人工审核分析结果",
+                    "blocked_by": [],
+                    "assignee": "human"
+                },
+                "reproduction_planning": {
+                    "status": "pending",
+                    "description": "制定复刻计划",
+                    "blocked_by": ["review"],
+                    "assignee": "human"
+                },
+                "production": {
+                    "status": "pending",
+                    "description": "开始数据生产",
+                    "blocked_by": ["reproduction_planning"],
+                    "assignee": "human"
+                }
+            },
+            "next_actions": [
+                {
+                    "action": "review_executive_summary",
+                    "description": "审核执行摘要，确认分析结论",
+                    "file": f"../{subdirs['decision']}/EXECUTIVE_SUMMARY.md",
+                    "assignee": "human",
+                    "priority": "high"
+                },
+                {
+                    "action": "review_cost_estimate",
+                    "description": "审核成本估算，确认预算",
+                    "file": f"../{subdirs['cost']}/COST_BREAKDOWN.md",
+                    "assignee": "human",
+                    "priority": "high"
+                },
+                {
+                    "action": "review_annotation_spec",
+                    "description": "审核标注规范，准备生产",
+                    "file": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
+                    "assignee": "human",
+                    "priority": "medium"
+                }
+            ],
+            "blockers": [],
+            "decisions_needed": [
+                {
+                    "question": "是否采用此数据集的方法论？",
+                    "options": ["approved", "needs_modification", "rejected"],
+                    "impact": "影响后续复刻策略"
+                },
+                {
+                    "question": "成本预算是否可接受？",
+                    "options": ["approved", "needs_adjustment"],
+                    "impact": "影响项目规模和时间线"
+                }
+            ]
+        }
+
+        path = output_mgr.get_path("ai_agent", "workflow_state.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(output_mgr.get_relative_path("ai_agent", "workflow_state.json"))
+
+    def _generate_ai_reasoning_traces(
+        self,
+        output_mgr: "OutputManager",
+        result: AnalysisResult,
+        dataset_id: str,
+        dataset_type: str,
+        actual_size: int,
+        allocation: Any,
+        complexity_metrics: Any,
+        rubrics_result: Any,
+        prompt_library: Any,
+        subdirs: dict,
+    ):
+        """Generate reasoning_traces.json - reasoning chains for all conclusions."""
+        total_cost = result.reproduction_cost.get("total", 0)
+        human_cost = result.reproduction_cost.get("human", 0)
+        api_cost = result.reproduction_cost.get("api", 0)
+
+        traces = {
+            "_meta": {
+                "version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "purpose": "所有结论的推理链，供人类理解和 AI 验证"
+            },
+            "reasoning": {
+                "dataset_type": {
+                    "conclusion": {
+                        "value": dataset_type or "unknown",
+                        "display": f"数据集类型: {dataset_type or 'unknown'}"
+                    },
+                    "chain": [],
+                    "confidence": 0.0,
+                    "human_explanation": ""
+                },
+                "human_percentage": {
+                    "conclusion": {
+                        "value": result.human_percentage,
+                        "display": f"人工比例: {result.human_percentage}%"
+                    },
+                    "chain": [],
+                    "confidence": 0.0,
+                    "human_explanation": ""
+                },
+                "cost": {
+                    "conclusion": {
+                        "value": total_cost,
+                        "display": f"总成本: ${total_cost:,.0f}"
+                    },
+                    "chain": [],
+                    "confidence": 0.0,
+                    "range": {
+                        "low": round(total_cost * 0.7, 2),
+                        "high": round(total_cost * 1.4, 2)
+                    },
+                    "human_explanation": ""
+                }
+            }
+        }
+
+        # Build dataset type reasoning chain
+        type_chain = []
+        type_confidence = 0.5
+
+        if dataset_type == "preference":
+            type_chain.append({
+                "step": "检测偏好数据结构",
+                "evidence": "发现 chosen/rejected 字段对",
+                "impact": "判定为 RLHF 偏好数据集"
+            })
+            type_confidence = 0.95
+        elif dataset_type == "evaluation":
+            type_chain.append({
+                "step": "检测评分标准",
+                "evidence": f"发现 {result.rubric_patterns} 种评分模式",
+                "impact": "判定为评测数据集"
+            })
+            type_confidence = 0.9
+        elif dataset_type == "swe_bench":
+            type_chain.append({
+                "step": "检测 SWE 结构",
+                "evidence": "发现 repo/patch/problem_statement 字段",
+                "impact": "判定为软件工程评测数据集"
+            })
+            type_confidence = 0.95
+
+        traces["reasoning"]["dataset_type"]["chain"] = type_chain
+        traces["reasoning"]["dataset_type"]["confidence"] = type_confidence
+        traces["reasoning"]["dataset_type"]["human_explanation"] = (
+            f"通过分析数据结构和字段，判定为 {dataset_type or 'unknown'} 类型数据集。"
+        )
+
+        # Build human percentage reasoning chain
+        human_chain = []
+        human_confidence = 0.7
+
+        if allocation:
+            human_chain.append({
+                "step": "分析任务类型",
+                "evidence": f"包含 {len(allocation.tasks)} 种任务类型",
+                "impact": f"人工占比 {result.human_percentage}%"
+            })
+            human_confidence = 0.8
+
+        if complexity_metrics:
+            domain = complexity_metrics.primary_domain.value if hasattr(complexity_metrics.primary_domain, 'value') else str(complexity_metrics.primary_domain)
+            human_chain.append({
+                "step": "评估复杂度",
+                "evidence": f"领域: {domain}, 难度分数: {complexity_metrics.difficulty_score:.2f}",
+                "impact": f"成本乘数: {complexity_metrics.cost_multiplier:.2f}"
+            })
+            human_confidence += 0.1
+
+        traces["reasoning"]["human_percentage"]["chain"] = human_chain
+        traces["reasoning"]["human_percentage"]["confidence"] = min(human_confidence, 0.95)
+        traces["reasoning"]["human_percentage"]["human_explanation"] = (
+            f"基于任务分析，预估人工比例为 {result.human_percentage}%。"
+        )
+
+        # Build cost reasoning chain
+        cost_chain = [
+            {
+                "step": "计算人工成本",
+                "evidence": f"人工任务成本 ${human_cost:,.0f}",
+                "value": human_cost
+            },
+            {
+                "step": "计算 API 成本",
+                "evidence": f"API 调用成本 ${api_cost:,.0f}",
+                "value": api_cost
+            }
+        ]
+
+        if complexity_metrics:
+            cost_chain.append({
+                "step": "应用复杂度乘数",
+                "evidence": f"复杂度乘数 {complexity_metrics.cost_multiplier:.2f}",
+                "multiplier": complexity_metrics.cost_multiplier
+            })
+
+        cost_chain.append({
+            "step": "计算总成本",
+            "evidence": f"人工 ${human_cost:,.0f} + API ${api_cost:,.0f}",
+            "result": total_cost
+        })
+
+        traces["reasoning"]["cost"]["chain"] = cost_chain
+        traces["reasoning"]["cost"]["confidence"] = 0.75
+        traces["reasoning"]["cost"]["human_explanation"] = (
+            f"基于任务分解和 Token 分析，预估总成本 ${total_cost:,.0f}，"
+            f"置信区间 ${total_cost * 0.7:,.0f} - ${total_cost * 1.4:,.0f}。"
+        )
+
+        path = output_mgr.get_path("ai_agent", "reasoning_traces.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(traces, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(output_mgr.get_relative_path("ai_agent", "reasoning_traces.json"))
+
+    def _generate_ai_pipeline(
+        self,
+        output_mgr: "OutputManager",
+        result: AnalysisResult,
+        dataset_id: str,
+        dataset_type: str,
+        is_preference_dataset: bool,
+        is_swe_dataset: bool,
+        subdirs: dict,
+    ):
+        """Generate pipeline.yaml - executable pipeline for AI agents."""
+        lines = []
+        lines.append("# 数据复刻流水线")
+        lines.append("# 供 AI Agent 执行的可操作步骤")
+        lines.append("")
+        lines.append("name: 数据复刻流水线")
+        lines.append("version: '1.0'")
+        lines.append(f"source_dataset: {dataset_id}")
+        lines.append(f"dataset_type: {dataset_type or 'unknown'}")
+        lines.append(f"generated_at: {datetime.now().isoformat()}")
+        lines.append("")
+
+        # Variables section
+        lines.append("variables:")
+        lines.append(f"  source_dataset: \"{dataset_id}\"")
+        lines.append(f"  target_size: 1000  # 可调整")
+        lines.append(f"  human_percentage: {result.human_percentage}")
+        lines.append(f"  estimated_cost: {result.reproduction_cost.get('total', 0)}")
+        lines.append("")
+
+        # Phases
+        lines.append("phases:")
+        lines.append("")
+
+        # Phase 1: Analysis Review
+        lines.append("  - name: analysis_review")
+        lines.append("    description: 审核分析结果")
+        lines.append("    steps:")
+        lines.append("      - action: review_executive_summary")
+        lines.append("        description: 审核执行摘要")
+        lines.append(f"        input: ../{subdirs['decision']}/EXECUTIVE_SUMMARY.md")
+        lines.append("        assignee: human")
+        lines.append("        required: true")
+        lines.append("")
+        lines.append("      - action: review_cost_estimate")
+        lines.append("        description: 审核成本估算")
+        lines.append(f"        input: ../{subdirs['cost']}/COST_BREAKDOWN.md")
+        lines.append("        assignee: human")
+        lines.append("")
+        lines.append("      - action: approve_methodology")
+        lines.append("        description: 确认复刻方法论")
+        lines.append(f"        input: ../{subdirs['guide']}/REPRODUCTION_GUIDE.md")
+        lines.append("        assignee: human")
+        lines.append("        required: true")
+        lines.append("")
+
+        # Phase 2: Setup
+        lines.append("  - name: setup")
+        lines.append("    description: 环境准备")
+        lines.append("    depends_on: [analysis_review]")
+        lines.append("    steps:")
+        lines.append("      - action: setup_annotation_tool")
+        lines.append("        description: 配置标注工具")
+        lines.append(f"        spec: ../{subdirs['annotation']}/ANNOTATION_SPEC.md")
+        lines.append("        assignee: agent")
+        lines.append("")
+        lines.append("      - action: prepare_rubric_templates")
+        lines.append("        description: 准备评分模板")
+        lines.append(f"        input: ../{subdirs['annotation']}/rubric_template.yaml")
+        lines.append("        assignee: agent")
+        lines.append("")
+
+        # Phase 3: Pilot
+        lines.append("  - name: pilot")
+        lines.append("    description: 试点生产")
+        lines.append("    depends_on: [setup]")
+        lines.append("    steps:")
+        lines.append("      - action: create_pilot_batch")
+        lines.append("        description: 创建试点批次 (50 条)")
+        lines.append("        count: 50")
+        lines.append("        assignee: human")
+        lines.append("")
+        lines.append("      - action: quality_review_pilot")
+        lines.append("        description: 试点质量审核")
+        lines.append("        assignee: human")
+        lines.append("")
+
+        # Phase 4: Production
+        lines.append("  - name: production")
+        lines.append("    description: 主体生产")
+        lines.append("    depends_on: [pilot]")
+        lines.append("    steps:")
+        lines.append("      - action: batch_production")
+        lines.append("        description: 批量生产")
+        lines.append("        count: \"{{ target_size }}\"")
+        lines.append("        assignee: human")
+        lines.append("")
+        lines.append("      - action: incremental_qa")
+        lines.append("        description: 增量质检")
+        lines.append("        sample_rate: 0.2")
+        lines.append("        assignee: human")
+        lines.append("")
+
+        # Phase 5: Final QA
+        lines.append("  - name: final_qa")
+        lines.append("    description: 最终质量审核")
+        lines.append("    depends_on: [production]")
+        lines.append("    steps:")
+        lines.append("      - action: full_qa_review")
+        lines.append("        description: 全量质检")
+        lines.append("        assignee: human")
+        lines.append("")
+        lines.append("      - action: generate_qa_report")
+        lines.append("        description: 生成质检报告")
+        lines.append("        assignee: agent")
+        lines.append("")
+        lines.append("      - action: final_approval")
+        lines.append("        description: 最终审批")
+        lines.append("        assignee: human")
+        lines.append("        required: true")
+        lines.append("")
+
+        # Error handling
+        lines.append("error_handling:")
+        lines.append("  on_qa_failure:")
+        lines.append("    action: flag_for_revision")
+        lines.append("    notify: human")
+        lines.append("  on_budget_exceeded:")
+        lines.append("    action: pause_and_review")
+        lines.append("    notify: human")
+
+        path = output_mgr.get_path("ai_agent", "pipeline.yaml")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(output_mgr.get_relative_path("ai_agent", "pipeline.yaml"))
+
+    def _generate_ai_agent_readme(
+        self,
+        output_mgr: "OutputManager",
+        result: AnalysisResult,
+        dataset_id: str,
+        dataset_type: str,
+        subdirs: dict,
+    ):
+        """Generate README.md for AI Agent directory."""
+        lines = []
+        lines.append(f"# {dataset_id} - AI Agent 入口")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"> 数据集类型: {dataset_type or 'unknown'}")
+        lines.append("")
+        lines.append("本目录包含供 AI Agent 消费的结构化数据，与人类可读的 Markdown 文档互补。")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        lines.append("## 文件说明")
+        lines.append("")
+        lines.append("| 文件 | 用途 | 消费者 |")
+        lines.append("|------|------|--------|")
+        lines.append("| `agent_context.json` | 聚合入口，引用其他文件 | AI Agent |")
+        lines.append("| `workflow_state.json` | 工作流状态，当前阶段和下一步 | AI Agent |")
+        lines.append("| `reasoning_traces.json` | 推理链，解释每个结论的原因 | AI Agent + 人类 |")
+        lines.append("| `pipeline.yaml` | 可执行流水线，定义标准操作步骤 | AI Agent |")
+        lines.append("")
+
+        lines.append("## 快速开始")
+        lines.append("")
+        lines.append("### 1. 获取项目上下文")
+        lines.append("")
+        lines.append("```python")
+        lines.append("import json")
+        lines.append("")
+        lines.append("with open('agent_context.json') as f:")
+        lines.append("    context = json.load(f)")
+        lines.append("")
+        lines.append("print(f\"数据集: {context['project']['name']}\")")
+        lines.append("print(f\"类型: {context['project']['type']}\")")
+        lines.append("print(f\"总成本: ${context['summary']['total_cost']}\")")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("### 2. 检查工作流状态")
+        lines.append("")
+        lines.append("```python")
+        lines.append("with open('workflow_state.json') as f:")
+        lines.append("    state = json.load(f)")
+        lines.append("")
+        lines.append("print(f\"当前阶段: {state['current_phase']}\")")
+        lines.append("for action in state['next_actions']:")
+        lines.append("    print(f\"下一步: {action['description']} ({action['assignee']})\")")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("### 3. 理解决策推理")
+        lines.append("")
+        lines.append("```python")
+        lines.append("with open('reasoning_traces.json') as f:")
+        lines.append("    traces = json.load(f)")
+        lines.append("")
+        lines.append("cost = traces['reasoning']['cost']")
+        lines.append("print(f\"成本: {cost['conclusion']['display']}\")")
+        lines.append("print(f\"置信度: {cost['confidence']}\")")
+        lines.append("print(f\"原因: {cost['human_explanation']}\")")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("*由 DataRecipe 自动生成*")
+
+        path = output_mgr.get_path("ai_agent", "README.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(output_mgr.get_relative_path("ai_agent", "README.md"))
