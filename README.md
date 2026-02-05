@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/datarecipe?color=blue)](https://pypi.org/project/datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![MCP](https://img.shields.io/badge/MCP-6_Tools-purple.svg)](#mcp-server)
+[![MCP](https://img.shields.io/badge/MCP-9_Tools-purple.svg)](#mcp-server)
 
 [快速开始](#快速开始) · [深度分析](#深度分析) · [需求文档分析](#需求文档分析) · [MCP Server](#mcp-server) · [与 Radar 联动](#与-radar-联动)
 
@@ -268,12 +268,15 @@ datarecipe deep-analyze unknown/dataset --use-llm
 
 | 工具 | 功能 |
 |------|------|
-| `parse_spec_document` | 解析需求文档 |
-| `generate_spec_output` | 生成项目文档 |
-| `analyze_huggingface_dataset` | 深度分析数据集 |
-| `get_reproduction_guide` | 获取复刻指南 |
+| `parse_spec_document` | 解析需求文档 (PDF/Word/图片) |
+| `generate_spec_output` | 生成项目文档 (22 个文件) |
+| `analyze_huggingface_dataset` | 深度分析 HuggingFace 数据集 |
+| `get_extraction_prompt` | 获取 LLM 提取模板 |
+| `extract_rubrics` | 提取评分标准模式 |
+| `extract_prompts` | 提取 Prompt 模板 |
 | `compare_datasets` | 对比多个数据集 |
-| `find_similar_datasets` | 找相似数据集 |
+| `profile_dataset` | 数据集画像与成本估算 |
+| `get_agent_context` | 获取 AI Agent 上下文 |
 
 ### 使用示例
 
@@ -380,7 +383,7 @@ src/datarecipe/
 ├── extractors/              # 模式提取
 │   ├── rubric_extractor.py
 │   └── prompt_extractor.py
-├── mcp_server.py            # MCP Server (6 工具)
+├── mcp_server.py            # MCP Server (10 工具)
 └── cli.py                   # CLI 入口
 ```
 

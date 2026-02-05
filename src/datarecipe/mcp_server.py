@@ -130,6 +130,98 @@ def create_server() -> "Server":
                     "required": []
                 }
             ),
+            Tool(
+                name="extract_rubrics",
+                description="Extract scoring rubrics and evaluation patterns from a HuggingFace dataset. Returns structured templates for annotation guidelines.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dataset_id": {
+                            "type": "string",
+                            "description": "HuggingFace dataset ID (e.g., 'tencent/CL-bench')"
+                        },
+                        "sample_size": {
+                            "type": "integer",
+                            "description": "Number of samples to analyze",
+                            "default": 500
+                        }
+                    },
+                    "required": ["dataset_id"]
+                }
+            ),
+            Tool(
+                name="extract_prompts",
+                description="Extract system prompt templates from a HuggingFace dataset. Returns unique prompts categorized by domain.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dataset_id": {
+                            "type": "string",
+                            "description": "HuggingFace dataset ID (e.g., 'tencent/CL-bench')"
+                        },
+                        "sample_size": {
+                            "type": "integer",
+                            "description": "Number of samples to analyze",
+                            "default": 500
+                        }
+                    },
+                    "required": ["dataset_id"]
+                }
+            ),
+            Tool(
+                name="compare_datasets",
+                description="Compare multiple HuggingFace datasets side by side. Returns comparison metrics and recommendations.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dataset_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of HuggingFace dataset IDs to compare (minimum 2)",
+                            "minItems": 2
+                        },
+                        "include_quality": {
+                            "type": "boolean",
+                            "description": "Include quality metrics in comparison",
+                            "default": False
+                        }
+                    },
+                    "required": ["dataset_ids"]
+                }
+            ),
+            Tool(
+                name="profile_dataset",
+                description="Generate annotator profile and cost estimation for a dataset. Returns required skills, team size, and budget.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dataset_id": {
+                            "type": "string",
+                            "description": "HuggingFace dataset ID (e.g., 'tencent/CL-bench')"
+                        },
+                        "region": {
+                            "type": "string",
+                            "description": "Region for cost calculation (china/us/europe/india/sea)",
+                            "default": "china"
+                        }
+                    },
+                    "required": ["dataset_id"]
+                }
+            ),
+            Tool(
+                name="get_agent_context",
+                description="Get the AI Agent context file from a previous analysis. Returns structured data for AI Agent consumption.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "output_dir": {
+                            "type": "string",
+                            "description": "Path to the analysis output directory"
+                        }
+                    },
+                    "required": ["output_dir"]
+                }
+            ),
         ]
 
     @server.call_tool()
@@ -144,6 +236,16 @@ def create_server() -> "Server":
             return await _analyze_huggingface_dataset(arguments)
         elif name == "get_extraction_prompt":
             return await _get_extraction_prompt(arguments)
+        elif name == "extract_rubrics":
+            return await _extract_rubrics(arguments)
+        elif name == "extract_prompts":
+            return await _extract_prompts(arguments)
+        elif name == "compare_datasets":
+            return await _compare_datasets(arguments)
+        elif name == "profile_dataset":
+            return await _profile_dataset(arguments)
+        elif name == "get_agent_context":
+            return await _get_agent_context(arguments)
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -283,8 +385,10 @@ async def _analyze_huggingface_dataset(arguments: dict[str, Any]) -> list[TextCo
             "human_percentage": result.human_percentage,
             "files_generated": result.files_generated,
             "key_files": {
-                "analysis_report": f"{result.output_dir}/01_决策参考/ANALYSIS_REPORT.md",
+                "executive_summary": f"{result.output_dir}/01_决策参考/EXECUTIVE_SUMMARY.md",
                 "reproduction_guide": f"{result.output_dir}/04_复刻指南/REPRODUCTION_GUIDE.md",
+                "annotation_spec": f"{result.output_dir}/03_标注规范/ANNOTATION_SPEC.md",
+                "agent_context": f"{result.output_dir}/08_AI_Agent/agent_context.json",
             }
         }
 
@@ -314,6 +418,248 @@ async def _get_extraction_prompt(arguments: dict[str, Any]) -> list[TextContent]
     }
 
     return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False, indent=2))]
+
+
+async def _extract_rubrics(arguments: dict[str, Any]) -> list[TextContent]:
+    """Extract scoring rubrics from a dataset."""
+    from datarecipe.extractors import RubricsAnalyzer
+
+    dataset_id = arguments.get("dataset_id")
+    if not dataset_id:
+        return [TextContent(type="text", text="Error: dataset_id is required")]
+
+    sample_size = arguments.get("sample_size", 500)
+
+    try:
+        from datasets import load_dataset
+
+        # Load dataset
+        ds = load_dataset(dataset_id, split="train", streaming=True)
+
+        # Collect rubrics
+        rubrics = []
+        task_count = 0
+        for i, item in enumerate(ds):
+            if i >= sample_size:
+                break
+            task_count = i + 1
+            for field in ["rubrics", "rubric", "criteria", "evaluation"]:
+                if field in item:
+                    value = item[field]
+                    if isinstance(value, list):
+                        rubrics.extend(value)
+                    elif isinstance(value, str):
+                        rubrics.append(value)
+
+        if not rubrics:
+            return [TextContent(type="text", text=json.dumps({
+                "success": False,
+                "error": "No rubrics found in dataset",
+                "tried_fields": ["rubrics", "rubric", "criteria", "evaluation"]
+            }, ensure_ascii=False, indent=2))]
+
+        # Analyze
+        analyzer = RubricsAnalyzer()
+        result = analyzer.analyze(rubrics, task_count=task_count)
+
+        output = {
+            "success": True,
+            "dataset_id": dataset_id,
+            "total_rubrics": result.total_rubrics,
+            "unique_patterns": result.unique_patterns,
+            "avg_rubrics_per_task": result.avg_rubrics_per_task,
+            "top_verbs": dict(list(result.verb_distribution.items())[:10]),
+            "category_distribution": dict(result.category_distribution),
+            "structured_templates": result.structured_templates[:10],
+            "summary": result.summary()
+        }
+
+        return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error extracting rubrics: {e}")]
+
+
+async def _extract_prompts(arguments: dict[str, Any]) -> list[TextContent]:
+    """Extract prompt templates from a dataset."""
+    from datarecipe.extractors import PromptExtractor
+
+    dataset_id = arguments.get("dataset_id")
+    if not dataset_id:
+        return [TextContent(type="text", text="Error: dataset_id is required")]
+
+    sample_size = arguments.get("sample_size", 500)
+
+    try:
+        from datasets import load_dataset
+
+        # Load dataset
+        ds = load_dataset(dataset_id, split="train", streaming=True)
+
+        # Collect messages
+        messages = []
+        for i, item in enumerate(ds):
+            if i >= sample_size:
+                break
+            if "messages" in item and isinstance(item["messages"], list):
+                messages.extend(item["messages"])
+
+        if not messages:
+            return [TextContent(type="text", text=json.dumps({
+                "success": False,
+                "error": "No messages found in dataset",
+                "hint": "Dataset may not contain 'messages' field"
+            }, ensure_ascii=False, indent=2))]
+
+        # Extract prompts
+        extractor = PromptExtractor()
+        library = extractor.extract(messages)
+
+        output = {
+            "success": True,
+            "dataset_id": dataset_id,
+            "unique_count": library.unique_count,
+            "total_extracted": library.total_extracted,
+            "deduplication_ratio": library.deduplication_ratio,
+            "avg_length": library.avg_length,
+            "category_counts": dict(library.category_counts),
+            "domain_counts": dict(library.domain_counts),
+            "sample_prompts": [
+                {
+                    "category": p.category,
+                    "domain": p.domain,
+                    "preview": p.content[:200] + "..." if len(p.content) > 200 else p.content
+                }
+                for p in list(library.prompts.values())[:5]
+            ]
+        }
+
+        return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error extracting prompts: {e}")]
+
+
+async def _compare_datasets(arguments: dict[str, Any]) -> list[TextContent]:
+    """Compare multiple datasets."""
+    from datarecipe.comparator import DatasetComparator
+
+    dataset_ids = arguments.get("dataset_ids")
+    if not dataset_ids or len(dataset_ids) < 2:
+        return [TextContent(type="text", text="Error: At least 2 dataset_ids are required")]
+
+    include_quality = arguments.get("include_quality", False)
+
+    try:
+        comparator = DatasetComparator(include_quality=include_quality)
+        report = comparator.compare_by_ids(list(dataset_ids))
+
+        output = {
+            "success": True,
+            "datasets_compared": dataset_ids,
+            "comparison_table": report.to_markdown(),
+            "recommendations": report.recommendations,
+            "metrics": {
+                ds_id: {
+                    "sample_count": metrics.get("sample_count", 0),
+                    "field_count": metrics.get("field_count", 0),
+                    "estimated_cost": metrics.get("estimated_cost", 0),
+                }
+                for ds_id, metrics in report.dataset_metrics.items()
+            } if hasattr(report, 'dataset_metrics') else {}
+        }
+
+        return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error comparing datasets: {e}")]
+
+
+async def _profile_dataset(arguments: dict[str, Any]) -> list[TextContent]:
+    """Generate annotator profile for a dataset."""
+    from datarecipe.analyzer import DatasetAnalyzer
+    from datarecipe.profiler import AnnotatorProfiler
+
+    dataset_id = arguments.get("dataset_id")
+    if not dataset_id:
+        return [TextContent(type="text", text="Error: dataset_id is required")]
+
+    region = arguments.get("region", "china")
+
+    try:
+        analyzer = DatasetAnalyzer()
+        recipe = analyzer.analyze(dataset_id)
+
+        profiler = AnnotatorProfiler()
+        profile = profiler.generate_profile(recipe, region=region)
+
+        output = {
+            "success": True,
+            "dataset_id": dataset_id,
+            "region": region,
+            "profile": profile.to_dict(),
+            "summary": {
+                "required_skills": profile.required_skills,
+                "education_level": profile.education_level,
+                "experience_years": profile.experience_years,
+                "team_size": profile.recommended_team_size,
+                "estimated_duration_days": profile.estimated_duration_days,
+                "total_cost": profile.total_cost,
+            }
+        }
+
+        return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error profiling dataset: {e}")]
+
+
+async def _get_agent_context(arguments: dict[str, Any]) -> list[TextContent]:
+    """Get AI Agent context from analysis output."""
+    import os
+
+    output_dir = arguments.get("output_dir")
+    if not output_dir:
+        return [TextContent(type="text", text="Error: output_dir is required")]
+
+    agent_context_path = os.path.join(output_dir, "08_AI_Agent", "agent_context.json")
+
+    if not os.path.exists(agent_context_path):
+        # Try without 08_AI_Agent subdirectory
+        alt_path = os.path.join(output_dir, "agent_context.json")
+        if os.path.exists(alt_path):
+            agent_context_path = alt_path
+        else:
+            return [TextContent(type="text", text=json.dumps({
+                "success": False,
+                "error": "agent_context.json not found",
+                "searched_paths": [agent_context_path, alt_path],
+                "hint": "Run analyze_huggingface_dataset or generate_spec_output first"
+            }, ensure_ascii=False, indent=2))]
+
+    try:
+        with open(agent_context_path, "r", encoding="utf-8") as f:
+            context = json.load(f)
+
+        # Also try to load workflow state
+        workflow_path = os.path.join(os.path.dirname(agent_context_path), "workflow_state.json")
+        workflow_state = None
+        if os.path.exists(workflow_path):
+            with open(workflow_path, "r", encoding="utf-8") as f:
+                workflow_state = json.load(f)
+
+        output = {
+            "success": True,
+            "output_dir": output_dir,
+            "agent_context": context,
+            "workflow_state": workflow_state,
+            "available_files": os.listdir(os.path.dirname(agent_context_path))
+        }
+
+        return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error reading agent context: {e}")]
 
 
 async def main():
