@@ -58,6 +58,7 @@ class SpecOutputGenerator:
                 "cost": "05_成本分析",
                 "data": "06_原始数据",
                 "templates": "07_模板",
+                "ai_agent": "08_AI_Agent",
             }
             for key, subdir in subdirs.items():
                 os.makedirs(os.path.join(output_dir, subdir), exist_ok=True)
@@ -82,6 +83,13 @@ class SpecOutputGenerator:
             # Conditionally generate difficulty validation guide
             if analysis.has_difficulty_validation():
                 self._generate_difficulty_validation(analysis, output_dir, subdirs, result)
+
+            # Generate AI Agent layer
+            self._generate_ai_agent_context(analysis, output_dir, subdirs, target_size, region, result)
+            self._generate_ai_workflow_state(analysis, output_dir, subdirs, result)
+            self._generate_ai_reasoning_traces(analysis, output_dir, subdirs, target_size, region, result)
+            self._generate_ai_pipeline(analysis, output_dir, subdirs, result)
+            self._generate_ai_readme(analysis, output_dir, subdirs, result)
 
             self._generate_readme(analysis, output_dir, subdirs, result)
 
@@ -783,8 +791,14 @@ class SpecOutputGenerator:
         lines.append(f"├── {subdirs['templates']}/              # 📋 模板")
         lines.append("│   └── data_template.json       # 数据模板")
         lines.append("│")
-        lines.append(f"└── {subdirs['data']}/           # 📊 原始数据")
-        lines.append("    └── spec_analysis.json       # 分析数据")
+        lines.append(f"├── {subdirs['data']}/           # 📊 原始数据")
+        lines.append("│   └── spec_analysis.json       # 分析数据")
+        lines.append("│")
+        lines.append(f"└── {subdirs['ai_agent']}/            # 🤖 AI Agent")
+        lines.append("    ├── agent_context.json       # 聚合入口")
+        lines.append("    ├── workflow_state.json      # 工作流状态")
+        lines.append("    ├── reasoning_traces.json    # 推理链")
+        lines.append("    └── pipeline.yaml            # 可执行流水线")
         lines.append("```")
         lines.append("")
         lines.append("## 快速导航")
@@ -798,6 +812,7 @@ class SpecOutputGenerator:
         lines.append(f"| **生产流程** | `{subdirs['guide']}/PRODUCTION_SOP.md` |")
         lines.append(f"| **数据模板** | `{subdirs['templates']}/data_template.json` |")
         lines.append(f"| **成本预算** | `{subdirs['cost']}/COST_BREAKDOWN.md` |")
+        lines.append(f"| **AI Agent** | `{subdirs['ai_agent']}/agent_context.json` |")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -1781,3 +1796,692 @@ class SpecOutputGenerator:
             multiplier *= 1.0
 
         return base * multiplier
+
+    # ========== AI Agent Layer ==========
+
+    def _generate_ai_agent_context(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        target_size: int,
+        region: str,
+        result: SpecOutputResult,
+    ):
+        """Generate agent_context.json - aggregated entry point for AI agents."""
+        cost_per_item = self._estimate_cost_per_item(analysis, region)
+        total_cost = cost_per_item * target_size
+
+        context = {
+            "_meta": {
+                "version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "generator": "DataRecipe",
+                "purpose": "AI Agent 聚合入口，引用其他文件而非复制"
+            },
+            "project": {
+                "name": analysis.project_name,
+                "type": analysis.dataset_type,
+                "description": analysis.description or analysis.task_description,
+                "difficulty": analysis.estimated_difficulty,
+                "domain": analysis.estimated_domain,
+            },
+            "summary": {
+                "target_size": target_size,
+                "total_cost": round(total_cost, 2),
+                "cost_per_item": round(cost_per_item, 2),
+                "human_percentage": analysis.estimated_human_percentage,
+                "has_images": analysis.has_images,
+                "image_count": analysis.image_count,
+                "field_count": len(analysis.fields),
+                "has_difficulty_validation": analysis.has_difficulty_validation(),
+            },
+            "key_decisions": [
+                {
+                    "decision": "difficulty_level",
+                    "value": analysis.estimated_difficulty,
+                    "reasoning_ref": "#/reasoning/difficulty"
+                },
+                {
+                    "decision": "human_percentage",
+                    "value": analysis.estimated_human_percentage,
+                    "reasoning_ref": "#/reasoning/human_percentage"
+                },
+                {
+                    "decision": "cost_estimate",
+                    "value": round(total_cost, 2),
+                    "reasoning_ref": "#/reasoning/cost"
+                }
+            ],
+            "validation": None,
+            "file_references": {
+                "executive_summary": f"../{subdirs['decision']}/EXECUTIVE_SUMMARY.md",
+                "milestone_plan": f"../{subdirs['project']}/MILESTONE_PLAN.md",
+                "annotation_spec": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
+                "training_guide": f"../{subdirs['annotation']}/TRAINING_GUIDE.md",
+                "qa_checklist": f"../{subdirs['annotation']}/QA_CHECKLIST.md",
+                "production_sop": f"../{subdirs['guide']}/PRODUCTION_SOP.md",
+                "data_schema": f"../{subdirs['guide']}/DATA_SCHEMA.json",
+                "cost_breakdown": f"../{subdirs['cost']}/COST_BREAKDOWN.md",
+                "data_template": f"../{subdirs['templates']}/data_template.json",
+                "raw_analysis": f"../{subdirs['data']}/spec_analysis.json",
+            },
+            "quick_actions": [
+                {
+                    "action": "review_spec",
+                    "description": "审核标注规范",
+                    "file": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
+                    "assignee": "human"
+                },
+                {
+                    "action": "setup_tool",
+                    "description": "配置标注工具",
+                    "config": f"../{subdirs['guide']}/DATA_SCHEMA.json",
+                    "assignee": "agent"
+                },
+                {
+                    "action": "create_sample",
+                    "description": "创建样本数据",
+                    "template": f"../{subdirs['templates']}/data_template.json",
+                    "assignee": "human"
+                }
+            ]
+        }
+
+        # Add validation config if present
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            context["validation"] = {
+                "enabled": True,
+                "model": diff_val.get("model"),
+                "settings": diff_val.get("settings"),
+                "test_count": diff_val.get("test_count", 3),
+                "max_correct": diff_val.get("max_correct", 1),
+                "guide_ref": f"../{subdirs['guide']}/DIFFICULTY_VALIDATION.md"
+            }
+            context["file_references"]["difficulty_validation"] = f"../{subdirs['guide']}/DIFFICULTY_VALIDATION.md"
+
+        path = os.path.join(output_dir, subdirs["ai_agent"], "agent_context.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(context, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(f"{subdirs['ai_agent']}/agent_context.json")
+
+    def _generate_ai_workflow_state(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate workflow_state.json - workflow state tracking."""
+        state = {
+            "_meta": {
+                "version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "purpose": "工作流状态追踪，供 AI Agent 了解当前进度和下一步"
+            },
+            "current_phase": "ready_for_review",
+            "phases": {
+                "analysis": {
+                    "status": "completed",
+                    "description": "需求文档分析",
+                    "outputs": [
+                        f"../{subdirs['data']}/spec_analysis.json"
+                    ]
+                },
+                "planning": {
+                    "status": "completed",
+                    "description": "项目规划与成本估算",
+                    "outputs": [
+                        f"../{subdirs['decision']}/EXECUTIVE_SUMMARY.md",
+                        f"../{subdirs['project']}/MILESTONE_PLAN.md",
+                        f"../{subdirs['cost']}/COST_BREAKDOWN.md"
+                    ]
+                },
+                "spec_generation": {
+                    "status": "completed",
+                    "description": "标注规范与培训材料生成",
+                    "outputs": [
+                        f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
+                        f"../{subdirs['annotation']}/TRAINING_GUIDE.md",
+                        f"../{subdirs['annotation']}/QA_CHECKLIST.md"
+                    ]
+                },
+                "review": {
+                    "status": "pending",
+                    "description": "人工审核标注规范",
+                    "blocked_by": [],
+                    "assignee": "human"
+                },
+                "pilot": {
+                    "status": "pending",
+                    "description": "试点标注",
+                    "blocked_by": ["review"],
+                    "assignee": "human"
+                },
+                "production": {
+                    "status": "pending",
+                    "description": "主体标注",
+                    "blocked_by": ["pilot"],
+                    "assignee": "human"
+                },
+                "quality_check": {
+                    "status": "pending",
+                    "description": "质量审核",
+                    "blocked_by": ["production"],
+                    "assignee": "human"
+                }
+            },
+            "next_actions": [
+                {
+                    "action": "review_annotation_spec",
+                    "description": "审核标注规范是否符合需求",
+                    "file": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
+                    "assignee": "human",
+                    "priority": "high"
+                },
+                {
+                    "action": "review_training_guide",
+                    "description": "审核培训手册是否清晰",
+                    "file": f"../{subdirs['annotation']}/TRAINING_GUIDE.md",
+                    "assignee": "human",
+                    "priority": "high"
+                },
+                {
+                    "action": "approve_cost_estimate",
+                    "description": "确认成本估算并批准预算",
+                    "file": f"../{subdirs['cost']}/COST_BREAKDOWN.md",
+                    "assignee": "human",
+                    "priority": "medium"
+                }
+            ],
+            "blockers": [],
+            "decisions_needed": [
+                {
+                    "question": "标注规范是否需要修改？",
+                    "options": ["approved", "needs_revision"],
+                    "impact": "影响后续试点阶段启动"
+                },
+                {
+                    "question": "成本预算是否批准？",
+                    "options": ["approved", "needs_adjustment", "rejected"],
+                    "impact": "影响项目是否继续"
+                }
+            ]
+        }
+
+        path = os.path.join(output_dir, subdirs["ai_agent"], "workflow_state.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(f"{subdirs['ai_agent']}/workflow_state.json")
+
+    def _generate_ai_reasoning_traces(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        target_size: int,
+        region: str,
+        result: SpecOutputResult,
+    ):
+        """Generate reasoning_traces.json - reasoning chains for all conclusions."""
+        cost_per_item = self._estimate_cost_per_item(analysis, region)
+
+        traces = {
+            "_meta": {
+                "version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "purpose": "所有结论的推理链，供人类理解和 AI 验证"
+            },
+            "reasoning": {
+                "difficulty": {
+                    "conclusion": {
+                        "value": analysis.estimated_difficulty,
+                        "display": f"难度: {analysis.estimated_difficulty}"
+                    },
+                    "chain": [],
+                    "confidence": 0.0,
+                    "assumptions": [
+                        "假设标注员无相关领域背景",
+                        "假设按照标准培训流程"
+                    ],
+                    "human_explanation": ""
+                },
+                "human_percentage": {
+                    "conclusion": {
+                        "value": analysis.estimated_human_percentage,
+                        "display": f"人工比例: {analysis.estimated_human_percentage}%"
+                    },
+                    "chain": [],
+                    "confidence": 0.0,
+                    "assumptions": [],
+                    "human_explanation": ""
+                },
+                "cost": {
+                    "conclusion": {
+                        "value": round(cost_per_item * target_size, 2),
+                        "display": f"总成本: ${cost_per_item * target_size:,.0f}"
+                    },
+                    "chain": [],
+                    "confidence": 0.0,
+                    "range": {
+                        "low": round(cost_per_item * target_size * 0.7, 2),
+                        "high": round(cost_per_item * target_size * 1.4, 2)
+                    },
+                    "assumptions": [],
+                    "human_explanation": ""
+                }
+            }
+        }
+
+        # Build difficulty reasoning chain
+        difficulty_chain = []
+        confidence = 0.5  # Base confidence
+
+        if analysis.reasoning_chain:
+            chain_len = len(analysis.reasoning_chain)
+            difficulty_chain.append({
+                "step": "分析推理链长度",
+                "evidence": f"推理链有 {chain_len} 步",
+                "impact": "hard" if chain_len > 3 else "medium" if chain_len > 2 else "easy"
+            })
+            confidence += 0.1
+
+        if analysis.cognitive_requirements:
+            req_count = len(analysis.cognitive_requirements)
+            difficulty_chain.append({
+                "step": "评估认知要求",
+                "evidence": f"需要 {req_count} 项认知能力",
+                "impact": "expert" if req_count > 3 else "hard" if req_count > 2 else "medium"
+            })
+            confidence += 0.1
+
+        if analysis.has_images:
+            difficulty_chain.append({
+                "step": "检测多模态要求",
+                "evidence": f"包含 {analysis.image_count} 张图片",
+                "impact": "增加难度 - 需要视觉理解能力"
+            })
+            confidence += 0.1
+
+        if analysis.forbidden_items:
+            difficulty_chain.append({
+                "step": "检查禁止项",
+                "evidence": f"有 {len(analysis.forbidden_items)} 项禁止内容",
+                "impact": "增加难度 - 需要更严格的质量控制"
+            })
+            confidence += 0.05
+
+        traces["reasoning"]["difficulty"]["chain"] = difficulty_chain
+        traces["reasoning"]["difficulty"]["confidence"] = min(confidence, 0.95)
+        traces["reasoning"]["difficulty"]["human_explanation"] = self._build_difficulty_explanation(analysis)
+
+        # Build human percentage reasoning chain
+        human_chain = []
+        human_confidence = 0.7
+
+        if analysis.forbidden_items:
+            has_ai_restriction = any("AI" in item or "ai" in item.lower() for item in analysis.forbidden_items)
+            if has_ai_restriction:
+                human_chain.append({
+                    "step": "检测 AI 内容限制",
+                    "evidence": "禁止使用 AI 生成内容",
+                    "impact": "人工比例 100%"
+                })
+                human_confidence = 0.95
+            else:
+                human_chain.append({
+                    "step": "检测内容限制",
+                    "evidence": f"有 {len(analysis.forbidden_items)} 项限制",
+                    "impact": "人工比例 > 80%"
+                })
+
+        traces["reasoning"]["human_percentage"]["chain"] = human_chain
+        traces["reasoning"]["human_percentage"]["confidence"] = human_confidence
+        traces["reasoning"]["human_percentage"]["human_explanation"] = (
+            f"由于{'禁止使用 AI 生成内容，' if analysis.forbidden_items else ''}"
+            f"预估人工比例为 {analysis.estimated_human_percentage}%。"
+        )
+
+        # Build cost reasoning chain
+        cost_chain = [
+            {
+                "step": "确定基础成本",
+                "evidence": f"难度 {analysis.estimated_difficulty} 对应基础成本",
+                "value": {"easy": 5, "medium": 10, "hard": 20, "expert": 40}.get(analysis.estimated_difficulty, 15)
+            }
+        ]
+
+        if analysis.has_images:
+            cost_chain.append({
+                "step": "应用图片乘数",
+                "evidence": "包含图片，成本 ×1.5",
+                "multiplier": 1.5
+            })
+
+        if len(analysis.reasoning_chain) > 3:
+            cost_chain.append({
+                "step": "应用复杂度乘数",
+                "evidence": "推理链 > 3 步，成本 ×1.3",
+                "multiplier": 1.3
+            })
+
+        if analysis.forbidden_items:
+            cost_chain.append({
+                "step": "应用人工乘数",
+                "evidence": "有内容限制，需全人工，成本 ×1.2",
+                "multiplier": 1.2
+            })
+
+        if region == "china":
+            cost_chain.append({
+                "step": "应用区域调整",
+                "evidence": "中国区域，成本 ×0.6",
+                "multiplier": 0.6
+            })
+
+        cost_chain.append({
+            "step": "计算总成本",
+            "evidence": f"单条 ${cost_per_item:.2f} × {target_size} 条",
+            "result": round(cost_per_item * target_size, 2)
+        })
+
+        traces["reasoning"]["cost"]["chain"] = cost_chain
+        traces["reasoning"]["cost"]["confidence"] = 0.75
+        traces["reasoning"]["cost"]["assumptions"] = [
+            "假设标注效率稳定",
+            "假设返工率 < 10%",
+            "假设无突发人力短缺"
+        ]
+        traces["reasoning"]["cost"]["human_explanation"] = (
+            f"基于难度({analysis.estimated_difficulty})、图片({analysis.has_images})、"
+            f"复杂度({len(analysis.reasoning_chain)}步推理)和区域({region})计算，"
+            f"预估总成本 ${cost_per_item * target_size:,.0f}，"
+            f"置信区间 ${cost_per_item * target_size * 0.7:,.0f} - ${cost_per_item * target_size * 1.4:,.0f}。"
+        )
+
+        path = os.path.join(output_dir, subdirs["ai_agent"], "reasoning_traces.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(traces, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(f"{subdirs['ai_agent']}/reasoning_traces.json")
+
+    def _build_difficulty_explanation(self, analysis: SpecificationAnalysis) -> str:
+        """Build human-readable difficulty explanation."""
+        parts = []
+
+        if analysis.cognitive_requirements:
+            parts.append(f"需要 {len(analysis.cognitive_requirements)} 项认知能力")
+
+        if analysis.reasoning_chain:
+            parts.append(f"推理链长达 {len(analysis.reasoning_chain)} 步")
+
+        if analysis.has_images:
+            parts.append("需要视觉理解能力")
+
+        if parts:
+            return f"该任务{', '.join(parts)}，属于{analysis.estimated_difficulty}级难度。"
+        return f"基于综合评估，难度为{analysis.estimated_difficulty}级。"
+
+    def _generate_ai_pipeline(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate pipeline.yaml - executable pipeline for AI agents."""
+        lines = []
+        lines.append("# 数据生产流水线")
+        lines.append("# 供 AI Agent 执行的可操作步骤")
+        lines.append("")
+        lines.append("name: 数据生产流水线")
+        lines.append("version: '1.0'")
+        lines.append(f"project: {analysis.project_name}")
+        lines.append(f"generated_at: {datetime.now().isoformat()}")
+        lines.append("")
+
+        # Variables section
+        lines.append("variables:")
+        lines.append(f"  project_name: \"{analysis.project_name}\"")
+        lines.append(f"  target_size: 100  # 可调整")
+        lines.append(f"  difficulty: \"{analysis.estimated_difficulty}\"")
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            lines.append(f"  validation_model: \"{diff_val.get('model', '')}\"")
+            lines.append(f"  validation_settings: \"{diff_val.get('settings', '')}\"")
+            lines.append(f"  validation_test_count: {diff_val.get('test_count', 3)}")
+            lines.append(f"  validation_max_correct: {diff_val.get('max_correct', 1)}")
+        lines.append("")
+
+        # Phases
+        lines.append("phases:")
+        lines.append("")
+
+        # Phase 1: Setup
+        lines.append("  - name: setup")
+        lines.append("    description: 环境准备")
+        lines.append("    steps:")
+        lines.append("      - action: validate_schema")
+        lines.append("        description: 验证数据格式定义")
+        lines.append(f"        input: ../{subdirs['guide']}/DATA_SCHEMA.json")
+        lines.append("        assignee: agent")
+        lines.append("")
+        lines.append("      - action: prepare_template")
+        lines.append("        description: 准备数据模板")
+        lines.append(f"        input: ../{subdirs['templates']}/data_template.json")
+        lines.append("        assignee: agent")
+        lines.append("")
+        lines.append("      - action: review_training_guide")
+        lines.append("        description: 审核培训手册")
+        lines.append(f"        input: ../{subdirs['annotation']}/TRAINING_GUIDE.md")
+        lines.append("        assignee: human")
+        lines.append("        required: true")
+        lines.append("")
+
+        # Phase 2: Pilot
+        lines.append("  - name: pilot")
+        lines.append("    description: 试点标注")
+        lines.append("    depends_on: [setup]")
+        lines.append("    steps:")
+        lines.append("      - action: create_pilot_samples")
+        lines.append("        description: 创建试点样本 (5-10 条)")
+        lines.append(f"        template: ../{subdirs['templates']}/data_template.json")
+        lines.append(f"        spec: ../{subdirs['annotation']}/ANNOTATION_SPEC.md")
+        lines.append("        count: 10")
+        lines.append("        assignee: human")
+        lines.append("")
+        lines.append("      - action: quality_review_pilot")
+        lines.append("        description: 试点质量审核")
+        lines.append(f"        checklist: ../{subdirs['annotation']}/QA_CHECKLIST.md")
+        lines.append("        assignee: human")
+        lines.append("")
+
+        # Phase 3: Difficulty Validation (conditional)
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            lines.append("  - name: difficulty_validation")
+            lines.append("    description: 难度验证")
+            lines.append("    depends_on: [pilot]")
+            lines.append("    condition: \"validation_enabled == true\"")
+            lines.append("    steps:")
+            lines.append("      - action: run_model_test")
+            lines.append("        description: 执行模型测试")
+            lines.append("        config:")
+            lines.append(f"          model: \"{{{{ validation_model }}}}\"")
+            lines.append(f"          settings: \"{{{{ validation_settings }}}}\"")
+            lines.append(f"          test_count: {{{{ validation_test_count }}}}")
+            lines.append(f"          max_correct: {{{{ validation_max_correct }}}}")
+            lines.append(f"        reference: ../{subdirs['guide']}/DIFFICULTY_VALIDATION.md")
+            lines.append("        assignee: human")
+            lines.append("")
+            lines.append("      - action: validate_difficulty_result")
+            lines.append("        description: 验证难度测试结果")
+            lines.append("        success_criteria:")
+            lines.append(f"          correct_count: \"<= {{{{ validation_max_correct }}}}\"")
+            lines.append("        on_failure: revise_question")
+            lines.append("        assignee: agent")
+            lines.append("")
+
+        # Phase 4: Production
+        lines.append("  - name: production")
+        lines.append("    description: 主体标注")
+        if analysis.has_difficulty_validation():
+            lines.append("    depends_on: [difficulty_validation]")
+        else:
+            lines.append("    depends_on: [pilot]")
+        lines.append("    steps:")
+        lines.append("      - action: batch_annotation")
+        lines.append("        description: 批量标注")
+        lines.append(f"        template: ../{subdirs['templates']}/data_template.json")
+        lines.append(f"        spec: ../{subdirs['annotation']}/ANNOTATION_SPEC.md")
+        lines.append("        count: \"{{ target_size }}\"")
+        lines.append("        assignee: human")
+        lines.append("")
+        lines.append("      - action: incremental_qa")
+        lines.append("        description: 增量质检")
+        lines.append(f"        checklist: ../{subdirs['annotation']}/QA_CHECKLIST.md")
+        lines.append("        sample_rate: 0.2")
+        lines.append("        assignee: human")
+        lines.append("")
+
+        # Phase 5: Final QA
+        lines.append("  - name: final_qa")
+        lines.append("    description: 最终质量审核")
+        lines.append("    depends_on: [production]")
+        lines.append("    steps:")
+        lines.append("      - action: full_qa_review")
+        lines.append("        description: 全量质检")
+        lines.append(f"        checklist: ../{subdirs['annotation']}/QA_CHECKLIST.md")
+        lines.append("        assignee: human")
+        lines.append("")
+        lines.append("      - action: generate_qa_report")
+        lines.append("        description: 生成质检报告")
+        lines.append("        assignee: agent")
+        lines.append("")
+        lines.append("      - action: final_approval")
+        lines.append("        description: 最终审批")
+        lines.append("        assignee: human")
+        lines.append("        required: true")
+        lines.append("")
+
+        # Error handling
+        lines.append("error_handling:")
+        lines.append("  on_qa_failure:")
+        lines.append("    action: flag_for_revision")
+        lines.append("    notify: human")
+        lines.append("  on_validation_failure:")
+        lines.append("    action: increase_difficulty")
+        lines.append("    retry: true")
+        lines.append("    max_retries: 3")
+
+        path = os.path.join(output_dir, subdirs["ai_agent"], "pipeline.yaml")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(f"{subdirs['ai_agent']}/pipeline.yaml")
+
+    def _generate_ai_readme(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate README.md for AI Agent directory."""
+        lines = []
+        lines.append(f"# {analysis.project_name} - AI Agent 入口")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append("")
+        lines.append("本目录包含供 AI Agent 消费的结构化数据，与人类可读的 Markdown 文档互补。")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        lines.append("## 文件说明")
+        lines.append("")
+        lines.append("| 文件 | 用途 | 消费者 |")
+        lines.append("|------|------|--------|")
+        lines.append("| `agent_context.json` | 聚合入口，引用其他文件 | AI Agent |")
+        lines.append("| `workflow_state.json` | 工作流状态，当前阶段和下一步 | AI Agent |")
+        lines.append("| `reasoning_traces.json` | 推理链，解释每个结论的原因 | AI Agent + 人类 |")
+        lines.append("| `pipeline.yaml` | 可执行流水线，定义标准操作步骤 | AI Agent |")
+        lines.append("")
+
+        lines.append("## 快速开始")
+        lines.append("")
+        lines.append("### 1. 获取项目上下文")
+        lines.append("")
+        lines.append("```python")
+        lines.append("import json")
+        lines.append("")
+        lines.append("with open('agent_context.json') as f:")
+        lines.append("    context = json.load(f)")
+        lines.append("")
+        lines.append("print(f\"项目: {context['project']['name']}\")")
+        lines.append("print(f\"难度: {context['project']['difficulty']}\")")
+        lines.append("print(f\"总成本: ${context['summary']['total_cost']}\")")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("### 2. 检查工作流状态")
+        lines.append("")
+        lines.append("```python")
+        lines.append("with open('workflow_state.json') as f:")
+        lines.append("    state = json.load(f)")
+        lines.append("")
+        lines.append("print(f\"当前阶段: {state['current_phase']}\")")
+        lines.append("for action in state['next_actions']:")
+        lines.append("    print(f\"下一步: {action['description']} ({action['assignee']})\")")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("### 3. 理解决策推理")
+        lines.append("")
+        lines.append("```python")
+        lines.append("with open('reasoning_traces.json') as f:")
+        lines.append("    traces = json.load(f)")
+        lines.append("")
+        lines.append("difficulty = traces['reasoning']['difficulty']")
+        lines.append("print(f\"难度: {difficulty['conclusion']['value']}\")")
+        lines.append("print(f\"置信度: {difficulty['confidence']}\")")
+        lines.append("print(f\"原因: {difficulty['human_explanation']}\")")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("### 4. 执行流水线")
+        lines.append("")
+        lines.append("```python")
+        lines.append("import yaml")
+        lines.append("")
+        lines.append("with open('pipeline.yaml') as f:")
+        lines.append("    pipeline = yaml.safe_load(f)")
+        lines.append("")
+        lines.append("for phase in pipeline['phases']:")
+        lines.append("    print(f\"阶段: {phase['name']}\")")
+        lines.append("    for step in phase['steps']:")
+        lines.append("        print(f\"  - {step['action']}: {step['description']}\")")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("## 与人类文档的关系")
+        lines.append("")
+        lines.append("```")
+        lines.append("AI Agent 文件              人类文档")
+        lines.append("─────────────────────────────────────────────")
+        lines.append(f"agent_context.json    →  ../README.md (导航)")
+        lines.append(f"workflow_state.json   →  ../{subdirs['project']}/MILESTONE_PLAN.md")
+        lines.append(f"reasoning_traces.json →  ../{subdirs['decision']}/EXECUTIVE_SUMMARY.md")
+        lines.append(f"pipeline.yaml         →  ../{subdirs['guide']}/PRODUCTION_SOP.md")
+        lines.append("```")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("*本目录由 DataRecipe 自动生成*")
+
+        path = os.path.join(output_dir, subdirs["ai_agent"], "README.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+        result.files_generated.append(f"{subdirs['ai_agent']}/README.md")
