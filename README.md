@@ -136,7 +136,7 @@ datarecipe analyze-spec requirements.pdf --from-json analysis.json
 ✓ 加载完成: ICL多模态复杂推理基准
 
 📝 生成项目文档...
-✓ 生成完成 (22 个文件)
+✓ 生成完成 (23 个文件)
 
 核心产出:
   📄 执行摘要: ./output/ICL多模态复杂推理基准/01_决策参考/EXECUTIVE_SUMMARY.md
@@ -300,7 +300,7 @@ datarecipe deep-analyze unknown/dataset --use-llm
 | 工具 | 功能 |
 |------|------|
 | `parse_spec_document` | 解析需求文档 (PDF/Word/图片) |
-| `generate_spec_output` | 生成项目文档 (22 个文件) |
+| `generate_spec_output` | 生成项目文档 (23 个文件) |
 | `analyze_huggingface_dataset` | 深度分析 HuggingFace 数据集 |
 | `get_extraction_prompt` | 获取 LLM 提取模板 |
 | `extract_rubrics` | 提取评分标准模式 |
@@ -319,7 +319,7 @@ Claude: [调用 parse_spec_document]
         [分析文档，自动识别难度验证要求: doubao1.8 跑 3 次]
 
         [调用 generate_spec_output]
-        ✅ 已生成 22 个文件:
+        ✅ 已生成 23 个文件:
         - 执行摘要、里程碑计划、标注规范
         - 培训手册、质检清单、生产流程
         - 难度验证、数据模板...
@@ -404,7 +404,7 @@ src/datarecipe/
 ├── parsers/                 # 文档解析
 │   └── document_parser.py   # PDF/Word/图片
 ├── generators/              # 文档生成
-│   ├── spec_output.py       # 需求文档产出 (22 个文件)
+│   ├── spec_output.py       # 需求文档产出 (23 个文件)
 │   ├── executive_summary.py
 │   ├── milestone_plan.py
 │   └── annotation_spec.py
@@ -414,7 +414,7 @@ src/datarecipe/
 ├── extractors/              # 模式提取
 │   ├── rubric_extractor.py
 │   └── prompt_extractor.py
-├── mcp_server.py            # MCP Server (10 工具)
+├── mcp_server.py            # MCP Server (9 工具)
 └── cli.py                   # CLI 入口
 ```
 
