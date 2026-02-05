@@ -562,6 +562,35 @@ class DeepAnalyzerCore:
                 f.write(guide)
             result.files_generated.append("REPRODUCTION_GUIDE.md")
 
+            # Annotation specification (forward-looking production guide)
+            try:
+                from datarecipe.generators.annotation_spec import AnnotationSpecGenerator
+                spec_generator = AnnotationSpecGenerator()
+                annotation_spec = spec_generator.generate(
+                    dataset_id=dataset_id,
+                    dataset_type=detected_type or "unknown",
+                    schema_info=schema_info,
+                    sample_items=sample_items,
+                    rubrics_result=rubrics_result,
+                    llm_analysis=llm_analysis,
+                    complexity_metrics=complexity_metrics,
+                )
+
+                # Save as Markdown
+                spec_md = spec_generator.to_markdown(annotation_spec)
+                with open(os.path.join(dataset_output_dir, "ANNOTATION_SPEC.md"), "w", encoding="utf-8") as f:
+                    f.write(spec_md)
+                result.files_generated.append("ANNOTATION_SPEC.md")
+
+                # Save as JSON
+                spec_dict = spec_generator.to_dict(annotation_spec)
+                with open(os.path.join(dataset_output_dir, "annotation_spec.json"), "w", encoding="utf-8") as f:
+                    json.dump(spec_dict, f, indent=2, ensure_ascii=False)
+                result.files_generated.append("annotation_spec.json")
+
+            except Exception:
+                pass
+
             # Recipe summary
             summary = RadarIntegration.create_summary(
                 dataset_id=dataset_id,
