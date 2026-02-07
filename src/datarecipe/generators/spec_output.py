@@ -47,6 +47,9 @@ class SpecOutputGenerator:
         result = SpecOutputResult()
 
         try:
+            # Populate fields from task_profiles if analysis has none
+            self._ensure_fields(analysis)
+
             # Create output directory with structure
             project_name = analysis.project_name or "spec_analysis"
             safe_name = project_name.replace("/", "_").replace(" ", "_")
@@ -104,6 +107,27 @@ class SpecOutputGenerator:
             result.error = str(e)
 
         return result
+
+    def _ensure_fields(self, analysis: SpecificationAnalysis) -> None:
+        """Populate analysis.fields from task_profiles when empty."""
+        if analysis.fields:
+            return
+
+        profile = get_task_profile(analysis.dataset_type or "unknown")
+        if profile.default_fields:
+            analysis.fields = profile.default_fields
+
+        # Also populate cognitive/reasoning/constraints from profile if empty
+        if not analysis.cognitive_requirements and profile.cognitive_requirements:
+            analysis.cognitive_requirements = profile.cognitive_requirements
+        if not analysis.reasoning_chain and profile.reasoning_chain:
+            analysis.reasoning_chain = [s.strip() for s in profile.reasoning_chain.split("→")]
+        if not analysis.quality_constraints and profile.default_quality_constraints:
+            analysis.quality_constraints = profile.default_quality_constraints
+
+        # Invalidate cached field_definitions
+        if hasattr(analysis, "_cached_field_definitions"):
+            object.__setattr__(analysis, "_cached_field_definitions", None)
 
     def _generate_annotation_spec(
         self,
@@ -207,30 +231,48 @@ class SpecOutputGenerator:
         lines.append("## 五、示例")
         lines.append("")
 
-        for i, example in enumerate(analysis.examples[:3], 1):
-            lines.append(f"### 示例 {i}")
+        if analysis.examples:
+            for i, example in enumerate(analysis.examples[:3], 1):
+                lines.append(f"### 示例 {i}")
+                lines.append("")
+
+                if example.get("has_image"):
+                    lines.append("**[包含图片]**")
+                    lines.append("")
+
+                if example.get("question"):
+                    lines.append("**题目**:")
+                    lines.append("")
+                    lines.append(f"> {example['question']}")
+                    lines.append("")
+
+                if example.get("answer"):
+                    lines.append(f"**答案**: {example['answer']}")
+                    lines.append("")
+
+                if example.get("scoring_rubric"):
+                    lines.append("**打分标准**:")
+                    lines.append("")
+                    lines.append(f"{example['scoring_rubric']}")
+                    lines.append("")
+
+                lines.append("---")
+                lines.append("")
+        else:
+            # Generate example structure from fields
+            lines.append("*（以下为基于字段定义的数据模板，请参考此格式制作实际数据）*")
             lines.append("")
-
-            if example.get("has_image"):
-                lines.append("**[包含图片]**")
+            if analysis.fields:
+                lines.append("```json")
+                lines.append("{")
+                for j, f in enumerate(analysis.fields):
+                    name = f.get("name", "field")
+                    desc = f.get("description", "")
+                    comma = "," if j < len(analysis.fields) - 1 else ""
+                    lines.append(f'  "{name}": "<{desc}>"{comma}')
+                lines.append("}")
+                lines.append("```")
                 lines.append("")
-
-            if example.get("question"):
-                lines.append("**题目**:")
-                lines.append("")
-                lines.append(f"> {example['question']}")
-                lines.append("")
-
-            if example.get("answer"):
-                lines.append(f"**答案**: {example['answer']}")
-                lines.append("")
-
-            if example.get("scoring_rubric"):
-                lines.append("**打分标准**:")
-                lines.append("")
-                lines.append(f"{example['scoring_rubric']}")
-                lines.append("")
-
             lines.append("---")
             lines.append("")
 
@@ -980,29 +1022,44 @@ class SpecOutputGenerator:
         lines.append("## 四、示例讲解")
         lines.append("")
 
-        for i, example in enumerate(analysis.examples[:3], 1):
-            lines.append(f"### 4.{i} 优秀示例分析")
-            lines.append("")
-            lines.append(f"#### 示例 {i}")
-            lines.append("")
-
-            if example.get("question"):
-                lines.append(f"**题目**: {example['question'][:100]}...")
+        if analysis.examples:
+            for i, example in enumerate(analysis.examples[:3], 1):
+                lines.append(f"### 4.{i} 示例分析")
                 lines.append("")
 
-            if example.get("answer"):
-                lines.append(f"**答案**: {example['answer']}")
-                lines.append("")
+                if example.get("question"):
+                    lines.append(f"**题目**: {example['question'][:200]}")
+                    lines.append("")
 
-            if example.get("scoring_rubric"):
-                lines.append(f"**评分标准**: {example['scoring_rubric']}")
-                lines.append("")
+                if example.get("answer"):
+                    lines.append(f"**答案**: {example['answer']}")
+                    lines.append("")
 
-            lines.append("**优秀原因**:")
-            lines.append("- 题意清晰，无歧义")
-            lines.append("- 答案明确")
-            lines.append("- 评分标准具体")
+                if example.get("scoring_rubric"):
+                    lines.append(f"**评分标准**: {example['scoring_rubric']}")
+                    lines.append("")
+
+                if example.get("analysis"):
+                    lines.append(f"**分析**: {example['analysis']}")
+                    lines.append("")
+                lines.append("")
+        else:
+            # Generate example template from field definitions
+            lines.append("*（文档中未提供完整示例，以下为基于字段定义的模板）*")
             lines.append("")
+            if analysis.fields:
+                lines.append("### 示例模板")
+                lines.append("")
+                lines.append("```json")
+                lines.append("{")
+                for j, f in enumerate(analysis.fields):
+                    name = f.get("name", "field")
+                    desc = f.get("description", "")
+                    comma = "," if j < len(analysis.fields) - 1 else ""
+                    lines.append(f'  "{name}": "<{desc}>"{comma}')
+                lines.append("}")
+                lines.append("```")
+                lines.append("")
 
         # Section 5: Common Errors
         lines.append("---")
@@ -1010,32 +1067,44 @@ class SpecOutputGenerator:
         lines.append("## 五、常见错误")
         lines.append("")
 
-        lines.append("### 5.1 题目设计错误")
-        lines.append("")
-        lines.append("| 错误类型 | 示例 | 正确做法 |")
-        lines.append("|----------|------|----------|")
-        lines.append("| 题意模糊 | \"找最好的路线\" | \"找距离最短的路线\" |")
-        lines.append("| 信息不足 | 缺少关键数据 | 确保所有必要信息都已给出 |")
-        lines.append("| 答案不唯一 | 未说明多解情况 | 列出所有正确答案 |")
-        lines.append("")
+        # Generate field-specific common errors
+        error_section_idx = 1
+        if analysis.fields:
+            lines.append(f"### 5.{error_section_idx} 字段填写错误")
+            lines.append("")
+            lines.append("| 字段 | 常见错误 | 正确做法 |")
+            lines.append("|------|----------|----------|")
+            for f in analysis.fields:
+                name = f.get("name", "")
+                ftype = f.get("type", "string")
+                required = f.get("required", True)
+                desc = f.get("description", "")
+                if required:
+                    lines.append(f"| {name} | 留空或内容过短 | 按要求完整填写{desc} |")
+                if ftype == "image":
+                    lines.append(f"| {name} | 使用 AI 生成图片 | 仅使用人工原创图片 |")
+            lines.append("")
+            error_section_idx += 1
 
         if analysis.has_images:
-            lines.append("### 5.2 图片制作错误")
+            lines.append(f"### 5.{error_section_idx} 图片制作错误")
             lines.append("")
             lines.append("| 错误类型 | 后果 | 避免方法 |")
             lines.append("|----------|------|----------|")
-            lines.append("| 使用 AI 生图 | 数据作废，不支付费用 | 仅使用手绘/软件绘图/照片 |")
+            lines.append("| 使用 AI 生图 | 数据作废 | 仅使用手绘/软件绘图/照片 |")
             lines.append("| 图片模糊 | 无法评测 | 确保分辨率 ≥ 800x600 |")
             lines.append("| 图文不匹配 | 题目无效 | 核对图片与题目描述一致 |")
             lines.append("")
+            error_section_idx += 1
 
-        lines.append("### 5.3 评分标准错误")
-        lines.append("")
-        lines.append("| 错误类型 | 示例 | 正确做法 |")
-        lines.append("|----------|------|----------|")
-        lines.append("| 标准模糊 | \"回答正确得分\" | 明确什么样的回答算正确 |")
-        lines.append("| 遗漏情况 | 只写满分条件 | 包含满分、部分分、零分条件 |")
-        lines.append("")
+        if analysis.scoring_rubric:
+            lines.append(f"### 5.{error_section_idx} 评分标准错误")
+            lines.append("")
+            lines.append("| 错误类型 | 示例 | 正确做法 |")
+            lines.append("|----------|------|----------|")
+            lines.append("| 标准模糊 | \"回答正确得分\" | 明确什么样的回答算正确 |")
+            lines.append("| 遗漏情况 | 只写满分条件 | 包含满分、部分分、零分条件 |")
+            lines.append("")
 
         # Section 6: Self-Check List
         lines.append("---")
@@ -1052,29 +1121,28 @@ class SpecOutputGenerator:
             lines.append("- [ ] 与题目强相关")
             lines.append("")
 
-        lines.append("### 题目")
-        lines.append("- [ ] 题意清晰")
-        lines.append("- [ ] 无歧义")
-        lines.append("- [ ] 格式要求明确")
-        lines.append("")
+        # Generate field-specific checklist items
+        if analysis.fields:
+            lines.append("### 字段完整性")
+            for f in analysis.fields:
+                name = f.get("name", "")
+                desc = f.get("description", name)
+                required = f.get("required", True)
+                if required:
+                    lines.append(f"- [ ] {desc}（{name}）已填写且内容完整")
+            lines.append("")
+        else:
+            lines.append("### 内容")
+            lines.append("- [ ] 所有必填项已填写")
+            lines.append("- [ ] 内容无歧义")
+            lines.append("- [ ] 格式符合要求")
+            lines.append("")
 
-        lines.append("### 答案")
-        lines.append("- [ ] 答案正确")
-        lines.append("- [ ] 多解已全部列出")
-        lines.append("- [ ] 格式符合要求")
-        lines.append("")
-
-        lines.append("### 解析")
-        lines.append("- [ ] 步骤完整")
-        lines.append("- [ ] 逻辑清晰")
-        lines.append("- [ ] 与答案一致")
-        lines.append("")
-
-        lines.append("### 评分标准")
-        lines.append("- [ ] 包含满分条件")
-        lines.append("- [ ] 包含零分条件")
-        lines.append("- [ ] 条件具体可判")
-        lines.append("")
+        if analysis.quality_constraints:
+            lines.append("### 质量标准")
+            for constraint in analysis.quality_constraints:
+                lines.append(f"- [ ] {constraint}")
+            lines.append("")
 
         # Add difficulty validation to checklist if enabled
         if analysis.has_difficulty_validation():
@@ -1904,19 +1972,7 @@ class SpecOutputGenerator:
             # Build schema from actual fields via FieldDefinition
             schema = self._build_schema_from_fields(analysis)
         else:
-            # Fall back to profile default fields, then generic
-            profile = get_task_profile(analysis.dataset_type)
-            if profile.default_fields:
-                # Temporarily inject profile defaults
-                from copy import deepcopy
-                tmp = deepcopy(analysis)
-                tmp.fields = profile.default_fields
-                # Invalidate field_definitions cache
-                if hasattr(tmp, "_cached_field_definitions"):
-                    object.__setattr__(tmp, "_cached_field_definitions", None)
-                schema = self._build_schema_from_fields(tmp)
-            else:
-                schema = self._build_generic_schema(analysis)
+            schema = self._build_generic_schema(analysis)
 
         # Add image field if needed
         if analysis.has_images:

@@ -1792,6 +1792,12 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
         console.print(f"  📄 分析报告: [cyan]{report_path}[/cyan]")
         console.print(f"  📋 复刻指南: [cyan]{guide_path}[/cyan]")
 
+        # Display warnings if any
+        if hasattr(result, "warnings") and result.warnings:
+            console.print(f"\n[yellow]⚠ 部分步骤跳过 ({len(result.warnings)} 项):[/yellow]")
+            for w in result.warnings:
+                console.print(f"  [dim]· {w}[/dim]")
+
     except Exception as e:
         console.print(f"[red]错误: {e}[/red]")
         import traceback

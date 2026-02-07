@@ -145,6 +145,9 @@ class AnalysisResult:
     output_dir: str = ""
     files_generated: List[str] = field(default_factory=list)
 
+    # Warnings collected during analysis (non-fatal issues)
+    warnings: List[str] = field(default_factory=list)
+
     def to_dict(self) -> dict:
         return {
             "dataset_id": self.dataset_id,
@@ -159,6 +162,7 @@ class AnalysisResult:
             "prompt_templates": self.prompt_templates,
             "output_dir": self.output_dir,
             "files_generated": self.files_generated,
+            "warnings": self.warnings,
         }
 
 
@@ -469,8 +473,8 @@ class DeepAnalyzerCore:
                     with open(output_mgr.get_path("data", "llm_analysis.json"), "w", encoding="utf-8") as f:
                         json.dump(llm_result_dict, f, indent=2, ensure_ascii=False)
                     result.files_generated.append(output_mgr.get_relative_path("data", "llm_analysis.json"))
-                except Exception:
-                    pass
+                except Exception as e:
+                    result.warnings.append(f"LLM 数据集分析跳过: {e}")
 
             result.dataset_type = detected_type
 
@@ -505,8 +509,8 @@ class DeepAnalyzerCore:
                     json.dump(comparison_data, f, indent=2, ensure_ascii=False)
                 result.files_generated.append(output_mgr.get_relative_path("cost", "cost_comparison.json"))
 
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"Token 成本计算跳过: {e}")
 
             # Complexity analysis for dynamic cost adjustment
             complexity_metrics = None
@@ -524,8 +528,8 @@ class DeepAnalyzerCore:
                     json.dump(complexity_metrics.to_dict(), f, indent=2, ensure_ascii=False)
                 result.files_generated.append(output_mgr.get_relative_path("data", "complexity_analysis.json"))
 
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"复杂度分析跳过: {e}")
 
             # Human-machine allocation
             splitter = HumanMachineSplitter(region=self.region)
@@ -570,8 +574,8 @@ class DeepAnalyzerCore:
                     json.dump(calibration_result.to_dict(), f, indent=2, ensure_ascii=False)
                 result.files_generated.append(output_mgr.get_relative_path("cost", "cost_calibration.json"))
 
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"成本校准跳过: {e}")
 
             total_cost = human_cost + api_cost
 
@@ -606,8 +610,8 @@ class DeepAnalyzerCore:
                     f.write(phased_report)
                 result.files_generated.append(output_mgr.get_relative_path("cost", "COST_BREAKDOWN.md"))
 
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"分阶段成本分析跳过: {e}")
 
             result.reproduction_cost = {
                 "human": round(human_cost, 2),
@@ -684,8 +688,8 @@ class DeepAnalyzerCore:
                         with open(output_mgr.get_path("data", "enhanced_context.json"), "w", encoding="utf-8") as f:
                             json.dump(enhanced_dict, f, indent=2, ensure_ascii=False, default=str)
                         result.files_generated.append(output_mgr.get_relative_path("data", "enhanced_context.json"))
-                except Exception:
-                    pass
+                except Exception as e:
+                    result.warnings.append(f"LLM 增强跳过: {e}")
 
             # Generate reports to guide/
             report = self._generate_analysis_report(
@@ -736,8 +740,8 @@ class DeepAnalyzerCore:
                     json.dump(spec_dict, f, indent=2, ensure_ascii=False)
                 result.files_generated.append(output_mgr.get_relative_path("annotation", "annotation_spec.json"))
 
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"标注规范生成失败: {e}")
 
             # Milestone plan (for project management)
             try:
@@ -766,8 +770,8 @@ class DeepAnalyzerCore:
                     json.dump(milestone_dict, f, indent=2, ensure_ascii=False)
                 result.files_generated.append(output_mgr.get_relative_path("project", "milestone_plan.json"))
 
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"里程碑计划生成失败: {e}")
 
             # Executive summary (for decision makers)
             try:
@@ -803,8 +807,8 @@ class DeepAnalyzerCore:
                     json.dump(exec_dict, f, indent=2, ensure_ascii=False)
                 result.files_generated.append(output_mgr.get_relative_path("decision", "executive_summary.json"))
 
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"执行摘要生成失败: {e}")
 
             # Industry benchmark comparison
             try:
@@ -830,8 +834,8 @@ class DeepAnalyzerCore:
                     json.dump(benchmark_dict, f, indent=2, ensure_ascii=False)
                 result.files_generated.append(output_mgr.get_relative_path("project", "industry_benchmark.json"))
 
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"行业基准对比生成失败: {e}")
 
             # Recipe summary (stays in root)
             summary = RadarIntegration.create_summary(
@@ -873,8 +877,8 @@ class DeepAnalyzerCore:
                     is_preference_dataset=is_preference_dataset,
                     is_swe_dataset=is_swe_dataset,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                result.warnings.append(f"AI Agent 层生成失败: {e}")
 
             # Update knowledge base
             try:
@@ -887,7 +891,7 @@ class DeepAnalyzerCore:
                     prompt_library=prompt_library,
                 )
             except Exception:
-                pass
+                pass  # Knowledge base is optional
 
             # Update cache
             try:
@@ -900,7 +904,7 @@ class DeepAnalyzerCore:
                     sample_count=sample_count,
                 )
             except Exception:
-                pass
+                pass  # Cache is optional
 
         except Exception as e:
             result.success = False
