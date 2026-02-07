@@ -298,6 +298,9 @@ src/datarecipe/
 ├── cost/
 │   ├── token_analyzer.py           # Token 分析
 │   └── phased_model.py             # 分阶段成本模型
+├── task_profiles.py                # 任务类型注册表 (5 种内置类型)
+├── pipeline.py                     # 多阶段流水线模板
+├── quality_metrics.py              # 质量评估指标
 ├── mcp_server.py                   # MCP Server (9 工具)
 └── cli.py                          # CLI 入口
 ```
@@ -307,26 +310,6 @@ src/datarecipe/
 ## License
 
 [MIT](LICENSE)
-
----
-
-## AI Data Pipeline 生态
-
-> 5 个工具覆盖 AI 数据工程全流程，均支持 CLI + MCP，可独立使用也可组合成流水线。
-
-| Tool | Description | Link |
-|------|-------------|------|
-| **AI Dataset Radar** | Competitive intelligence for AI training datasets | [GitHub](https://github.com/liuxiaotong/ai-dataset-radar) |
-| **DataRecipe** | Reverse-engineer datasets into annotation specs & cost models | You are here |
-| **DataSynth** | Seed-to-scale synthetic data generation | [GitHub](https://github.com/liuxiaotong/data-synth) |
-| **DataLabel** | Lightweight, serverless HTML labeling tool | [GitHub](https://github.com/liuxiaotong/data-label) |
-| **DataCheck** | Automated quality checks & anomaly detection | [GitHub](https://github.com/liuxiaotong/data-check) |
-
-```
-Radar (发现) → Recipe (分析) → Synth (合成) → Label (标注) → Check (质检)
-```
-
----
 
 <div align="center">
 <sub>为数据工程团队、标注服务商及 AI 数据集研究者提供可复用的逆向工程方法论</sub>
