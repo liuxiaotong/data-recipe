@@ -483,6 +483,7 @@ class MilestonePlanGenerator:
         human_percentage: float,
         complexity_metrics: Optional[Any] = None,
         phased_breakdown: Optional[Any] = None,
+        enhanced_context: Optional[Any] = None,
     ) -> MilestonePlan:
         """Generate milestone plan.
 
@@ -508,8 +509,16 @@ class MilestonePlanGenerator:
         milestones = self._get_milestones(dataset_type, target_size)
         plan.milestones = milestones
 
-        # Get risks
-        plan.risks = self._get_risks(dataset_type, complexity_metrics)
+        # Get risks - prefer LLM-enhanced
+        ec = enhanced_context
+        if ec and getattr(ec, 'generated', False) and ec.phase_specific_risks:
+            plan.risks = ec.phase_specific_risks
+        else:
+            plan.risks = self._get_risks(dataset_type, complexity_metrics)
+
+        # Store team recommendations from LLM
+        if ec and getattr(ec, 'generated', False) and ec.team_recommendations:
+            plan._team_recommendations = ec.team_recommendations
 
         # Get acceptance criteria
         plan.acceptance_criteria = self._get_acceptance_criteria(dataset_type)
@@ -736,16 +745,36 @@ class MilestonePlanGenerator:
         lines.append("")
 
         for risk in plan.risks:
-            prob_icon = "🔴" if risk.probability == "high" else "🟡" if risk.probability == "medium" else "🟢"
-            impact_icon = "🔴" if risk.impact == "high" else "🟡" if risk.impact == "medium" else "🟢"
+            if isinstance(risk, dict):
+                # LLM-enhanced format: {phase, risk, mitigation}
+                phase = risk.get("phase", "")
+                desc = risk.get("risk", risk.get("description", ""))
+                mitigation = risk.get("mitigation", "")
+                lines.append(f"### {phase}")
+                lines.append("")
+                lines.append(f"- **风险**: {desc}")
+                lines.append(f"- **缓解措施**: {mitigation}")
+                lines.append("")
+            else:
+                # Original structured Risk object
+                prob_icon = "🔴" if risk.probability == "high" else "🟡" if risk.probability == "medium" else "🟢"
+                impact_icon = "🔴" if risk.impact == "high" else "🟡" if risk.impact == "medium" else "🟢"
 
-            lines.append(f"### {risk.id}: {risk.description}")
+                lines.append(f"### {risk.id}: {risk.description}")
+                lines.append("")
+                lines.append(f"- **类别**: {risk.category}")
+                lines.append(f"- **概率**: {prob_icon} {risk.probability}")
+                lines.append(f"- **影响**: {impact_icon} {risk.impact}")
+                lines.append(f"- **缓解措施**: {risk.mitigation}")
+                lines.append(f"- **应急预案**: {risk.contingency}")
+                lines.append("")
+
+        # LLM-enhanced team recommendations
+        team_recs = getattr(plan, '_team_recommendations', None)
+        if team_recs:
+            lines.append("### 团队建议")
             lines.append("")
-            lines.append(f"- **类别**: {risk.category}")
-            lines.append(f"- **概率**: {prob_icon} {risk.probability}")
-            lines.append(f"- **影响**: {impact_icon} {risk.impact}")
-            lines.append(f"- **缓解措施**: {risk.mitigation}")
-            lines.append(f"- **应急预案**: {risk.contingency}")
+            lines.append(team_recs)
             lines.append("")
 
         # Checklist
@@ -773,7 +802,7 @@ class MilestonePlanGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本计划由 DataRecipe 自动生成，请根据实际情况调整*")
+        lines.append("> 本计划由 DataRecipe 自动生成，请根据实际情况调整")
 
         return "\n".join(lines)
 

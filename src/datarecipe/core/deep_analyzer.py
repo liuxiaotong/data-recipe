@@ -115,7 +115,7 @@ class OutputManager:
 
 ---
 
-*由 DataRecipe 自动生成*
+> 由 DataRecipe 自动生成
 """
         return content
 
@@ -171,11 +171,13 @@ class DeepAnalyzerCore:
         region: str = "china",
         use_llm: bool = False,
         llm_provider: str = "anthropic",
+        enhance_mode: str = "auto",
     ):
         self.output_dir = output_dir
         self.region = region
         self.use_llm = use_llm
         self.llm_provider = llm_provider
+        self.enhance_mode = enhance_mode
 
     def analyze(
         self,
@@ -657,10 +659,39 @@ class DeepAnalyzerCore:
                 json.dump(allocation_dict, f, indent=2, ensure_ascii=False)
             result.files_generated.append(output_mgr.get_relative_path("cost", "allocation.json"))
 
+            # LLM Enhancement Layer (optional, generates rich context for all reports)
+            enhanced_context = None
+            if self.use_llm:
+                try:
+                    from datarecipe.generators.llm_enhancer import LLMEnhancer
+                    enhancer = LLMEnhancer(mode=self.enhance_mode, provider=self.llm_provider)
+                    enhanced_context = enhancer.enhance(
+                        dataset_id=dataset_id,
+                        dataset_type=detected_type or "unknown",
+                        schema_info=schema_info,
+                        sample_items=sample_items,
+                        sample_count=sample_count,
+                        complexity_metrics=complexity_metrics,
+                        allocation=allocation,
+                        rubrics_result=rubrics_result,
+                        llm_analysis=llm_analysis,
+                    )
+                    if enhanced_context and enhanced_context.generated:
+                        enhanced_dict = {
+                            k: v for k, v in enhanced_context.__dict__.items()
+                            if k not in ("raw_response",)
+                        }
+                        with open(output_mgr.get_path("data", "enhanced_context.json"), "w", encoding="utf-8") as f:
+                            json.dump(enhanced_dict, f, indent=2, ensure_ascii=False, default=str)
+                        result.files_generated.append(output_mgr.get_relative_path("data", "enhanced_context.json"))
+                except Exception:
+                    pass
+
             # Generate reports to guide/
             report = self._generate_analysis_report(
                 dataset_id, sample_count, actual_size,
-                rubrics_result, prompt_library, strategy_result, allocation, self.region
+                rubrics_result, prompt_library, strategy_result, allocation, self.region,
+                enhanced_context=enhanced_context,
             )
             with open(output_mgr.get_path("guide", "ANALYSIS_REPORT.md"), "w", encoding="utf-8") as f:
                 f.write(report)
@@ -671,7 +702,8 @@ class DeepAnalyzerCore:
                 system_prompts_by_domain, rubrics_examples, sample_items,
                 rubrics_result, prompt_library, allocation,
                 is_preference_dataset, preference_pairs, preference_topics, preference_patterns,
-                is_swe_dataset, swe_stats, llm_analysis
+                is_swe_dataset, swe_stats, llm_analysis,
+                enhanced_context=enhanced_context,
             )
             with open(output_mgr.get_path("guide", "REPRODUCTION_GUIDE.md"), "w", encoding="utf-8") as f:
                 f.write(guide)
@@ -689,6 +721,7 @@ class DeepAnalyzerCore:
                     rubrics_result=rubrics_result,
                     llm_analysis=llm_analysis,
                     complexity_metrics=complexity_metrics,
+                    enhanced_context=enhanced_context,
                 )
 
                 # Save as Markdown to annotation/
@@ -718,6 +751,7 @@ class DeepAnalyzerCore:
                     human_percentage=result.human_percentage,
                     complexity_metrics=complexity_metrics,
                     phased_breakdown=phased_breakdown,
+                    enhanced_context=enhanced_context,
                 )
 
                 # Save as Markdown to project/
@@ -748,6 +782,7 @@ class DeepAnalyzerCore:
                     complexity_metrics=complexity_metrics,
                     phased_breakdown=phased_breakdown,
                     llm_analysis=llm_analysis,
+                    enhanced_context=enhanced_context,
                 )
 
                 # Save as Markdown to decision/
@@ -984,7 +1019,8 @@ class DeepAnalyzerCore:
 
     def _generate_analysis_report(self, dataset_id, sample_count, actual_size,
                                    rubrics_result, prompt_library, strategy_result,
-                                   allocation, region) -> str:
+                                   allocation, region,
+                                   enhanced_context=None) -> str:
         """Generate analysis report markdown."""
         lines = []
         lines.append(f"# 🔬 {dataset_id} 深度逆向分析报告")
@@ -994,6 +1030,12 @@ class DeepAnalyzerCore:
         lines.append(f"> **分析样本**: {sample_count} 条")
         lines.append(f"> **目标规模**: {actual_size:,} 条")
         lines.append("")
+
+        # LLM-enhanced purpose summary
+        if enhanced_context and enhanced_context.generated and enhanced_context.dataset_purpose_summary:
+            lines.append(f"> {enhanced_context.dataset_purpose_summary}")
+            lines.append("")
+
         lines.append("---")
         lines.append("")
 
@@ -1012,9 +1054,33 @@ class DeepAnalyzerCore:
         lines.append(f"| **复现成本** | 约 ${allocation.total_cost:,.0f}（人工 ${allocation.total_human_cost:,.0f} + API ${allocation.total_machine_cost:,.0f}） |")
         lines.append(f"| **人机分配** | 人工 {allocation.human_work_percentage:.0f}%，机器 {allocation.machine_work_percentage:.0f}% |")
         lines.append("")
+
+        # LLM-enhanced methodology insights
+        if enhanced_context and enhanced_context.generated and enhanced_context.key_methodology_insights:
+            lines.append("## 🔍 方法学洞察")
+            lines.append("")
+            for insight in enhanced_context.key_methodology_insights:
+                lines.append(f"- {insight}")
+            lines.append("")
+
+        # LLM-enhanced competitive positioning
+        if enhanced_context and enhanced_context.generated and enhanced_context.competitive_positioning:
+            lines.append("## 🏆 竞争定位")
+            lines.append("")
+            lines.append(enhanced_context.competitive_positioning)
+            lines.append("")
+
+        # LLM-enhanced domain tips
+        if enhanced_context and enhanced_context.generated and enhanced_context.domain_specific_tips:
+            lines.append("## 💡 领域建议")
+            lines.append("")
+            for tip in enhanced_context.domain_specific_tips:
+                lines.append(f"- {tip}")
+            lines.append("")
+
         lines.append("---")
         lines.append("")
-        lines.append("*报告由 DataRecipe 自动生成*")
+        lines.append("> 报告由 DataRecipe 自动生成")
 
         return "\n".join(lines)
 
@@ -1023,7 +1089,8 @@ class DeepAnalyzerCore:
                                       rubrics_examples, sample_items, rubrics_result,
                                       prompt_library, allocation, is_preference_dataset,
                                       preference_pairs, preference_topics, preference_patterns,
-                                      is_swe_dataset, swe_stats, llm_analysis) -> str:
+                                      is_swe_dataset, swe_stats, llm_analysis,
+                                      enhanced_context=None) -> str:
         """Generate reproduction guide markdown."""
         lines = []
         lines.append(f"# 📋 {dataset_id} 复刻指南")
@@ -1033,6 +1100,8 @@ class DeepAnalyzerCore:
             lines.append("> **这是一个软件工程评测数据集 (SWE-bench 风格)。**")
         elif is_preference_dataset:
             lines.append("> **这是一个 RLHF 偏好数据集。**")
+        elif enhanced_context and enhanced_context.generated and enhanced_context.dataset_purpose_summary:
+            lines.append(f"> {enhanced_context.dataset_purpose_summary}")
         elif llm_analysis and llm_analysis.dataset_type != "unknown":
             lines.append(f"> **数据集类型: {llm_analysis.dataset_type}。{llm_analysis.purpose}**")
         else:
@@ -1041,14 +1110,29 @@ class DeepAnalyzerCore:
         lines.append("---")
         lines.append("")
 
-        # LLM analysis section
+        # LLM-enhanced reproduction strategy
+        if enhanced_context and enhanced_context.generated and enhanced_context.reproduction_strategy:
+            lines.append("## 🎯 复刻策略")
+            lines.append("")
+            lines.append(enhanced_context.reproduction_strategy)
+            lines.append("")
+
+        # LLM-enhanced methodology insights
+        if enhanced_context and enhanced_context.generated and enhanced_context.key_methodology_insights:
+            lines.append("## 🔍 方法学洞察")
+            lines.append("")
+            for insight in enhanced_context.key_methodology_insights:
+                lines.append(f"- {insight}")
+            lines.append("")
+
+        # LLM analysis section (for unknown types analyzed by LLM)
         if llm_analysis and llm_analysis.dataset_type != "unknown":
             from datarecipe.analyzers.llm_dataset_analyzer import generate_llm_guide_section
             lines.append(generate_llm_guide_section(llm_analysis))
             lines.append("")
 
         # Schema section
-        lines.append("## 1️⃣ 数据结构规范 (Schema)")
+        lines.append("## 📐 数据结构规范 (Schema)")
         lines.append("")
         lines.append("| 字段名 | 类型 | 说明 |")
         lines.append("|--------|------|------|")
@@ -1066,9 +1150,28 @@ class DeepAnalyzerCore:
             lines.append(f"- **人工占比**: {allocation.human_work_percentage:.0f}%")
             lines.append("")
 
+        # LLM-enhanced domain tips
+        if enhanced_context and enhanced_context.generated and enhanced_context.domain_specific_tips:
+            lines.append("## 💡 领域建议")
+            lines.append("")
+            for tip in enhanced_context.domain_specific_tips:
+                lines.append(f"- {tip}")
+            lines.append("")
+
+        # LLM-enhanced risks
+        if enhanced_context and enhanced_context.generated and enhanced_context.tailored_risks:
+            lines.append("## ⚠️ 风险提示")
+            lines.append("")
+            lines.append("| 等级 | 风险 | 缓解措施 |")
+            lines.append("|------|------|----------|")
+            for risk in enhanced_context.tailored_risks:
+                if isinstance(risk, dict):
+                    lines.append(f"| {risk.get('level', '')} | {risk.get('description', '')} | {risk.get('mitigation', '')} |")
+            lines.append("")
+
         lines.append("---")
         lines.append("")
-        lines.append("*指南由 DataRecipe 自动生成*")
+        lines.append("> 指南由 DataRecipe 自动生成")
 
         return "\n".join(lines)
 
@@ -1685,7 +1788,7 @@ class DeepAnalyzerCore:
 
         lines.append("---")
         lines.append("")
-        lines.append("*由 DataRecipe 自动生成*")
+        lines.append("> 由 DataRecipe 自动生成")
 
         path = output_mgr.get_path("ai_agent", "README.md")
         with open(path, "w", encoding="utf-8") as f:

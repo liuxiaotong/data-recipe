@@ -161,6 +161,7 @@ class AnnotationSpecGenerator:
         rubrics_result: Optional[Any] = None,
         llm_analysis: Optional[Any] = None,
         complexity_metrics: Optional[Any] = None,
+        enhanced_context: Optional[Any] = None,
     ) -> AnnotationSpec:
         """Generate annotation specification.
 
@@ -212,6 +213,9 @@ class AnnotationSpecGenerator:
 
         # Generate scoring rubrics
         self._generate_scoring_rubrics(spec, rubrics_result, llm_analysis)
+
+        # Store enhanced_context for to_markdown to use
+        spec._enhanced_context = enhanced_context
 
         return spec
 
@@ -712,9 +716,40 @@ class AnnotationSpecGenerator:
                 lines.append(f"- {rule}")
             lines.append("")
 
+        # LLM-enhanced: Domain-specific guidelines
+        ec = getattr(spec, '_enhanced_context', None)
+        if ec and getattr(ec, 'generated', False):
+            if ec.domain_specific_guidelines:
+                lines.append("## 七、领域标注指导")
+                lines.append("")
+                lines.append(ec.domain_specific_guidelines)
+                lines.append("")
+
+            if ec.quality_pitfalls:
+                lines.append("### 常见错误")
+                lines.append("")
+                for pitfall in ec.quality_pitfalls:
+                    lines.append(f"- ⚠️ {pitfall}")
+                lines.append("")
+
+            if ec.example_analysis:
+                lines.append("### 样本点评")
+                lines.append("")
+                for analysis in ec.example_analysis:
+                    if isinstance(analysis, dict):
+                        idx = analysis.get("sample_index", "?")
+                        lines.append(f"**样本 {idx}**:")
+                        if analysis.get("strengths"):
+                            lines.append(f"- 优点: {analysis['strengths']}")
+                        if analysis.get("weaknesses"):
+                            lines.append(f"- 改进: {analysis['weaknesses']}")
+                        if analysis.get("annotation_tips"):
+                            lines.append(f"- 建议: {analysis['annotation_tips']}")
+                        lines.append("")
+
         lines.append("---")
         lines.append("")
-        lines.append("*本规范由 DataRecipe 自动生成，请根据实际需求调整*")
+        lines.append("> 本规范由 DataRecipe 自动生成，请根据实际需求调整")
 
         return "\n".join(lines)
 

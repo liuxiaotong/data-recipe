@@ -32,6 +32,7 @@ class SpecOutputGenerator:
         analysis: SpecificationAnalysis,
         target_size: int = 100,
         region: str = "china",
+        enhanced_context=None,
     ) -> SpecOutputResult:
         """Generate all output documents.
 
@@ -69,9 +70,9 @@ class SpecOutputGenerator:
             result.output_dir = output_dir
 
             # Generate each document
-            self._generate_annotation_spec(analysis, output_dir, subdirs, result)
-            self._generate_executive_summary(analysis, output_dir, subdirs, target_size, region, result)
-            self._generate_milestone_plan(analysis, output_dir, subdirs, target_size, region, result)
+            self._generate_annotation_spec(analysis, output_dir, subdirs, result, enhanced_context=enhanced_context)
+            self._generate_executive_summary(analysis, output_dir, subdirs, target_size, region, result, enhanced_context=enhanced_context)
+            self._generate_milestone_plan(analysis, output_dir, subdirs, target_size, region, result, enhanced_context=enhanced_context)
             self._generate_cost_breakdown(analysis, output_dir, subdirs, target_size, region, result)
             self._generate_industry_benchmark(analysis, output_dir, subdirs, target_size, region, result)
             self._generate_raw_analysis(analysis, output_dir, subdirs, result)
@@ -110,6 +111,7 @@ class SpecOutputGenerator:
         output_dir: str,
         subdirs: dict,
         result: SpecOutputResult,
+        enhanced_context=None,
     ):
         """Generate ANNOTATION_SPEC.md."""
         lines = []
@@ -244,9 +246,35 @@ class SpecOutputGenerator:
                 lines.append(f"| {score} | {criteria} |")
             lines.append("")
 
+        # Section 7: Domain-specific guidance (LLM enhanced)
+        ec = enhanced_context
+        if ec and ec.generated and ec.domain_specific_guidelines:
+            lines.append("## 七、领域标注指导")
+            lines.append("")
+            lines.append(ec.domain_specific_guidelines)
+            lines.append("")
+
+            if ec.quality_pitfalls:
+                lines.append("### 常见错误")
+                lines.append("")
+                for i, pitfall in enumerate(ec.quality_pitfalls, 1):
+                    lines.append(f"{i}. {pitfall}")
+                lines.append("")
+
+            if ec.example_analysis:
+                lines.append("### 样本分析")
+                lines.append("")
+                for ex in ec.example_analysis:
+                    idx = ex.get("sample_index", "?")
+                    lines.append(f"**样本 {idx}**")
+                    lines.append(f"- 优点: {ex.get('strengths', '')}")
+                    lines.append(f"- 改进: {ex.get('weaknesses', '')}")
+                    lines.append(f"- 建议: {ex.get('annotation_tips', '')}")
+                    lines.append("")
+
         lines.append("---")
         lines.append("")
-        lines.append("*本规范由 DataRecipe 从需求文档自动生成*")
+        lines.append("> 本规范由 DataRecipe 从需求文档自动生成")
 
         # Write file
         spec_path = os.path.join(output_dir, subdirs["annotation"], "ANNOTATION_SPEC.md")
@@ -284,6 +312,7 @@ class SpecOutputGenerator:
         target_size: int,
         region: str,
         result: SpecOutputResult,
+        enhanced_context=None,
     ):
         """Generate EXECUTIVE_SUMMARY.md."""
         # Calculate cost estimates
@@ -336,12 +365,36 @@ class SpecOutputGenerator:
         lines.append("")
 
         # Use cases
+        ec = enhanced_context
         lines.append("---")
         lines.append("")
         lines.append("## 用途与价值")
         lines.append("")
-        lines.append(f"**主要用途**: {analysis.description or analysis.task_description}")
+        if ec and ec.generated and ec.dataset_purpose_summary:
+            lines.append(f"**主要用途**: {ec.dataset_purpose_summary}")
+        else:
+            lines.append(f"**主要用途**: {analysis.description or analysis.task_description}")
         lines.append("")
+
+        if ec and ec.generated and ec.tailored_use_cases:
+            lines.append("### 具体应用场景")
+            lines.append("")
+            for i, uc in enumerate(ec.tailored_use_cases, 1):
+                lines.append(f"{i}. {uc}")
+            lines.append("")
+
+        if ec and ec.generated and ec.tailored_roi_scenarios:
+            lines.append("### 投资回报分析")
+            lines.append("")
+            for i, roi in enumerate(ec.tailored_roi_scenarios, 1):
+                lines.append(f"{i}. {roi}")
+            lines.append("")
+
+        if ec and ec.generated and ec.competitive_positioning:
+            lines.append("### 竞争定位")
+            lines.append("")
+            lines.append(ec.competitive_positioning)
+            lines.append("")
 
         # Risks
         lines.append("---")
@@ -351,16 +404,23 @@ class SpecOutputGenerator:
         lines.append("| 风险等级 | 描述 | 缓解措施 |")
         lines.append("|----------|------|----------|")
 
-        if "AI" in str(analysis.forbidden_items) or "ai" in str(analysis.forbidden_items).lower():
-            lines.append("| 高 | 禁止使用AI生成内容，全人工成本高 | 严格审核流程，确保数据原创性 |")
+        if ec and ec.generated and ec.tailored_risks:
+            for risk in ec.tailored_risks:
+                level = risk.get("level", "中")
+                desc = risk.get("description", "")
+                mit = risk.get("mitigation", "")
+                lines.append(f"| {level} | {desc} | {mit} |")
+        else:
+            if "AI" in str(analysis.forbidden_items) or "ai" in str(analysis.forbidden_items).lower():
+                lines.append("| 高 | 禁止使用AI生成内容，全人工成本高 | 严格审核流程，确保数据原创性 |")
 
-        if analysis.estimated_difficulty in ["hard", "expert"]:
-            lines.append("| 中 | 难度较高，需要专业人员 | 提前储备人才，加强培训 |")
+            if analysis.estimated_difficulty in ["hard", "expert"]:
+                lines.append("| 中 | 难度较高，需要专业人员 | 提前储备人才，加强培训 |")
 
-        if analysis.has_images:
-            lines.append("| 中 | 包含图片，制作成本较高 | 建立图片素材库，规范制作流程 |")
+            if analysis.has_images:
+                lines.append("| 中 | 包含图片，制作成本较高 | 建立图片素材库，规范制作流程 |")
 
-        lines.append("| 低 | 标注质量可能波动 | 建立QA流程，定期校准 |")
+            lines.append("| 低 | 标注质量可能波动 | 建立QA流程，定期校准 |")
         lines.append("")
 
         # Similar datasets
@@ -375,7 +435,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本摘要由 DataRecipe 从需求文档自动生成*")
+        lines.append("> 本摘要由 DataRecipe 从需求文档自动生成")
 
         # Write file
         path = os.path.join(output_dir, subdirs["decision"], "EXECUTIVE_SUMMARY.md")
@@ -408,6 +468,7 @@ class SpecOutputGenerator:
         target_size: int,
         region: str,
         result: SpecOutputResult,
+        enhanced_context=None,
     ):
         """Generate MILESTONE_PLAN.md."""
         # Estimate duration based on difficulty
@@ -532,7 +593,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本计划由 DataRecipe 从需求文档自动生成*")
+        lines.append("> 本计划由 DataRecipe 从需求文档自动生成")
 
         # Write file
         path = os.path.join(output_dir, subdirs["project"], "MILESTONE_PLAN.md")
@@ -641,7 +702,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本成本估算由 DataRecipe 从需求文档自动生成*")
+        lines.append("> 本成本估算由 DataRecipe 从需求文档自动生成")
 
         # Write file
         path = os.path.join(output_dir, subdirs["cost"], "COST_BREAKDOWN.md")
@@ -730,7 +791,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*基准数据来源于行业调研，仅供参考*")
+        lines.append("> 基准数据来源于行业调研，仅供参考")
 
         # Write file
         path = os.path.join(output_dir, subdirs["project"], "INDUSTRY_BENCHMARK.md")
@@ -826,7 +887,7 @@ class SpecOutputGenerator:
         lines.append("")
         lines.append("---")
         lines.append("")
-        lines.append("*由 DataRecipe analyze-spec 命令生成*")
+        lines.append("> 由 DataRecipe analyze-spec 命令生成")
 
         path = os.path.join(output_dir, "README.md")
         with open(path, "w", encoding="utf-8") as f:
@@ -1050,7 +1111,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本手册由 DataRecipe 自动生成*")
+        lines.append("> 本手册由 DataRecipe 自动生成")
 
         path = os.path.join(output_dir, subdirs["annotation"], "TRAINING_GUIDE.md")
         with open(path, "w", encoding="utf-8") as f:
@@ -1268,7 +1329,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本检查清单由 DataRecipe 自动生成*")
+        lines.append("> 本检查清单由 DataRecipe 自动生成")
 
         path = os.path.join(output_dir, subdirs["annotation"], "QA_CHECKLIST.md")
         with open(path, "w", encoding="utf-8") as f:
@@ -1467,7 +1528,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本流程由 DataRecipe 自动生成*")
+        lines.append("> 本流程由 DataRecipe 自动生成")
 
         path = os.path.join(output_dir, subdirs["guide"], "DIFFICULTY_VALIDATION.md")
         with open(path, "w", encoding="utf-8") as f:
@@ -1548,7 +1609,7 @@ class SpecOutputGenerator:
 
                 lines.append("---")
                 lines.append("")
-                lines.append("*本验证流程由 DataRecipe 自动生成*")
+                lines.append("> 本验证流程由 DataRecipe 自动生成")
 
                 safe_type = strategy.strategy_type.upper()
                 filename = f"VALIDATION_{safe_type}.md"
@@ -1824,7 +1885,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本 SOP 由 DataRecipe 自动生成*")
+        lines.append("> 本 SOP 由 DataRecipe 自动生成")
 
         path = os.path.join(output_dir, subdirs["guide"], "PRODUCTION_SOP.md")
         with open(path, "w", encoding="utf-8") as f:
@@ -2761,7 +2822,7 @@ class SpecOutputGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*本目录由 DataRecipe 自动生成*")
+        lines.append("> 本目录由 DataRecipe 自动生成")
 
         path = os.path.join(output_dir, subdirs["ai_agent"], "README.md")
         with open(path, "w", encoding="utf-8") as f:
@@ -3315,7 +3376,7 @@ class SpecOutputGenerator:
         lines.append("")
         lines.append("---")
         lines.append("")
-        lines.append("*本指南由 DataRecipe 自动生成*")
+        lines.append("> 本指南由 DataRecipe 自动生成")
 
         path = os.path.join(output_dir, subdirs["samples"], "SAMPLE_GUIDE.md")
         with open(path, "w", encoding="utf-8") as f:

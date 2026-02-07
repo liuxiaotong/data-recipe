@@ -223,7 +223,7 @@ def recipe_to_markdown(recipe: Recipe) -> str:
     # Footer
     lines.append("---")
     lines.append("")
-    lines.append("*由 [DataRecipe](https://github.com/yourusername/data-recipe) 生成 - AI 数据集成分分析器*")
+    lines.append("> 由 [DataRecipe](https://github.com/yourusername/data-recipe) 生成 — AI 数据集成分分析器")
 
     return "\n".join(lines)
 
@@ -1666,9 +1666,10 @@ def generate(gen_type: str, count: int, context: str, output: str):
 @click.option("--split", default=None, help="Dataset split (auto-detect if not specified)")
 @click.option("--use-llm", is_flag=True, default=False, help="Use LLM for intelligent analysis of unknown dataset types")
 @click.option("--llm-provider", default="anthropic", type=click.Choice(["anthropic", "openai"]), help="LLM provider for intelligent analysis")
+@click.option("--enhance-mode", default="auto", type=click.Choice(["auto", "interactive", "api"]), help="LLM enhancement mode: auto (detect), interactive (Claude Code/App), api (standalone)")
 @click.option("--force", "-f", is_flag=True, help="Force re-analysis, ignore cache")
 @click.option("--no-cache", is_flag=True, help="Don't use or update cache")
-def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, region: str, split: str, use_llm: bool, llm_provider: str, force: bool, no_cache: bool):
+def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, region: str, split: str, use_llm: bool, llm_provider: str, enhance_mode: str, force: bool, no_cache: bool):
     """
     Run comprehensive deep analysis on a dataset.
 
@@ -1722,6 +1723,7 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             region=region,
             use_llm=use_llm,
             llm_provider=llm_provider,
+            enhance_mode=enhance_mode,
         )
 
         console.print("[dim]📥 加载数据集...[/dim]")
@@ -2037,7 +2039,7 @@ def _generate_analysis_report(
     lines.append("")
     lines.append("---")
     lines.append("")
-    lines.append("*报告由 DataRecipe 自动生成*")
+    lines.append("> 报告由 DataRecipe 自动生成")
 
     return "\n".join(lines)
 
@@ -2649,7 +2651,7 @@ def _generate_reproduction_guide(
     lines.append("")
     lines.append("---")
     lines.append("")
-    lines.append("*指南由 DataRecipe 自动生成*")
+    lines.append("> 指南由 DataRecipe 自动生成")
 
     return "\n".join(lines)
 
@@ -3454,13 +3456,33 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
             else:
                 output.print("[yellow]⚠ LLM 提取信息有限，将使用默认值[/yellow]")
 
-        # Step 3: Generate outputs
+        # Step 3: LLM Enhancement (optional, enriches document quality)
+        enhanced_context = None
+        try:
+            from datarecipe.generators.llm_enhancer import LLMEnhancer
+            enhance_mode = "api" if not interactive else "interactive"
+            enhancer = LLMEnhancer(mode=enhance_mode, provider=provider)
+            enhanced_context = enhancer.enhance(
+                dataset_id=analysis.project_name or "spec_analysis",
+                dataset_type=analysis.dataset_type or "unknown",
+                domain=analysis.estimated_domain or "通用",
+                difficulty=analysis.estimated_difficulty or "medium",
+                human_percentage=analysis.estimated_human_percentage,
+                total_cost=0,
+            )
+            if enhanced_context and enhanced_context.generated:
+                output.print("[green]✓ LLM 增强完成[/green]")
+        except Exception:
+            pass
+
+        # Step 4: Generate outputs
         output.print("[dim]📝 生成项目文档...[/dim]")
         generator = SpecOutputGenerator(output_dir=output_dir)
         result = generator.generate(
             analysis=analysis,
             target_size=size,
             region=region,
+            enhanced_context=enhanced_context,
         )
 
         if not result.success:

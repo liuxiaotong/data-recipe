@@ -159,6 +159,7 @@ class ExecutiveSummaryGenerator:
         complexity_metrics: Optional[Any] = None,
         phased_breakdown: Optional[Any] = None,
         llm_analysis: Optional[Any] = None,
+        enhanced_context: Optional[Any] = None,
     ) -> ValueAssessment:
         """Generate value assessment for a dataset.
 
@@ -171,6 +172,7 @@ class ExecutiveSummaryGenerator:
             complexity_metrics: Complexity analysis result
             phased_breakdown: Phased cost breakdown
             llm_analysis: LLM analysis result
+            enhanced_context: LLM-enhanced context (optional)
 
         Returns:
             ValueAssessment object
@@ -180,9 +182,14 @@ class ExecutiveSummaryGenerator:
         # Get type config
         config = DATASET_TYPE_CONFIG.get(dataset_type, {})
 
-        # Set use cases
-        assessment.primary_use_case = config.get("primary_use_case", "通用数据集，用途待定")
-        assessment.secondary_use_cases = config.get("secondary_use_cases", [])
+        # Set use cases - prefer LLM-enhanced if available
+        ec = enhanced_context
+        if ec and getattr(ec, 'generated', False) and ec.tailored_use_cases:
+            assessment.primary_use_case = ec.tailored_use_cases[0]
+            assessment.secondary_use_cases = ec.tailored_use_cases[1:]
+        else:
+            assessment.primary_use_case = config.get("primary_use_case", "通用数据集，用途待定")
+            assessment.secondary_use_cases = config.get("secondary_use_cases", [])
         assessment.expected_outcomes = config.get("expected_outcomes", [])
 
         # Calculate value score (1-10)
@@ -211,26 +218,35 @@ class ExecutiveSummaryGenerator:
             config=config,
         )
 
-        # Generate payback scenarios
-        assessment.payback_scenarios = self._generate_payback_scenarios(
-            dataset_type=dataset_type,
-            reproduction_cost=reproduction_cost,
-        )
+        # Generate payback scenarios - prefer LLM-enhanced
+        if ec and getattr(ec, 'generated', False) and ec.tailored_roi_scenarios:
+            assessment.payback_scenarios = ec.tailored_roi_scenarios
+        else:
+            assessment.payback_scenarios = self._generate_payback_scenarios(
+                dataset_type=dataset_type,
+                reproduction_cost=reproduction_cost,
+            )
 
-        # Assess risks
-        assessment.risks = self._assess_risks(
-            reproduction_cost=reproduction_cost,
-            human_percentage=human_percentage,
-            complexity_metrics=complexity_metrics,
-        )
+        # Assess risks - prefer LLM-enhanced
+        if ec and getattr(ec, 'generated', False) and ec.tailored_risks:
+            assessment.risks = ec.tailored_risks
+        else:
+            assessment.risks = self._assess_risks(
+                reproduction_cost=reproduction_cost,
+                human_percentage=human_percentage,
+                complexity_metrics=complexity_metrics,
+            )
 
         # Find alternatives
         assessment.alternatives = self._find_alternatives(dataset_id, dataset_type)
-        assessment.competitive_advantage = self._get_competitive_advantage(
-            dataset_id=dataset_id,
-            dataset_type=dataset_type,
-            sample_count=sample_count,
-        )
+        if ec and getattr(ec, 'generated', False) and ec.competitive_positioning:
+            assessment.competitive_advantage = ec.competitive_positioning
+        else:
+            assessment.competitive_advantage = self._get_competitive_advantage(
+                dataset_id=dataset_id,
+                dataset_type=dataset_type,
+                sample_count=sample_count,
+            )
 
         return assessment
 
@@ -638,7 +654,7 @@ class ExecutiveSummaryGenerator:
         # Footer
         lines.append("---")
         lines.append("")
-        lines.append("*本摘要由 DataRecipe 自动生成，供决策参考*")
+        lines.append("> 本摘要由 DataRecipe 自动生成，供决策参考")
 
         return "\n".join(lines)
 
