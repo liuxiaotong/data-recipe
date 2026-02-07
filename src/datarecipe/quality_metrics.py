@@ -82,6 +82,79 @@ class AIDetectionMetrics:
 
 
 @dataclass
+class QualityGateRule:
+    """A single quality gate rule (pass/fail)."""
+
+    gate_id: str
+    name: str
+    metric: str  # dot-path into QualityReport, e.g. "overall_score", "diversity.unique_token_ratio"
+    operator: str  # >=, <=, >, <, ==, !=
+    threshold: float
+    severity: str = "blocker"  # blocker, warning
+
+    def to_dict(self) -> dict:
+        return {
+            "gate_id": self.gate_id,
+            "name": self.name,
+            "metric": self.metric,
+            "operator": self.operator,
+            "threshold": self.threshold,
+            "severity": self.severity,
+        }
+
+
+@dataclass
+class GateResult:
+    """Result of evaluating a single gate."""
+
+    gate: QualityGateRule
+    actual_value: float
+    passed: bool
+    message: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "gate_id": self.gate.gate_id,
+            "name": self.gate.name,
+            "metric": self.gate.metric,
+            "threshold": self.gate.threshold,
+            "operator": self.gate.operator,
+            "actual_value": round(self.actual_value, 4),
+            "passed": self.passed,
+            "severity": self.gate.severity,
+            "message": self.message,
+        }
+
+
+@dataclass
+class QualityGateReport:
+    """Aggregated gate evaluation report."""
+
+    passed: bool  # overall pass (no blocker failures)
+    results: list["GateResult"] = field(default_factory=list)
+    blocking_failures: list["GateResult"] = field(default_factory=list)
+    warnings: list["GateResult"] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "passed": self.passed,
+            "results": [r.to_dict() for r in self.results],
+            "blocking_failures": [r.to_dict() for r in self.blocking_failures],
+            "warnings": [r.to_dict() for r in self.warnings],
+        }
+
+
+# Default quality gates
+DEFAULT_QUALITY_GATES: list[QualityGateRule] = [
+    QualityGateRule("min_overall_score", "最低综合分", "overall_score", ">=", 60, "blocker"),
+    QualityGateRule("min_diversity", "最低多样性", "diversity.unique_token_ratio", ">=", 0.05, "blocker"),
+    QualityGateRule("min_consistency", "最低格式一致性", "consistency.format_consistency", ">=", 0.5, "blocker"),
+    QualityGateRule("max_ai_probability", "AI 内容上限", "ai_detection.ai_probability", "<=", 0.5, "warning"),
+    QualityGateRule("min_completeness", "最低字段完整性", "consistency.field_completeness", ">=", 0.8, "warning"),
+]
+
+
+@dataclass
 class QualityReport:
     """Complete quality analysis report."""
 
@@ -93,6 +166,7 @@ class QualityReport:
     recommendations: list[str] = field(default_factory=list)
     sample_size: int = 0
     warnings: list[str] = field(default_factory=list)
+    gate_report: Optional[QualityGateReport] = None
 
     def to_dict(self) -> dict:
         result = {
@@ -106,6 +180,8 @@ class QualityReport:
         }
         if self.ai_detection:
             result["ai_detection"] = self.ai_detection.to_dict()
+        if self.gate_report:
+            result["gate_report"] = self.gate_report.to_dict()
         return result
 
 
@@ -722,3 +798,89 @@ class QualityAnalyzer:
             warnings.append(f"{short_count} texts are very short (<10 chars)")
 
         return warnings
+
+    # --- Quality Gate evaluation (Upgrade 4) ---
+
+    def evaluate_gates(
+        self,
+        report: QualityReport,
+        gates: Optional[list[QualityGateRule]] = None,
+    ) -> QualityGateReport:
+        """Evaluate quality gates against a report.
+
+        Args:
+            report: QualityReport to evaluate
+            gates: list of QualityGateRule (defaults to DEFAULT_QUALITY_GATES)
+
+        Returns:
+            QualityGateReport with pass/fail results
+        """
+        if gates is None:
+            gates = DEFAULT_QUALITY_GATES
+
+        results: list[GateResult] = []
+        blocking: list[GateResult] = []
+        warns: list[GateResult] = []
+
+        for gate in gates:
+            actual = self._extract_metric(report, gate.metric)
+            if actual is None:
+                # Metric not available (e.g. ai_detection not run) — skip
+                results.append(GateResult(
+                    gate=gate, actual_value=0.0, passed=True,
+                    message=f"Metric '{gate.metric}' not available, skipped",
+                ))
+                continue
+
+            passed = self._compare(actual, gate.operator, gate.threshold)
+            msg = (
+                f"{gate.name}: {actual:.4f} {gate.operator} {gate.threshold} → "
+                f"{'PASS' if passed else 'FAIL'}"
+            )
+            gr = GateResult(gate=gate, actual_value=actual, passed=passed, message=msg)
+            results.append(gr)
+
+            if not passed:
+                if gate.severity == "blocker":
+                    blocking.append(gr)
+                else:
+                    warns.append(gr)
+
+        gate_report = QualityGateReport(
+            passed=len(blocking) == 0,
+            results=results,
+            blocking_failures=blocking,
+            warnings=warns,
+        )
+        report.gate_report = gate_report
+        return gate_report
+
+    def _extract_metric(self, report: QualityReport, metric_path: str) -> Optional[float]:
+        """Extract a metric value from a QualityReport by dot-path."""
+        parts = metric_path.split(".")
+        obj: Any = report
+        for part in parts:
+            if obj is None:
+                return None
+            if hasattr(obj, part):
+                obj = getattr(obj, part)
+            elif isinstance(obj, dict):
+                obj = obj.get(part)
+            else:
+                return None
+        if isinstance(obj, (int, float)):
+            return float(obj)
+        return None
+
+    @staticmethod
+    def _compare(actual: float, operator: str, threshold: float) -> bool:
+        """Compare actual value against threshold using operator."""
+        ops = {
+            ">=": actual >= threshold,
+            "<=": actual <= threshold,
+            ">": actual > threshold,
+            "<": actual < threshold,
+            "==": actual == threshold,
+            "!=": actual != threshold,
+        }
+        return ops.get(operator, False)

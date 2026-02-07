@@ -1,7 +1,7 @@
 """Pipeline extraction and production guide generation."""
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from enum import Enum
 
 
@@ -943,3 +943,200 @@ def pipeline_to_markdown(pipeline: ProductionPipeline, dataset_name: str = None)
     lines.append("*由 DataRecipe 生成 - 数据生产指南*")
 
     return "\n".join(lines)
+
+
+# =============================================================================
+# Composable Pipeline (Upgrade 5)
+# =============================================================================
+
+@dataclass
+class PhaseDefinition:
+    """A reusable pipeline phase definition."""
+
+    phase_id: str
+    name: str
+    description: str
+    default_steps: list[dict] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
+    condition: Optional[str] = None  # e.g. "has_difficulty_validation"
+    assignee: str = "human"  # human, agent, mixed
+
+    def to_dict(self) -> dict:
+        return {
+            "phase_id": self.phase_id,
+            "name": self.name,
+            "description": self.description,
+            "default_steps": self.default_steps,
+            "depends_on": self.depends_on,
+            "condition": self.condition,
+            "assignee": self.assignee,
+        }
+
+
+# ---- Phase Registry ----
+
+_PHASE_REGISTRY: Dict[str, PhaseDefinition] = {}
+
+
+def register_phase(phase: PhaseDefinition) -> None:
+    """Register a phase definition."""
+    _PHASE_REGISTRY[phase.phase_id] = phase
+
+
+def get_phase(phase_id: str) -> Optional[PhaseDefinition]:
+    """Get a phase by id."""
+    return _PHASE_REGISTRY.get(phase_id)
+
+
+def list_phases() -> List[PhaseDefinition]:
+    """List all registered phases."""
+    return list(_PHASE_REGISTRY.values())
+
+
+# ---- Built-in phases ----
+
+register_phase(PhaseDefinition(
+    phase_id="setup",
+    name="环境准备",
+    description="验证数据格式、准备模板、审核培训手册",
+    default_steps=[
+        {"action": "validate_schema", "description": "验证数据格式定义", "assignee": "agent"},
+        {"action": "prepare_template", "description": "准备数据模板", "assignee": "agent"},
+        {"action": "review_training_guide", "description": "审核培训手册", "assignee": "human", "required": True},
+    ],
+    depends_on=[],
+    assignee="mixed",
+))
+
+register_phase(PhaseDefinition(
+    phase_id="pilot",
+    name="试点标注",
+    description="创建试点样本并进行质量审核",
+    default_steps=[
+        {"action": "create_pilot_samples", "description": "创建试点样本 (5-10 条)", "count": 10, "assignee": "human"},
+        {"action": "quality_review_pilot", "description": "试点质量审核", "assignee": "human"},
+    ],
+    depends_on=["setup"],
+    assignee="human",
+))
+
+register_phase(PhaseDefinition(
+    phase_id="model_test",
+    name="难度验证",
+    description="使用模型进行难度验证测试",
+    default_steps=[
+        {"action": "run_model_test", "description": "执行模型测试", "assignee": "human"},
+        {"action": "validate_difficulty_result", "description": "验证难度测试结果", "assignee": "agent"},
+    ],
+    depends_on=["pilot"],
+    condition="has_difficulty_validation",
+    assignee="mixed",
+))
+
+register_phase(PhaseDefinition(
+    phase_id="human_review",
+    name="人工审核",
+    description="人工审核抽检数据质量",
+    default_steps=[
+        {"action": "human_review", "description": "人工抽检审核", "sample_rate": 0.2, "assignee": "human"},
+    ],
+    depends_on=["pilot"],
+    condition="has_strategy:human_review",
+    assignee="human",
+))
+
+register_phase(PhaseDefinition(
+    phase_id="production",
+    name="主体标注",
+    description="批量标注和增量质检",
+    default_steps=[
+        {"action": "batch_annotation", "description": "批量标注", "assignee": "human"},
+        {"action": "incremental_qa", "description": "增量质检", "sample_rate": 0.2, "assignee": "human"},
+    ],
+    depends_on=["pilot"],  # will be dynamically updated
+    assignee="human",
+))
+
+register_phase(PhaseDefinition(
+    phase_id="final_qa",
+    name="最终质量审核",
+    description="全量质检、生成报告、最终审批",
+    default_steps=[
+        {"action": "full_qa_review", "description": "全量质检", "assignee": "human"},
+        {"action": "generate_qa_report", "description": "生成质检报告", "assignee": "agent"},
+        {"action": "final_approval", "description": "最终审批", "assignee": "human", "required": True},
+    ],
+    depends_on=["production"],
+    assignee="mixed",
+))
+
+
+DEFAULT_PHASE_SEQUENCE = ["setup", "pilot", "model_test", "human_review", "production", "final_qa"]
+
+
+def assemble_pipeline(
+    phase_ids: Optional[List[str]] = None,
+    analysis: Any = None,
+) -> List[PhaseDefinition]:
+    """Assemble a pipeline from phase IDs, filtering by conditions.
+
+    Args:
+        phase_ids: ordered list of phase IDs (defaults to DEFAULT_PHASE_SEQUENCE)
+        analysis: SpecificationAnalysis for condition evaluation
+
+    Returns:
+        Ordered list of PhaseDefinition that passed condition checks,
+        with depends_on resolved to only include present phases.
+    """
+    if phase_ids is None:
+        phase_ids = list(DEFAULT_PHASE_SEQUENCE)
+
+    # Gather phases
+    phases: List[PhaseDefinition] = []
+    for pid in phase_ids:
+        phase = get_phase(pid)
+        if phase is None:
+            continue
+
+        # Evaluate condition
+        if phase.condition and analysis is not None:
+            if not _evaluate_condition(phase.condition, analysis):
+                continue
+
+        phases.append(phase)
+
+    # Resolve depends_on: remove references to phases not in the assembled list
+    present_ids = {p.phase_id for p in phases}
+    resolved: List[PhaseDefinition] = []
+    for phase in phases:
+        # Create a copy with resolved depends_on
+        from copy import copy
+        p = copy(phase)
+        p.depends_on = [d for d in phase.depends_on if d in present_ids]
+
+        # For production phase: make it depend on the last validation phase
+        if p.phase_id == "production":
+            # Find the latest phase that comes before production (i.e. any validation)
+            validation_phases = [
+                pp.phase_id for pp in resolved
+                if pp.phase_id not in ("setup", "production", "final_qa")
+            ]
+            if validation_phases:
+                p.depends_on = [validation_phases[-1]]
+            elif "pilot" in present_ids:
+                p.depends_on = ["pilot"]
+
+        resolved.append(p)
+
+    return resolved
+
+
+def _evaluate_condition(condition: str, analysis: Any) -> bool:
+    """Evaluate a phase condition against an analysis object."""
+    if condition == "has_difficulty_validation":
+        return getattr(analysis, "has_difficulty_validation", lambda: False)()
+    if condition.startswith("has_strategy:"):
+        strategy_type = condition.split(":", 1)[1]
+        return getattr(analysis, "has_strategy", lambda t: False)(strategy_type)
+    # Default: assume true
+    return True

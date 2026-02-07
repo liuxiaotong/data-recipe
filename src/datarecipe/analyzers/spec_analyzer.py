@@ -7,6 +7,236 @@ from typing import Any, Dict, List, Optional
 from datarecipe.parsers import DocumentParser, ParsedDocument
 
 
+# --- Type mapping utility ---
+
+def _map_type(type_str: str) -> str:
+    """Map common type names to JSON Schema types."""
+    mapping = {
+        "string": "string", "text": "string", "code": "string", "image": "string",
+        "number": "number", "float": "number", "double": "number",
+        "integer": "integer", "int": "integer",
+        "boolean": "boolean", "bool": "boolean",
+        "array": "array", "list": "array",
+        "object": "object", "dict": "object", "map": "object",
+    }
+    return mapping.get(type_str.lower().strip(), "string")
+
+
+# --- FieldDefinition: nested schema modeling ---
+
+@dataclass
+class FieldDefinition:
+    """Rich field definition supporting nested/complex types (JSON Schema compatible)."""
+
+    name: str
+    type: str = "string"
+    description: str = ""
+    required: bool = False
+
+    # Nested structure (for array items / object properties)
+    items: Optional["FieldDefinition"] = None  # array element type
+    properties: Optional[List["FieldDefinition"]] = None  # object sub-fields
+
+    # Enum / union
+    enum: Optional[List[Any]] = None
+    any_of: Optional[List["FieldDefinition"]] = None
+
+    # Constraints
+    min_length: Optional[int] = None
+    max_length: Optional[int] = None
+    minimum: Optional[float] = None
+    maximum: Optional[float] = None
+    pattern: Optional[str] = None
+
+    # --- serialization ---
+
+    def to_dict(self) -> dict:
+        """Serialize to plain dict (round-trippable with from_dict)."""
+        d: Dict[str, Any] = {"name": self.name, "type": self.type}
+        if self.description:
+            d["description"] = self.description
+        if self.required:
+            d["required"] = True
+        if self.items is not None:
+            d["items"] = self.items.to_dict()
+        if self.properties is not None:
+            d["properties"] = [p.to_dict() for p in self.properties]
+        if self.enum is not None:
+            d["enum"] = self.enum
+        if self.any_of is not None:
+            d["any_of"] = [a.to_dict() for a in self.any_of]
+        for attr in ("min_length", "max_length", "minimum", "maximum", "pattern"):
+            val = getattr(self, attr)
+            if val is not None:
+                d[attr] = val
+        return d
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FieldDefinition":
+        """Deserialize from dict. Backwards-compatible with old flat format
+        ``{"name": "x", "type": "string", "required": true, "description": "..."}``."""
+        items = None
+        if "items" in data and isinstance(data["items"], dict):
+            items = cls.from_dict(data["items"])
+
+        properties = None
+        if "properties" in data and isinstance(data["properties"], list):
+            properties = [cls.from_dict(p) for p in data["properties"]]
+
+        any_of = None
+        if "any_of" in data and isinstance(data["any_of"], list):
+            any_of = [cls.from_dict(a) for a in data["any_of"]]
+
+        # Handle old-style "required" which may be bool or truthy string
+        raw_req = data.get("required", False)
+        req = raw_req if isinstance(raw_req, bool) else str(raw_req).lower() in ("true", "1", "yes")
+
+        return cls(
+            name=data.get("name", ""),
+            type=data.get("type", "string"),
+            description=data.get("description", ""),
+            required=req,
+            items=items,
+            properties=properties,
+            enum=data.get("enum"),
+            any_of=any_of,
+            min_length=data.get("min_length") or data.get("minLength"),
+            max_length=data.get("max_length") or data.get("maxLength"),
+            minimum=data.get("minimum"),
+            maximum=data.get("maximum"),
+            pattern=data.get("pattern"),
+        )
+
+    def to_json_schema(self) -> dict:
+        """Convert to a JSON Schema property definition."""
+        json_type = _map_type(self.type)
+        schema: Dict[str, Any] = {"type": json_type}
+
+        if self.description:
+            schema["description"] = self.description
+        if self.enum is not None:
+            schema["enum"] = self.enum
+        if self.pattern is not None:
+            schema["pattern"] = self.pattern
+
+        # String constraints
+        if json_type == "string":
+            if self.min_length is not None:
+                schema["minLength"] = self.min_length
+            if self.max_length is not None:
+                schema["maxLength"] = self.max_length
+
+        # Numeric constraints
+        if json_type in ("number", "integer"):
+            if self.minimum is not None:
+                schema["minimum"] = self.minimum
+            if self.maximum is not None:
+                schema["maximum"] = self.maximum
+
+        # Array items
+        if json_type == "array" and self.items is not None:
+            schema["items"] = self.items.to_json_schema()
+
+        # Object properties
+        if json_type == "object" and self.properties is not None:
+            props = {}
+            req = []
+            for p in self.properties:
+                props[p.name] = p.to_json_schema()
+                if p.required:
+                    req.append(p.name)
+            schema["properties"] = props
+            if req:
+                schema["required"] = req
+
+        # Union (anyOf)
+        if self.any_of is not None:
+            schema.pop("type", None)
+            schema["anyOf"] = [a.to_json_schema() for a in self.any_of]
+
+        return schema
+
+
+# --- FieldConstraint: structured constraints ---
+
+@dataclass
+class FieldConstraint:
+    """Structured constraint for a field."""
+
+    field_name: str
+    constraint_type: str = "general"  # format, range, content, uniqueness, custom
+    rule: str = ""
+    severity: str = "error"  # error, warning, info
+    auto_checkable: bool = False
+
+    def to_dict(self) -> dict:
+        return {
+            "field_name": self.field_name,
+            "constraint_type": self.constraint_type,
+            "rule": self.rule,
+            "severity": self.severity,
+            "auto_checkable": self.auto_checkable,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FieldConstraint":
+        return cls(
+            field_name=data.get("field_name", ""),
+            constraint_type=data.get("constraint_type", "general"),
+            rule=data.get("rule", ""),
+            severity=data.get("severity", "error"),
+            auto_checkable=data.get("auto_checkable", False),
+        )
+
+
+# --- ValidationStrategy ---
+
+@dataclass
+class ValidationStrategy:
+    """A pluggable validation strategy."""
+
+    strategy_type: str  # model_test, human_review, format_check, cross_validation, auto_scoring
+    enabled: bool = True
+    config: Dict[str, Any] = field(default_factory=dict)
+    description: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "strategy_type": self.strategy_type,
+            "enabled": self.enabled,
+            "config": self.config,
+            "description": self.description,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ValidationStrategy":
+        return cls(
+            strategy_type=data.get("strategy_type", ""),
+            enabled=data.get("enabled", True),
+            config=data.get("config", {}),
+            description=data.get("description", ""),
+        )
+
+    @classmethod
+    def from_difficulty_validation(cls, diff_val: Dict[str, Any]) -> "ValidationStrategy":
+        """Convert legacy difficulty_validation dict to a ValidationStrategy."""
+        return cls(
+            strategy_type="model_test",
+            enabled=True,
+            config={
+                "model": diff_val.get("model", ""),
+                "settings": diff_val.get("settings", ""),
+                "test_count": diff_val.get("test_count", 3),
+                "max_correct": diff_val.get("max_correct", 1),
+                "pass_criteria": diff_val.get("pass_criteria", ""),
+                "requires_record": diff_val.get("requires_record", True),
+            },
+            description=f"使用 {diff_val.get('model', '模型')} 进行难度验证",
+        )
+
+
+# --- SpecificationAnalysis ---
+
 @dataclass
 class SpecificationAnalysis:
     """Structured analysis of a specification document."""
@@ -36,6 +266,15 @@ class SpecificationAnalysis:
     fields: List[Dict[str, str]] = field(default_factory=list)  # 字段定义
     field_requirements: Dict[str, str] = field(default_factory=dict)  # 字段要求
 
+    # Structured field constraints (Upgrade 6)
+    field_constraints: List[Dict] = field(default_factory=list)
+
+    # Validation strategies (Upgrade 3)
+    validation_strategies: List[Dict] = field(default_factory=list)
+
+    # Quality gates (Upgrade 4)
+    quality_gates: List[Dict] = field(default_factory=list)
+
     # Examples
     examples: List[Dict[str, Any]] = field(default_factory=list)  # 示例
 
@@ -53,8 +292,75 @@ class SpecificationAnalysis:
     has_images: bool = False
     image_count: int = 0
 
+    # --- Computed properties ---
+
+    @property
+    def field_definitions(self) -> List[FieldDefinition]:
+        """Parse ``fields`` into rich FieldDefinition objects (cached on instance)."""
+        cache_attr = "_cached_field_definitions"
+        if not hasattr(self, cache_attr) or getattr(self, cache_attr) is None:
+            defs = [FieldDefinition.from_dict(f) for f in self.fields] if self.fields else []
+            object.__setattr__(self, cache_attr, defs)
+        return getattr(self, cache_attr)
+
+    @property
+    def parsed_constraints(self) -> List[FieldConstraint]:
+        """Merge ``field_constraints`` (new) + ``field_requirements`` + ``quality_constraints`` (legacy)."""
+        constraints: List[FieldConstraint] = []
+        # New-format field_constraints
+        for c in self.field_constraints:
+            constraints.append(FieldConstraint.from_dict(c))
+        # Legacy field_requirements
+        for fname, rule_text in self.field_requirements.items():
+            if not any(c.field_name == fname and c.rule == rule_text for c in constraints):
+                constraints.append(FieldConstraint(
+                    field_name=fname,
+                    constraint_type="general",
+                    rule=rule_text,
+                    severity="error",
+                    auto_checkable=False,
+                ))
+        # Legacy quality_constraints (global, not per-field)
+        for qc in self.quality_constraints:
+            if not any(c.field_name == "_global" and c.rule == qc for c in constraints):
+                constraints.append(FieldConstraint(
+                    field_name="_global",
+                    constraint_type="content",
+                    rule=qc,
+                    severity="error",
+                    auto_checkable=False,
+                ))
+        return constraints
+
+    def constraints_for_field(self, field_name: str) -> List[FieldConstraint]:
+        """Return constraints applicable to a specific field (including _global)."""
+        return [c for c in self.parsed_constraints if c.field_name in (field_name, "_global")]
+
+    @property
+    def parsed_validation_strategies(self) -> List[ValidationStrategy]:
+        """Merge ``validation_strategies`` (new) + legacy ``difficulty_validation``."""
+        strategies: List[ValidationStrategy] = []
+        for vs in self.validation_strategies:
+            strategies.append(ValidationStrategy.from_dict(vs))
+        # Legacy difficulty_validation → model_test strategy
+        if self.difficulty_validation is not None:
+            if not any(s.strategy_type == "model_test" for s in strategies):
+                strategies.append(ValidationStrategy.from_difficulty_validation(self.difficulty_validation))
+        return strategies
+
+    def get_strategy(self, strategy_type: str) -> Optional[ValidationStrategy]:
+        """Get a specific validation strategy by type."""
+        for s in self.parsed_validation_strategies:
+            if s.strategy_type == strategy_type and s.enabled:
+                return s
+        return None
+
+    def has_strategy(self, strategy_type: str) -> bool:
+        """Check if a specific validation strategy is present and enabled."""
+        return self.get_strategy(strategy_type) is not None
+
     def to_dict(self) -> dict:
-        return {
+        d = {
             "project_name": self.project_name,
             "dataset_type": self.dataset_type,
             "description": self.description,
@@ -69,6 +375,9 @@ class SpecificationAnalysis:
             "difficulty_validation": self.difficulty_validation,
             "fields": self.fields,
             "field_requirements": self.field_requirements,
+            "field_constraints": self.field_constraints,
+            "validation_strategies": self.validation_strategies,
+            "quality_gates": self.quality_gates,
             "examples": self.examples,
             "scoring_rubric": self.scoring_rubric,
             "estimated_difficulty": self.estimated_difficulty,
@@ -78,10 +387,16 @@ class SpecificationAnalysis:
             "has_images": self.has_images,
             "image_count": self.image_count,
         }
+        # Include rich field_definitions for downstream consumers
+        if self.fields:
+            d["field_definitions"] = [fd.to_dict() for fd in self.field_definitions]
+        return d
 
     def has_difficulty_validation(self) -> bool:
-        """Check if difficulty validation is required."""
-        return self.difficulty_validation is not None
+        """Check if difficulty validation is required (legacy or new strategies)."""
+        if self.difficulty_validation is not None:
+            return True
+        return self.has_strategy("model_test")
 
 
 class SpecAnalyzer:
@@ -122,11 +437,48 @@ class SpecAnalyzer:
   }},
 
   "fields": [
-    {{"name": "字段名", "type": "类型", "required": true, "description": "说明"}}
+    {{"name": "字段名", "type": "类型", "required": true, "description": "说明"}},
+    {{"name": "对话历史", "type": "array", "required": true, "description": "多轮对话",
+      "items": {{"name": "turn", "type": "object", "properties": [
+        {{"name": "role", "type": "string", "enum": ["user", "assistant"]}},
+        {{"name": "content", "type": "string"}}
+      ]}}
+    }},
+    {{"name": "答案", "type": "string", "enum": ["A", "B", "C", "D"], "description": "选项"}}
   ],
   "field_requirements": {{
     "字段名": "具体要求"
   }},
+
+  "field_constraints": [
+    {{
+      "field_name": "字段名",
+      "constraint_type": "format|range|content|uniqueness|custom",
+      "rule": "约束规则描述",
+      "severity": "error|warning|info",
+      "auto_checkable": true
+    }}
+  ],
+
+  "validation_strategies": [
+    {{
+      "strategy_type": "model_test|human_review|format_check|cross_validation|auto_scoring",
+      "enabled": true,
+      "config": {{}},
+      "description": "策略描述"
+    }}
+  ],
+
+  "quality_gates": [
+    {{
+      "gate_id": "min_overall_score",
+      "name": "最低综合分",
+      "metric": "overall_score",
+      "operator": ">=",
+      "threshold": 60,
+      "severity": "blocker"
+    }}
+  ],
 
   "examples": [
     {{
@@ -154,6 +506,10 @@ class SpecAnalyzer:
 2. examples 数组最多包含 3 个示例
 3. 确保返回有效的 JSON 格式
 4. difficulty_validation: 如果文档中没有提到需要用模型验证难度，则设置 enabled 为 false 或整个字段设为 null
+5. fields 支持嵌套结构：用 items 表示数组元素类型，用 properties 表示对象子字段，用 enum 表示枚举值
+6. field_constraints: 如文档未提及具体约束，可留空数组
+7. validation_strategies: 如文档未提及验证策略，可留空数组
+8. quality_gates: 如文档未提及质量门禁，可留空数组
 """
 
     def __init__(self, provider: str = "anthropic"):
@@ -228,6 +584,9 @@ class SpecAnalyzer:
         analysis.difficulty_criteria = extracted.get("difficulty_criteria", "")
         analysis.fields = extracted.get("fields", [])
         analysis.field_requirements = extracted.get("field_requirements", {})
+        analysis.field_constraints = extracted.get("field_constraints", [])
+        analysis.validation_strategies = extracted.get("validation_strategies", [])
+        analysis.quality_gates = extracted.get("quality_gates", [])
         analysis.examples = extracted.get("examples", [])
         analysis.scoring_rubric = extracted.get("scoring_rubric", [])
         analysis.estimated_difficulty = extracted.get("estimated_difficulty", "hard")

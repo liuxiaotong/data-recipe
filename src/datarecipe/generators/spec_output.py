@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from datarecipe.analyzers.spec_analyzer import SpecificationAnalysis
+from datarecipe.analyzers.spec_analyzer import FieldDefinition, SpecificationAnalysis
+from datarecipe.pipeline import assemble_pipeline
+from datarecipe.task_profiles import get_task_profile
 
 
 @dataclass
@@ -81,9 +83,8 @@ class SpecOutputGenerator:
             self._generate_production_sop(analysis, output_dir, subdirs, result)
             self._generate_data_schema(analysis, output_dir, subdirs, result)
 
-            # Conditionally generate difficulty validation guide
-            if analysis.has_difficulty_validation():
-                self._generate_difficulty_validation(analysis, output_dir, subdirs, result)
+            # Generate validation guides for all strategies
+            self._generate_validation_guide(analysis, output_dir, subdirs, result)
 
             # Generate AI Agent layer
             self._generate_ai_agent_context(analysis, output_dir, subdirs, target_size, region, result)
@@ -1223,6 +1224,48 @@ class SpecOutputGenerator:
         lines.append("| 格式正确率 | 100% | JSON 格式和 Schema 符合 |")
         lines.append("")
 
+        # Section: Structured field constraints (Upgrade 6)
+        constraints = analysis.parsed_constraints
+        if constraints:
+            lines.append("---")
+            lines.append("")
+            lines.append("## 六、结构化字段约束")
+            lines.append("")
+            # Group by field_name
+            from collections import defaultdict
+            by_field: dict = defaultdict(list)
+            for c in constraints:
+                by_field[c.field_name].append(c)
+
+            for fname, fcs in by_field.items():
+                display_name = fname if fname != "_global" else "全局约束"
+                lines.append(f"### {display_name}")
+                lines.append("")
+                lines.append("| 约束类型 | 规则 | 严重级别 | 可自动检查 |")
+                lines.append("|----------|------|----------|------------|")
+                for c in fcs:
+                    auto = "是" if c.auto_checkable else "否"
+                    lines.append(f"| {c.constraint_type} | {c.rule} | {c.severity} | {auto} |")
+                lines.append("")
+
+        # Section: Quality gates (Upgrade 4)
+        if analysis.quality_gates:
+            lines.append("---")
+            lines.append("")
+            lines.append("## 七、质量门禁")
+            lines.append("")
+            lines.append("| 门禁 | 指标 | 条件 | 阈值 | 级别 |")
+            lines.append("|------|------|------|------|------|")
+            for gate in analysis.quality_gates:
+                lines.append(
+                    f"| {gate.get('name', gate.get('gate_id', ''))} "
+                    f"| {gate.get('metric', '')} "
+                    f"| {gate.get('operator', '')} "
+                    f"| {gate.get('threshold', '')} "
+                    f"| {gate.get('severity', 'blocker')} |"
+                )
+            lines.append("")
+
         lines.append("---")
         lines.append("")
         lines.append("*本检查清单由 DataRecipe 自动生成*")
@@ -1431,6 +1474,149 @@ class SpecOutputGenerator:
             f.write("\n".join(lines))
         result.files_generated.append(f"{subdirs['guide']}/DIFFICULTY_VALIDATION.md")
 
+    def _generate_validation_guide(
+        self,
+        analysis: SpecificationAnalysis,
+        output_dir: str,
+        subdirs: dict,
+        result: SpecOutputResult,
+    ):
+        """Generate validation guides for all validation strategies.
+
+        For model_test, delegates to the existing _generate_difficulty_validation.
+        For other strategy types, generates a corresponding guide document.
+        """
+        strategies = analysis.parsed_validation_strategies
+        if not strategies:
+            return
+
+        for strategy in strategies:
+            if strategy.strategy_type == "model_test":
+                self._generate_difficulty_validation(analysis, output_dir, subdirs, result)
+            else:
+                lines = []
+                lines.append(f"# {analysis.project_name} 验证流程 - {strategy.strategy_type}")
+                lines.append("")
+                lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+                lines.append(f"> 策略类型: {strategy.strategy_type}")
+                lines.append("")
+                lines.append("---")
+                lines.append("")
+                lines.append("## 验证说明")
+                lines.append("")
+                lines.append(f"{strategy.description or '请按以下流程执行验证。'}")
+                lines.append("")
+
+                if strategy.config:
+                    lines.append("## 配置参数")
+                    lines.append("")
+                    lines.append("| 参数 | 值 |")
+                    lines.append("|------|-----|")
+                    for k, v in strategy.config.items():
+                        lines.append(f"| {k} | {v} |")
+                    lines.append("")
+
+                if strategy.strategy_type == "human_review":
+                    lines.append("## 流程")
+                    lines.append("")
+                    lines.append("1. 随机抽取指定比例的数据")
+                    lines.append("2. 由审核员按标注规范逐条检查")
+                    lines.append("3. 记录问题并反馈修改")
+                    lines.append("4. 达到通过率阈值后放行")
+                    lines.append("")
+                elif strategy.strategy_type == "format_check":
+                    lines.append("## 流程")
+                    lines.append("")
+                    lines.append("1. 使用 DATA_SCHEMA.json 校验每条数据格式")
+                    lines.append("2. 检查必填字段、类型、长度等约束")
+                    lines.append("3. 自动过滤不符合格式的数据")
+                    lines.append("")
+                elif strategy.strategy_type == "cross_validation":
+                    lines.append("## 流程")
+                    lines.append("")
+                    lines.append("1. 同一数据由多名标注员独立标注")
+                    lines.append("2. 计算标注者间一致性 (Cohen's Kappa)")
+                    lines.append("3. 对低一致性数据进行仲裁")
+                    lines.append("")
+                elif strategy.strategy_type == "auto_scoring":
+                    lines.append("## 流程")
+                    lines.append("")
+                    lines.append("1. 使用预定义评分函数自动打分")
+                    lines.append("2. 低于阈值的数据标记为待审核")
+                    lines.append("3. 人工复核标记数据")
+                    lines.append("")
+
+                lines.append("---")
+                lines.append("")
+                lines.append("*本验证流程由 DataRecipe 自动生成*")
+
+                safe_type = strategy.strategy_type.upper()
+                filename = f"VALIDATION_{safe_type}.md"
+                path = os.path.join(output_dir, subdirs["guide"], filename)
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write("\n".join(lines))
+                result.files_generated.append(f"{subdirs['guide']}/{filename}")
+
+    # --- Schema-driven helpers ---
+
+    def _template_placeholder(self, fd: FieldDefinition) -> Any:
+        """Generate a template placeholder for a FieldDefinition (mode=template)."""
+        return self._generate_value_from_field(fd, mode="template")
+
+    def _sample_placeholder(self, fd: FieldDefinition, context: dict) -> Any:
+        """Generate a sample placeholder for a FieldDefinition (mode=sample)."""
+        return self._generate_value_from_field(fd, mode="sample", context=context)
+
+    def _generate_value_from_field(
+        self, fd: FieldDefinition, mode: str = "template", context: Optional[dict] = None
+    ) -> Any:
+        """Recursively generate a value from a FieldDefinition.
+
+        Args:
+            fd: field definition
+            mode: "template" (placeholder text) or "sample" (example data)
+            context: optional dict with task_type, sample_index etc.
+        """
+        from datarecipe.analyzers.spec_analyzer import _map_type
+        json_type = _map_type(fd.type)
+
+        # Enum → pick first value for template, vary for sample
+        if fd.enum:
+            if mode == "template":
+                return fd.enum[0] if fd.enum else ""
+            else:
+                idx = (context or {}).get("sample_index", 0)
+                return fd.enum[idx % len(fd.enum)]
+
+        # Object with properties → recurse
+        if json_type == "object" and fd.properties:
+            obj = {}
+            for p in fd.properties:
+                obj[p.name] = self._generate_value_from_field(p, mode=mode, context=context)
+            return obj
+
+        # Array with items → wrap one example item
+        if json_type == "array" and fd.items:
+            item_val = self._generate_value_from_field(fd.items, mode=mode, context=context)
+            return [item_val]
+
+        # Scalar types
+        desc = fd.description or fd.name
+        if json_type == "string":
+            if mode == "template":
+                return f"[请填写: {desc}]"
+            else:
+                return f"[{desc}]"
+        elif json_type in ("number", "integer"):
+            return 0
+        elif json_type == "boolean":
+            return True
+        elif json_type == "array":
+            return []
+        elif json_type == "object":
+            return {}
+        return f"[{fd.type}: {desc}]"
+
     def _generate_data_template(
         self,
         analysis: SpecificationAnalysis,
@@ -1438,48 +1624,39 @@ class SpecOutputGenerator:
         subdirs: dict,
         result: SpecOutputResult,
     ):
-        """Generate data_template.json - single data entry template."""
-        template = {
-            "id": "EXAMPLE_001",
-        }
+        """Generate data_template.json — schema-driven single data entry template."""
+        template: Dict[str, Any] = {"id": "EXAMPLE_001"}
 
-        # Add image field if needed
-        if analysis.has_images:
+        # Use field_definitions if available, else fall back to profile defaults
+        field_defs = analysis.field_definitions
+        if not field_defs:
+            profile = get_task_profile(analysis.dataset_type)
+            field_defs = [FieldDefinition.from_dict(f) for f in profile.default_fields]
+
+        for fd in field_defs:
+            if fd.name == "id":
+                continue
+            template[fd.name] = self._template_placeholder(fd)
+
+        # Add image field if needed and not already present
+        if analysis.has_images and "image" not in template:
             template["image"] = {
                 "path": "images/example_001.png",
                 "type": "software",
                 "description": "包含规则定义和待解决问题的图示",
             }
 
-        template["question"] = "请在此填写完整的题目文字描述..."
-        template["answer"] = {
-            "value": "标准答案",
-            "is_unique": True,
-            "alternatives": [],
-        }
-        template["explanation"] = "第一步：...\\n第二步：...\\n第三步：...\\n因此答案是..."
-        template["scoring_rubric"] = {
-            "full_score": "1分：完整正确回答，答案与标准答案一致",
-            "partial_score": "0.5分：部分正确（如适用）",
-            "zero_score": "0分：回答错误或无关",
-        }
-
         # Add model test section if difficulty validation is enabled
         if analysis.has_difficulty_validation():
-            diff_val = analysis.difficulty_validation
+            diff_val = analysis.difficulty_validation or {}
             model_name = diff_val.get("model", "未指定模型")
             settings = diff_val.get("settings", "默认设置")
             test_count = diff_val.get("test_count", 3)
-
             template["model_test"] = {
                 "model": model_name,
                 "settings": settings,
                 "results": [
-                    {
-                        "attempt": i,
-                        "response": f"模型第{i}次的回答...",
-                        "is_correct": i == test_count,  # Last one correct for example
-                    }
+                    {"attempt": i, "response": f"模型第{i}次的回答...", "is_correct": i == test_count}
                     for i in range(1, test_count + 1)
                 ],
                 "valid": True,
@@ -1662,13 +1839,23 @@ class SpecOutputGenerator:
         result: SpecOutputResult,
     ):
         """Generate DATA_SCHEMA.json - JSON schema for data format."""
-        # Check if analysis has actual fields from the dataset
         if analysis.fields and len(analysis.fields) > 0:
-            # Build schema from actual fields
+            # Build schema from actual fields via FieldDefinition
             schema = self._build_schema_from_fields(analysis)
         else:
-            # Fall back to generic template
-            schema = self._build_generic_schema(analysis)
+            # Fall back to profile default fields, then generic
+            profile = get_task_profile(analysis.dataset_type)
+            if profile.default_fields:
+                # Temporarily inject profile defaults
+                from copy import deepcopy
+                tmp = deepcopy(analysis)
+                tmp.fields = profile.default_fields
+                # Invalidate field_definitions cache
+                if hasattr(tmp, "_cached_field_definitions"):
+                    object.__setattr__(tmp, "_cached_field_definitions", None)
+                schema = self._build_schema_from_fields(tmp)
+            else:
+                schema = self._build_generic_schema(analysis)
 
         # Add image field if needed
         if analysis.has_images:
@@ -1723,7 +1910,7 @@ class SpecOutputGenerator:
         result.files_generated.append(f"{subdirs['guide']}/DATA_SCHEMA.json")
 
     def _build_schema_from_fields(self, analysis: SpecificationAnalysis) -> dict:
-        """Build JSON schema from analysis.fields."""
+        """Build JSON schema from analysis.field_definitions (FieldDefinition objects)."""
         properties = {}
         required = []
 
@@ -1734,41 +1921,15 @@ class SpecOutputGenerator:
         }
         required.append("id")
 
-        # Convert each field to JSON Schema format
-        for field in analysis.fields:
-            field_name = field.get("name", "")
-            if not field_name or field_name == "id":
+        # Convert each FieldDefinition to JSON Schema via to_json_schema()
+        for fd in analysis.field_definitions:
+            if not fd.name or fd.name == "id":
                 continue
 
-            field_type = field.get("type", "string")
-            field_desc = field.get("description", "")
-            field_required = field.get("required", False)
+            properties[fd.name] = fd.to_json_schema()
 
-            # Map field type to JSON Schema type
-            json_type = self._map_field_type_to_json_schema(field_type)
-
-            prop = {
-                "type": json_type,
-            }
-            if field_desc:
-                prop["description"] = field_desc
-
-            # Add constraints if present
-            if "constraints" in field:
-                constraints = field["constraints"]
-                if "minLength" in constraints:
-                    prop["minLength"] = constraints["minLength"]
-                if "maxLength" in constraints:
-                    prop["maxLength"] = constraints["maxLength"]
-                if "enum" in constraints:
-                    prop["enum"] = constraints["enum"]
-                if "pattern" in constraints:
-                    prop["pattern"] = constraints["pattern"]
-
-            properties[field_name] = prop
-
-            if field_required:
-                required.append(field_name)
+            if fd.required:
+                required.append(fd.name)
 
         # Add metadata field
         properties["metadata"] = {
@@ -1787,24 +1948,8 @@ class SpecOutputGenerator:
             "required": required,
             "properties": properties,
             # Include field definitions for reference
-            "x-field-definitions": analysis.fields,
+            "x-field-definitions": [fd.to_dict() for fd in analysis.field_definitions],
         }
-
-    def _map_field_type_to_json_schema(self, field_type: str) -> str:
-        """Map custom field types to JSON Schema types."""
-        type_mapping = {
-            "string": "string",
-            "text": "string",
-            "code": "string",
-            "image": "string",
-            "number": "number",
-            "integer": "integer",
-            "boolean": "boolean",
-            "array": "array",
-            "object": "object",
-            "list": "array",
-        }
-        return type_mapping.get(field_type.lower(), "string")
 
     def _build_generic_schema(self, analysis: SpecificationAnalysis) -> dict:
         """Build generic fallback schema when no fields are defined."""
@@ -2399,39 +2544,73 @@ class SpecOutputGenerator:
         lines.append("        assignee: human")
         lines.append("")
 
-        # Phase 3: Difficulty Validation (conditional)
-        if analysis.has_difficulty_validation():
-            diff_val = analysis.difficulty_validation
-            lines.append("  - name: difficulty_validation")
-            lines.append("    description: 难度验证")
-            lines.append("    depends_on: [pilot]")
-            lines.append("    condition: \"validation_enabled == true\"")
-            lines.append("    steps:")
-            lines.append("      - action: run_model_test")
-            lines.append("        description: 执行模型测试")
-            lines.append("        config:")
-            lines.append(f"          model: \"{{{{ validation_model }}}}\"")
-            lines.append(f"          settings: \"{{{{ validation_settings }}}}\"")
-            lines.append(f"          test_count: {{{{ validation_test_count }}}}")
-            lines.append(f"          max_correct: {{{{ validation_max_correct }}}}")
-            lines.append(f"        reference: ../{subdirs['guide']}/DIFFICULTY_VALIDATION.md")
-            lines.append("        assignee: human")
-            lines.append("")
-            lines.append("      - action: validate_difficulty_result")
-            lines.append("        description: 验证难度测试结果")
-            lines.append("        success_criteria:")
-            lines.append(f"          correct_count: \"<= {{{{ validation_max_correct }}}}\"")
-            lines.append("        on_failure: revise_question")
-            lines.append("        assignee: agent")
-            lines.append("")
+        # Phase 3+: Validation phases for each strategy
+        last_validation_phase = "pilot"
+        for strategy in analysis.parsed_validation_strategies:
+            phase_name = f"validation_{strategy.strategy_type}"
+            strategy_desc = {
+                "model_test": "难度验证",
+                "human_review": "人工审核",
+                "format_check": "格式校验",
+                "cross_validation": "交叉验证",
+                "auto_scoring": "自动评分",
+            }.get(strategy.strategy_type, strategy.strategy_type)
 
-        # Phase 4: Production
+            lines.append(f"  - name: {phase_name}")
+            lines.append(f"    description: {strategy_desc}")
+            lines.append(f"    depends_on: [{last_validation_phase}]")
+            lines.append("    steps:")
+
+            if strategy.strategy_type == "model_test":
+                cfg = strategy.config
+                lines.append("      - action: run_model_test")
+                lines.append("        description: 执行模型测试")
+                lines.append("        config:")
+                lines.append(f"          model: \"{cfg.get('model', '')}\"")
+                lines.append(f"          settings: \"{cfg.get('settings', '')}\"")
+                lines.append(f"          test_count: {cfg.get('test_count', 3)}")
+                lines.append(f"          max_correct: {cfg.get('max_correct', 1)}")
+                lines.append(f"        reference: ../{subdirs['guide']}/DIFFICULTY_VALIDATION.md")
+                lines.append("        assignee: human")
+                lines.append("")
+                lines.append("      - action: validate_difficulty_result")
+                lines.append("        description: 验证难度测试结果")
+                lines.append("        on_failure: revise_question")
+                lines.append("        assignee: agent")
+            elif strategy.strategy_type == "human_review":
+                lines.append("      - action: human_review")
+                lines.append(f"        description: {strategy.description or '人工审核抽检'}")
+                lines.append(f"        checklist: ../{subdirs['annotation']}/QA_CHECKLIST.md")
+                lines.append(f"        sample_rate: {strategy.config.get('sample_rate', 0.2)}")
+                lines.append("        assignee: human")
+            elif strategy.strategy_type == "format_check":
+                lines.append("      - action: format_check")
+                lines.append("        description: 自动格式校验")
+                lines.append(f"        schema: ../{subdirs['guide']}/DATA_SCHEMA.json")
+                lines.append("        assignee: agent")
+            elif strategy.strategy_type == "cross_validation":
+                lines.append("      - action: cross_validation")
+                lines.append(f"        description: {strategy.description or '交叉验证'}")
+                lines.append(f"        min_annotators: {strategy.config.get('min_annotators', 2)}")
+                lines.append(f"        min_kappa: {strategy.config.get('min_kappa', 0.7)}")
+                lines.append("        assignee: human")
+            elif strategy.strategy_type == "auto_scoring":
+                lines.append("      - action: auto_scoring")
+                lines.append(f"        description: {strategy.description or '自动评分'}")
+                lines.append(f"        threshold: {strategy.config.get('threshold', 0.6)}")
+                lines.append("        assignee: agent")
+            else:
+                lines.append(f"      - action: {strategy.strategy_type}")
+                lines.append(f"        description: {strategy.description}")
+                lines.append("        assignee: human")
+
+            lines.append("")
+            last_validation_phase = phase_name
+
+        # Production phase
         lines.append("  - name: production")
         lines.append("    description: 主体标注")
-        if analysis.has_difficulty_validation():
-            lines.append("    depends_on: [difficulty_validation]")
-        else:
-            lines.append("    depends_on: [pilot]")
+        lines.append(f"    depends_on: [{last_validation_phase}]")
         lines.append("    steps:")
         lines.append("      - action: batch_annotation")
         lines.append("        description: 批量标注")
@@ -2789,32 +2968,29 @@ class SpecOutputGenerator:
         sample_index: int,
         automation_info: dict,
     ) -> dict:
-        """Generate a single sample entry."""
+        """Generate a single sample entry (schema-driven)."""
         sample_id = f"SAMPLE_{sample_index:03d}"
 
-        # Build sample structure based on fields
-        data_fields = {}
-        for field in analysis.fields:
-            field_name = field.get("name", "")
-            field_type = field.get("type", "string")
-            required = field.get("required", False)
-            desc = field.get("description", "")
+        # Use field_definitions for schema-driven generation
+        field_defs = analysis.field_definitions
+        if not field_defs:
+            profile = get_task_profile(analysis.dataset_type)
+            field_defs = [FieldDefinition.from_dict(f) for f in profile.default_fields]
 
-            if field_name == "task_type":
-                data_fields[field_name] = task_type
-            elif field_type == "image":
-                data_fields[field_name] = f"[图片占位符: {desc}]"
-            elif field_type == "string":
-                if "svg" in field_name.lower() or "code" in field_name.lower():
-                    data_fields[field_name] = self._generate_sample_svg(task_type, sample_index)
-                elif "instruction" in field_name.lower() or "question" in field_name.lower():
-                    data_fields[field_name] = self._generate_sample_instruction(analysis, task_type, sample_index)
-                elif "output" in field_name.lower() or "answer" in field_name.lower():
-                    data_fields[field_name] = f"[{desc or '期望输出'}]"
-                else:
-                    data_fields[field_name] = f"[{desc or field_name}]"
+        context = {"task_type": task_type, "sample_index": sample_index}
+        data_fields: Dict[str, Any] = {}
+        for fd in field_defs:
+            name = fd.name
+            if name == "task_type":
+                data_fields[name] = task_type
+            elif fd.type == "image":
+                data_fields[name] = f"[图片占位符: {fd.description}]"
+            elif "svg" in name.lower() or "code" in name.lower():
+                data_fields[name] = self._generate_sample_svg(task_type, sample_index)
+            elif "instruction" in name.lower() or "question" in name.lower():
+                data_fields[name] = self._generate_sample_instruction(analysis, task_type, sample_index)
             else:
-                data_fields[field_name] = f"[{field_type}: {desc}]"
+                data_fields[name] = self._sample_placeholder(fd, context)
 
         # Determine automation status for this sample
         can_automate = automation_info.get("can_automate", False)

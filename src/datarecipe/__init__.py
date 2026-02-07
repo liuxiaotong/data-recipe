@@ -43,6 +43,16 @@ def __getattr__(name):
     if name == "ProductionDeployer":
         from datarecipe.deployer import ProductionDeployer
         return ProductionDeployer
+    # Task profiles
+    if name == "task_profiles":
+        from datarecipe import task_profiles
+        return task_profiles
+    if name == "get_task_profile":
+        from datarecipe.task_profiles import get_task_profile
+        return get_task_profile
+    if name == "TaskTypeProfile":
+        from datarecipe.task_profiles import TaskTypeProfile
+        return TaskTypeProfile
     # Provider-related
     if name == "get_provider":
         from datarecipe.providers import get_provider

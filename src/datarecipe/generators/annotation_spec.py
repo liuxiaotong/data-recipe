@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from datarecipe.task_profiles import get_task_profile
+
 
 @dataclass
 class ScoringCriterion:
@@ -181,16 +183,13 @@ class AnnotationSpecGenerator:
             source_samples=len(sample_items),
         )
 
-        # Get base task info
-        task_info = self.TASK_TYPE_INFO.get(
-            dataset_type,
-            self.TASK_TYPE_INFO["unknown"]
-        )
+        # Get base task info from unified profile registry
+        profile = get_task_profile(dataset_type)
 
-        spec.task_name = task_info["name"]
-        spec.task_description = task_info["description"]
-        spec.cognitive_requirements = task_info["cognitive_requirements"]
-        spec.reasoning_chain = task_info["reasoning_chain"]
+        spec.task_name = profile.name
+        spec.task_description = profile.description
+        spec.cognitive_requirements = list(profile.cognitive_requirements)
+        spec.reasoning_chain = profile.reasoning_chain
 
         # Override with LLM analysis if available
         if llm_analysis:
@@ -266,9 +265,9 @@ class AnnotationSpecGenerator:
         """Generate quality constraints section."""
         constraints = []
 
-        # Default constraints by type
-        default = self.DEFAULT_QUALITY_CONSTRAINTS.get(dataset_type, [])
-        constraints.extend(default)
+        # Default constraints by type (from unified profile registry)
+        profile = get_task_profile(dataset_type)
+        constraints.extend(profile.default_quality_constraints)
 
         # Add universal constraints
         constraints.extend([
