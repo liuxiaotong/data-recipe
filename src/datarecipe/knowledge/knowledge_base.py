@@ -488,7 +488,7 @@ class KnowledgeBase:
                     f"{bench.avg_human_percentage:.0f}% | {len(bench.datasets)} |"
                 )
         else:
-            lines.append("*暂无数据*")
+            lines.append("暂无数据")
         lines.append("")
 
         # Trends

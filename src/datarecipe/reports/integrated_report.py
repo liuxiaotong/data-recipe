@@ -362,7 +362,7 @@ class IntegratedReportGenerator:
                     f"${d.reproduction_cost:,.0f} | {d.human_percentage:.0f}% | {difficulty} |"
                 )
             if len(analyzed) > 20:
-                lines.append(f"| ... | | | | *还有 {len(analyzed) - 20} 个* |")
+                lines.append(f"| ... | | | | 还有 {len(analyzed) - 20} 个 |")
             lines.append("")
 
         # Not analyzed
@@ -375,7 +375,7 @@ class IntegratedReportGenerator:
             for d in not_analyzed[:10]:
                 lines.append(f"| {d.dataset_id} | {d.org} | {d.category or '-'} | {d.downloads:,} |")
             if len(not_analyzed) > 10:
-                lines.append(f"| ... | | | *还有 {len(not_analyzed) - 10} 个* |")
+                lines.append(f"| ... | | | 还有 {len(not_analyzed) - 10} 个 |")
             lines.append("")
 
         lines.append("---")

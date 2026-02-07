@@ -101,7 +101,7 @@ def recipe_to_markdown(recipe: Recipe) -> str:
         lines.append(f"| 合成数据 | {synthetic_pct:.0f}% | `{synthetic_bar}` |")
         lines.append(f"| 人工标注 | {human_pct:.0f}% | `{human_bar}` |")
     else:
-        lines.append("*无法从现有元数据中确定生成方式。*")
+        lines.append("无法从现有元数据中确定生成方式。")
     lines.append("")
 
     # Teacher Models
@@ -114,7 +114,7 @@ def recipe_to_markdown(recipe: Recipe) -> str:
         for model in recipe.teacher_models:
             lines.append(f"- **{model}**")
     else:
-        lines.append("*未在数据集文档中检测到教师模型。*")
+        lines.append("未在数据集文档中检测到教师模型。")
     lines.append("")
 
     # Generation Methods Detail
@@ -146,11 +146,11 @@ def recipe_to_markdown(recipe: Recipe) -> str:
         if recipe.cost.confidence == "low":
             low = recipe.cost.estimated_total_usd * 0.5
             high = recipe.cost.estimated_total_usd * 1.5
-            lines.append(f"**预估总成本：${low:,.0f} - ${high:,.0f}** *(低置信度)*")
+            lines.append(f"**预估总成本：${low:,.0f} - ${high:,.0f}** (低置信度)")
         elif recipe.cost.confidence == "medium":
             low = recipe.cost.estimated_total_usd * 0.8
             high = recipe.cost.estimated_total_usd * 1.2
-            lines.append(f"**预估总成本：${low:,.0f} - ${high:,.0f}** *(中置信度)*")
+            lines.append(f"**预估总成本：${low:,.0f} - ${high:,.0f}** (中置信度)")
         else:
             lines.append(f"**预估总成本：${recipe.cost.estimated_total_usd:,.0f}**")
         lines.append("")
@@ -164,7 +164,7 @@ def recipe_to_markdown(recipe: Recipe) -> str:
         if recipe.cost.compute_usd:
             lines.append(f"| 计算资源 | ${recipe.cost.compute_usd:,.0f} |")
     else:
-        lines.append("*暂无成本估算数据。*")
+        lines.append("暂无成本估算数据。")
     lines.append("")
 
     # Reproducibility
@@ -218,7 +218,7 @@ def recipe_to_markdown(recipe: Recipe) -> str:
             lines.append(recipe.reproducibility.notes)
             lines.append("")
     else:
-        lines.append("*暂无可复现性评估。*")
+        lines.append("暂无可复现性评估。")
 
     # Footer
     lines.append("---")
@@ -2174,7 +2174,7 @@ def _generate_reproduction_guide(
         lines.append("")
 
     if not category_set and not sub_category_set and not is_preference_dataset:
-        lines.append("*未检测到分类体系*")
+        lines.append("未检测到分类体系")
         lines.append("")
 
     # For preference datasets, show topic distribution
@@ -2429,7 +2429,7 @@ def _generate_reproduction_guide(
                 lines.append("```")
                 lines.append("")
     else:
-        lines.append("*未提取到 System Prompt*")
+        lines.append("未提取到 System Prompt")
         lines.append("")
 
     lines.append("---")
@@ -2602,7 +2602,7 @@ def _generate_reproduction_guide(
         lines.append(json.dumps(display_item, indent=2, ensure_ascii=False))
         lines.append("```")
     else:
-        lines.append("*无可用示例*")
+        lines.append("无可用示例")
     lines.append("")
 
     lines.append("---")

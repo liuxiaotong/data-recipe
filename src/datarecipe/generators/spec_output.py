@@ -260,7 +260,7 @@ class SpecOutputGenerator:
                 lines.append("")
         else:
             # Generate example structure from fields
-            lines.append("*（以下为基于字段定义的数据模板，请参考此格式制作实际数据）*")
+            lines.append("（以下为基于字段定义的数据模板，请参考此格式制作实际数据）")
             lines.append("")
             if analysis.fields:
                 lines.append("```json")
@@ -1045,7 +1045,7 @@ class SpecOutputGenerator:
                 lines.append("")
         else:
             # Generate example template from field definitions
-            lines.append("*（文档中未提供完整示例，以下为基于字段定义的模板）*")
+            lines.append("（文档中未提供完整示例，以下为基于字段定义的模板）")
             lines.append("")
             if analysis.fields:
                 lines.append("### 示例模板")
