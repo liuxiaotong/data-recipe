@@ -14,7 +14,6 @@ from datarecipe.deep_analyzer import (
     DeepAnalyzer,
 )
 
-
 # LLM analysis prompt template
 ANALYSIS_PROMPT = """你是一个专业的数据集分析专家。请分析以下数据集的相关内容，提取关键信息。
 
@@ -52,6 +51,7 @@ ANALYSIS_PROMPT = """你是一个专业的数据集分析专家。请分析以�
 @dataclass
 class MultiSourceContent:
     """Content aggregated from multiple sources."""
+
     website_content: str = ""
     paper_content: str = ""
     github_content: str = ""
@@ -91,6 +91,7 @@ class LLMAnalyzer(DeepAnalyzer):
         if self.llm_provider == "anthropic":
             try:
                 import anthropic
+
                 api_key = os.environ.get("ANTHROPIC_API_KEY")
                 if not api_key:
                     raise ValueError("ANTHROPIC_API_KEY environment variable not set")
@@ -101,6 +102,7 @@ class LLMAnalyzer(DeepAnalyzer):
         elif self.llm_provider == "openai":
             try:
                 import openai
+
                 api_key = os.environ.get("OPENAI_API_KEY")
                 if not api_key:
                     raise ValueError("OPENAI_API_KEY environment variable not set")
@@ -275,10 +277,12 @@ class LLMAnalyzer(DeepAnalyzer):
             json_match = re.search(r"```json\s*(.*?)\s*```", response_text, re.DOTALL)
             if json_match:
                 import json
+
                 return json.loads(json_match.group(1))
 
             # Try parsing entire response as JSON
             import json
+
             return json.loads(response_text)
 
         except Exception as e:
@@ -310,11 +314,22 @@ class LLMAnalyzer(DeepAnalyzer):
         sources = self._aggregate_sources(url, name)
 
         # Combine all content
-        combined_content = "\n\n---\n\n".join(filter(None, [
-            f"=== 网站内容 ===\n{sources.website_content[:5000]}" if sources.website_content else "",
-            f"=== 论文内容 ===\n{sources.paper_content[:10000]}" if sources.paper_content else "",
-            f"=== GitHub README ===\n{sources.github_content[:3000]}" if sources.github_content else "",
-        ]))
+        combined_content = "\n\n---\n\n".join(
+            filter(
+                None,
+                [
+                    f"=== 网站内容 ===\n{sources.website_content[:5000]}"
+                    if sources.website_content
+                    else "",
+                    f"=== 论文内容 ===\n{sources.paper_content[:10000]}"
+                    if sources.paper_content
+                    else "",
+                    f"=== GitHub README ===\n{sources.github_content[:3000]}"
+                    if sources.github_content
+                    else "",
+                ],
+            )
+        )
 
         # Use LLM if enabled and content is available
         llm_result = {}
@@ -345,16 +360,32 @@ class LLMAnalyzer(DeepAnalyzer):
 
         # Fill in LLM results
         if llm_result:
-            result.methodology = llm_result.get("methodology") or self._extract_methodology(combined_content)
+            result.methodology = llm_result.get("methodology") or self._extract_methodology(
+                combined_content
+            )
             result.domain = llm_result.get("domain") or self._extract_domain(combined_content)
-            result.key_innovations = llm_result.get("key_innovations") or self._extract_innovations(combined_content)
-            result.generation_steps = llm_result.get("generation_steps") or self._extract_generation_steps(combined_content, category)
-            result.quality_methods = llm_result.get("quality_methods") or self._extract_quality_methods(combined_content)
+            result.key_innovations = llm_result.get("key_innovations") or self._extract_innovations(
+                combined_content
+            )
+            result.generation_steps = llm_result.get(
+                "generation_steps"
+            ) or self._extract_generation_steps(combined_content, category)
+            result.quality_methods = llm_result.get(
+                "quality_methods"
+            ) or self._extract_quality_methods(combined_content)
             result.data_format = llm_result.get("data_format")
-            result.evaluation_metrics = llm_result.get("evaluation_metrics") or self._extract_metrics(combined_content)
-            result.modeling_approach = llm_result.get("modeling_approach") or self._extract_modeling_approach(combined_content)
-            result.limitations = llm_result.get("limitations") or self._extract_limitations(combined_content)
-            result.use_cases = llm_result.get("use_cases") or self._extract_use_cases(combined_content)
+            result.evaluation_metrics = llm_result.get(
+                "evaluation_metrics"
+            ) or self._extract_metrics(combined_content)
+            result.modeling_approach = llm_result.get(
+                "modeling_approach"
+            ) or self._extract_modeling_approach(combined_content)
+            result.limitations = llm_result.get("limitations") or self._extract_limitations(
+                combined_content
+            )
+            result.use_cases = llm_result.get("use_cases") or self._extract_use_cases(
+                combined_content
+            )
 
             if llm_result.get("size_info"):
                 result.size_info = llm_result["size_info"]

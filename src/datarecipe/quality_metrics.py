@@ -4,9 +4,7 @@ import math
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Optional, Any
-
-from datarecipe.schema import Recipe
+from typing import Any, Optional
 
 
 @dataclass
@@ -147,10 +145,18 @@ class QualityGateReport:
 # Default quality gates
 DEFAULT_QUALITY_GATES: list[QualityGateRule] = [
     QualityGateRule("min_overall_score", "最低综合分", "overall_score", ">=", 60, "blocker"),
-    QualityGateRule("min_diversity", "最低多样性", "diversity.unique_token_ratio", ">=", 0.05, "blocker"),
-    QualityGateRule("min_consistency", "最低格式一致性", "consistency.format_consistency", ">=", 0.5, "blocker"),
-    QualityGateRule("max_ai_probability", "AI 内容上限", "ai_detection.ai_probability", "<=", 0.5, "warning"),
-    QualityGateRule("min_completeness", "最低字段完整性", "consistency.field_completeness", ">=", 0.8, "warning"),
+    QualityGateRule(
+        "min_diversity", "最低多样性", "diversity.unique_token_ratio", ">=", 0.05, "blocker"
+    ),
+    QualityGateRule(
+        "min_consistency", "最低格式一致性", "consistency.format_consistency", ">=", 0.5, "blocker"
+    ),
+    QualityGateRule(
+        "max_ai_probability", "AI 内容上限", "ai_detection.ai_probability", "<=", 0.5, "warning"
+    ),
+    QualityGateRule(
+        "min_completeness", "最低字段完整性", "consistency.field_completeness", ">=", 0.8, "warning"
+    ),
 ]
 
 
@@ -499,9 +505,7 @@ class QualityAnalyzer:
         except ImportError:
             return 0.5  # Default if embeddings not available
 
-    def _calculate_consistency(
-        self, data: list[dict], texts: list[str]
-    ) -> ConsistencyMetrics:
+    def _calculate_consistency(self, data: list[dict], texts: list[str]) -> ConsistencyMetrics:
         """Calculate consistency metrics."""
         # Format consistency: check if examples have same structure
         if not data:
@@ -660,9 +664,7 @@ class QualityAnalyzer:
                 r"\bI hope this helps\b",
                 r"\bfeel free to\b",
             ]
-            polite_count = sum(
-                1 for p in polite_patterns if re.search(p, text, re.IGNORECASE)
-            )
+            polite_count = sum(1 for p in polite_patterns if re.search(p, text, re.IGNORECASE))
             if polite_count >= 2:
                 text_score += 0.1
                 text_indicators.append("Excessive politeness markers")
@@ -694,9 +696,7 @@ class QualityAnalyzer:
         diversity_score = 0
         diversity_score += min(10, diversity.unique_token_ratio * 50)  # Up to 10
         diversity_score += min(10, diversity.semantic_diversity * 15)  # Up to 10
-        ngram_avg = sum(diversity.ngram_diversity.values()) / max(
-            1, len(diversity.ngram_diversity)
-        )
+        ngram_avg = sum(diversity.ngram_diversity.values()) / max(1, len(diversity.ngram_diversity))
         diversity_score += min(10, ngram_avg * 15)  # Up to 10
         score += diversity_score
 
@@ -756,13 +756,9 @@ class QualityAnalyzer:
         if complexity.avg_tokens < 20:
             recommendations.append("Very short texts - may lack sufficient context")
         if complexity.avg_tokens > 1000:
-            recommendations.append(
-                "Very long texts - consider chunking or summarizing"
-            )
+            recommendations.append("Very long texts - consider chunking or summarizing")
         if complexity.readability_score < 30:
-            recommendations.append(
-                "Low readability - texts may be too complex or technical"
-            )
+            recommendations.append("Low readability - texts may be too complex or technical")
 
         # AI detection recommendations
         if ai_detection and ai_detection.ai_probability > 0.5:
@@ -779,9 +775,7 @@ class QualityAnalyzer:
 
         return recommendations
 
-    def _generate_warnings(
-        self, data: list[dict], texts: list[str], text_field: str
-    ) -> list[str]:
+    def _generate_warnings(self, data: list[dict], texts: list[str], text_field: str) -> list[str]:
         """Generate warnings about potential issues."""
         warnings = []
 
@@ -826,10 +820,14 @@ class QualityAnalyzer:
             actual = self._extract_metric(report, gate.metric)
             if actual is None:
                 # Metric not available (e.g. ai_detection not run) — skip
-                results.append(GateResult(
-                    gate=gate, actual_value=0.0, passed=True,
-                    message=f"Metric '{gate.metric}' not available, skipped",
-                ))
+                results.append(
+                    GateResult(
+                        gate=gate,
+                        actual_value=0.0,
+                        passed=True,
+                        message=f"Metric '{gate.metric}' not available, skipped",
+                    )
+                )
                 continue
 
             passed = self._compare(actual, gate.operator, gate.threshold)

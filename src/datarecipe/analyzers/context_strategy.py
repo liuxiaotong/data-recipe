@@ -16,11 +16,11 @@ from typing import Optional
 class ContextStrategyType(Enum):
     """Types of context construction strategies."""
 
-    SYNTHETIC = "synthetic"        # 100% created/fictional
-    MODIFIED = "modified"          # Based on existing data
-    NICHE = "niche"               # From specialized sources
-    HYBRID = "hybrid"              # Mixed strategies
-    UNKNOWN = "unknown"            # Cannot determine
+    SYNTHETIC = "synthetic"  # 100% created/fictional
+    MODIFIED = "modified"  # Based on existing data
+    NICHE = "niche"  # From specialized sources
+    HYBRID = "hybrid"  # Mixed strategies
+    UNKNOWN = "unknown"  # Cannot determine
 
 
 @dataclass
@@ -28,12 +28,12 @@ class ContextStrategy:
     """Analysis result for context construction strategy."""
 
     primary_strategy: ContextStrategyType
-    confidence: float = 0.0        # 0.0-1.0
+    confidence: float = 0.0  # 0.0-1.0
 
     # Strategy-specific scores
-    synthetic_score: float = 0.0   # How synthetic/fictional
-    modified_score: float = 0.0    # How much based on real data
-    niche_score: float = 0.0       # How specialized/rare
+    synthetic_score: float = 0.0  # How synthetic/fictional
+    modified_score: float = 0.0  # How much based on real data
+    niche_score: float = 0.0  # How specialized/rare
 
     # Evidence
     synthetic_indicators: list[str] = field(default_factory=list)
@@ -121,10 +121,10 @@ class ContextStrategyDetector:
             r"model-generated",
         ],
         "placeholder_markers": [
-            r"\[.*?\]",           # [placeholder]
-            r"\{.*?\}",           # {placeholder}
-            r"<.*?>",             # <placeholder>
-            r"xxx+",              # xxx placeholder
+            r"\[.*?\]",  # [placeholder]
+            r"\{.*?\}",  # {placeholder}
+            r"<.*?>",  # <placeholder>
+            r"xxx+",  # xxx placeholder
             r"example\.com",
             r"john doe",
             r"jane doe",
@@ -193,8 +193,7 @@ class ContextStrategyDetector:
         self.niche_patterns = self._compile_patterns(self.NICHE_INDICATORS)
 
     def _compile_patterns(
-        self,
-        indicator_dict: dict[str, list[str]]
+        self, indicator_dict: dict[str, list[str]]
     ) -> dict[str, list[re.Pattern]]:
         """Compile regex patterns."""
         return {
@@ -202,11 +201,7 @@ class ContextStrategyDetector:
             for category, patterns in indicator_dict.items()
         }
 
-    def analyze(
-        self,
-        contexts: list[str],
-        metadata: Optional[dict] = None
-    ) -> ContextStrategy:
+    def analyze(self, contexts: list[str], metadata: Optional[dict] = None) -> ContextStrategy:
         """
         Analyze contexts to detect construction strategy.
 
@@ -315,9 +310,7 @@ class ContextStrategyDetector:
         # Check for original source
         if "original_source" in metadata:
             result.modified_score = max(result.modified_score, 0.3)
-            result.modified_indicators.append(
-                f"has original source: {metadata['original_source']}"
-            )
+            result.modified_indicators.append(f"has original source: {metadata['original_source']}")
 
     def _calculate_domain_specificity(self, contexts: list[str]) -> float:
         """Calculate how domain-specific the contexts are."""
@@ -326,11 +319,11 @@ class ContextStrategyDetector:
 
         # Technical/specialized term indicators
         tech_patterns = [
-            r"\b[A-Z]{2,}\b",                    # Acronyms
-            r"\b\w+(?:tion|sion|ment|ity)\b",    # Abstract nouns
+            r"\b[A-Z]{2,}\b",  # Acronyms
+            r"\b\w+(?:tion|sion|ment|ity)\b",  # Abstract nouns
             r"\b(?:cf\.|e\.g\.|i\.e\.|et al\.)",  # Academic markers
-            r"\b\d+(?:\.\d+)+\b",                 # Version numbers
-            r"\b[a-z]+_[a-z]+\b",                 # snake_case (technical)
+            r"\b\d+(?:\.\d+)+\b",  # Version numbers
+            r"\b[a-z]+_[a-z]+\b",  # snake_case (technical)
         ]
 
         total_matches = 0
@@ -352,43 +345,53 @@ class ContextStrategyDetector:
         recommendations = []
 
         if result.primary_strategy == ContextStrategyType.SYNTHETIC:
-            recommendations.extend([
-                "Use LLM (GPT-4, Claude) for context generation",
-                "Create detailed fictional scenarios with internal consistency",
-                "Design rule systems or game mechanics for structured content",
-                "Ensure generated content is novel (not in training data)",
-            ])
+            recommendations.extend(
+                [
+                    "Use LLM (GPT-4, Claude) for context generation",
+                    "Create detailed fictional scenarios with internal consistency",
+                    "Design rule systems or game mechanics for structured content",
+                    "Ensure generated content is novel (not in training data)",
+                ]
+            )
 
         elif result.primary_strategy == ContextStrategyType.MODIFIED:
-            recommendations.extend([
-                "Start with existing documents as base",
-                "Apply paraphrasing and augmentation techniques",
-                "Modify key details while preserving structure",
-                "Track modifications for reproducibility",
-            ])
+            recommendations.extend(
+                [
+                    "Start with existing documents as base",
+                    "Apply paraphrasing and augmentation techniques",
+                    "Modify key details while preserving structure",
+                    "Track modifications for reproducibility",
+                ]
+            )
 
         elif result.primary_strategy == ContextStrategyType.NICHE:
-            recommendations.extend([
-                "Identify domain experts for content creation",
-                "Source from specialized/professional documents",
-                "Consider licensing for proprietary content",
-                "Ensure domain accuracy through expert review",
-            ])
+            recommendations.extend(
+                [
+                    "Identify domain experts for content creation",
+                    "Source from specialized/professional documents",
+                    "Consider licensing for proprietary content",
+                    "Ensure domain accuracy through expert review",
+                ]
+            )
 
         elif result.primary_strategy == ContextStrategyType.HYBRID:
-            recommendations.extend([
-                "Combine multiple strategies based on category",
-                "Use synthetic for rule-based content",
-                "Use modification for factual content",
-                "Use niche sources for domain expertise",
-            ])
+            recommendations.extend(
+                [
+                    "Combine multiple strategies based on category",
+                    "Use synthetic for rule-based content",
+                    "Use modification for factual content",
+                    "Use niche sources for domain expertise",
+                ]
+            )
 
         else:
-            recommendations.extend([
-                "Gather more samples for accurate detection",
-                "Review dataset documentation for methodology",
-                "Consider manual inspection of sample contexts",
-            ])
+            recommendations.extend(
+                [
+                    "Gather more samples for accurate detection",
+                    "Review dataset documentation for methodology",
+                    "Consider manual inspection of sample contexts",
+                ]
+            )
 
         return recommendations
 

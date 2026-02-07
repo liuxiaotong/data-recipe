@@ -4,7 +4,6 @@ Generates forward-looking annotation specification documents
 that can be used to guide annotators in producing new data.
 """
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -194,9 +193,9 @@ class AnnotationSpecGenerator:
 
         # Override with LLM analysis if available
         if llm_analysis:
-            if hasattr(llm_analysis, 'purpose') and llm_analysis.purpose:
+            if hasattr(llm_analysis, "purpose") and llm_analysis.purpose:
                 spec.task_description = llm_analysis.purpose
-            if hasattr(llm_analysis, 'production_steps') and llm_analysis.production_steps:
+            if hasattr(llm_analysis, "production_steps") and llm_analysis.production_steps:
                 spec.reasoning_chain = " → ".join(llm_analysis.production_steps[:5])
 
         # Generate data requirements
@@ -243,7 +242,7 @@ class AnnotationSpecGenerator:
 
         # Complexity-based requirements
         if complexity_metrics:
-            if hasattr(complexity_metrics, 'length_category'):
+            if hasattr(complexity_metrics, "length_category"):
                 length_desc = {
                     "short": "简短（< 500 字符）",
                     "medium": "中等（500-2000 字符）",
@@ -253,7 +252,7 @@ class AnnotationSpecGenerator:
                 if length_desc:
                     requirements.append(f"文本长度要求: {length_desc}")
 
-            if hasattr(complexity_metrics, 'primary_domain'):
+            if hasattr(complexity_metrics, "primary_domain"):
                 domain = complexity_metrics.primary_domain.value
                 if domain != "general":
                     requirements.append(f"领域要求: 需要 {domain} 领域专业知识")
@@ -274,14 +273,16 @@ class AnnotationSpecGenerator:
         constraints.extend(profile.default_quality_constraints)
 
         # Add universal constraints
-        constraints.extend([
-            "交付数据中不能含有任何 AI 产出的内容",
-            "数据格式必须符合 Schema 规范",
-            "每条数据需经过质量检查",
-        ])
+        constraints.extend(
+            [
+                "交付数据中不能含有任何 AI 产出的内容",
+                "数据格式必须符合 Schema 规范",
+                "每条数据需经过质量检查",
+            ]
+        )
 
         # Rubric-based constraints
-        if rubrics_result and hasattr(rubrics_result, 'verb_distribution'):
+        if rubrics_result and hasattr(rubrics_result, "verb_distribution"):
             top_verbs = list(rubrics_result.verb_distribution.keys())[:3]
             if top_verbs:
                 constraints.append(f"评分标准应包含: {', '.join(top_verbs)} 等动词")
@@ -290,8 +291,7 @@ class AnnotationSpecGenerator:
 
         # Difficulty calibration
         spec.difficulty_calibration = (
-            "建议使用主流模型（如 GPT-4、Claude）进行难度校准，"
-            "确保题目具有适当的区分度"
+            "建议使用主流模型（如 GPT-4、Claude）进行难度校准，确保题目具有适当的区分度"
         )
 
     def _generate_format_requirements(
@@ -382,8 +382,7 @@ class AnnotationSpecGenerator:
             # For other dataset types
             # Prefer items with more complete data
             non_empty_fields = sum(
-                1 for v in item.values()
-                if v and (not isinstance(v, str) or len(v) > 10)
+                1 for v in item.values() if v and (not isinstance(v, str) or len(v) > 10)
             )
             score += non_empty_fields * 0.5
 
@@ -406,10 +405,7 @@ class AnnotationSpecGenerator:
             return []
 
         # Score all items
-        scored = [
-            (item, self._score_example_quality(item, dataset_type))
-            for item in sample_items
-        ]
+        scored = [(item, self._score_example_quality(item, dataset_type)) for item in sample_items]
 
         # Filter out very low quality
         scored = [(item, score) for item, score in scored if score >= 3]
@@ -430,9 +426,7 @@ class AnnotationSpecGenerator:
         examples = []
 
         # Select best examples based on quality
-        best_items = self._select_best_examples(
-            sample_items, spec.dataset_type, count=3
-        )
+        best_items = self._select_best_examples(sample_items, spec.dataset_type, count=3)
 
         for i, item in enumerate(best_items):
             example = ExampleItem(
@@ -457,7 +451,9 @@ class AnnotationSpecGenerator:
                         if isinstance(msg, dict) and msg.get("role") == "user":
                             content = msg.get("content", "")
                             if isinstance(content, str):
-                                example.question_text = content[:500] + ("..." if len(content) > 500 else "")
+                                example.question_text = content[:500] + (
+                                    "..." if len(content) > 500 else ""
+                                )
                                 break
 
             # Fallback to first string field
@@ -520,22 +516,24 @@ class AnnotationSpecGenerator:
         partial_credit = []
 
         # From LLM analysis
-        if llm_analysis and hasattr(llm_analysis, 'quality_criteria'):
+        if llm_analysis and hasattr(llm_analysis, "quality_criteria"):
             for criterion in llm_analysis.quality_criteria[:5]:
                 dimensions.append(criterion)
 
         # From rubrics analysis
         if rubrics_result:
-            if hasattr(rubrics_result, 'verb_distribution'):
+            if hasattr(rubrics_result, "verb_distribution"):
                 top_verbs = list(rubrics_result.verb_distribution.items())[:5]
                 for verb, count in top_verbs:
-                    rubrics.append({
-                        "dimension": verb,
-                        "frequency": count,
-                        "description": f"回答应 {verb} 相关内容",
-                    })
+                    rubrics.append(
+                        {
+                            "dimension": verb,
+                            "frequency": count,
+                            "description": f"回答应 {verb} 相关内容",
+                        }
+                    )
 
-            if hasattr(rubrics_result, 'structured_patterns'):
+            if hasattr(rubrics_result, "structured_patterns"):
                 for pattern in rubrics_result.structured_patterns[:3]:
                     if isinstance(pattern, dict):
                         rubrics.append(pattern)
@@ -653,7 +651,9 @@ class AnnotationSpecGenerator:
             for ex in spec.examples:
                 question = ex.question_text.replace("\n", " ")[:100]
                 answer = ex.answer.replace("\n", " ")[:50] if ex.answer else "-"
-                scoring = "; ".join([f"{c.score}: {c.description[:30]}" for c in ex.scoring_criteria[:2]])
+                scoring = "; ".join(
+                    [f"{c.score}: {c.description[:30]}" for c in ex.scoring_criteria[:2]]
+                )
                 lines.append(f"| {ex.id} | {question}... | {answer} | {scoring} |")
 
             lines.append("")
@@ -717,8 +717,8 @@ class AnnotationSpecGenerator:
             lines.append("")
 
         # LLM-enhanced: Domain-specific guidelines
-        ec = getattr(spec, '_enhanced_context', None)
-        if ec and getattr(ec, 'generated', False):
+        ec = getattr(spec, "_enhanced_context", None)
+        if ec and getattr(ec, "generated", False):
             if ec.domain_specific_guidelines:
                 lines.append("## 七、领域标注指导")
                 lines.append("")

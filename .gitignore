@@ -167,3 +167,16 @@ examples/
 
 # Generated analysis output
 analysis_output/
+
+# ===================
+# Supplemented common patterns
+# ===================
+
+# Python wheels
+*.whl
+
+# Environment
+.env.local
+
+# Ruff
+.ruff_cache/

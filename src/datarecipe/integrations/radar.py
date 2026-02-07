@@ -2,10 +2,10 @@
 
 import json
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -114,7 +114,7 @@ class RadarIntegration:
         if not path.exists():
             raise FileNotFoundError(f"Radar report not found: {report_path}")
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         self.datasets = []
@@ -162,8 +162,7 @@ class RadarIntegration:
         if signals:
             signals_lower = set(s.lower() for s in signals)
             result = [
-                d for d in result
-                if signals_lower.intersection(set(s.lower() for s in d.signals))
+                d for d in result if signals_lower.intersection(set(s.lower() for s in d.signals))
             ]
 
         # Sort by downloads (descending)
@@ -274,9 +273,7 @@ class RadarIntegration:
             # Extract top patterns as key patterns
             if hasattr(rubrics_result, "verb_distribution"):
                 top_verbs = sorted(
-                    rubrics_result.verb_distribution.items(),
-                    key=lambda x: x[1],
-                    reverse=True
+                    rubrics_result.verb_distribution.items(), key=lambda x: x[1], reverse=True
                 )[:5]
                 summary.key_patterns.extend([f"rubric:{v[0]}" for v in top_verbs])
 
@@ -291,7 +288,7 @@ class RadarIntegration:
         # Complexity-based difficulty assessment
         if complexity_metrics:
             # Calculate difficulty based on complexity metrics
-            difficulty_score = getattr(complexity_metrics, 'difficulty_score', 1.0)
+            difficulty_score = getattr(complexity_metrics, "difficulty_score", 1.0)
             if difficulty_score <= 1.5:
                 summary.difficulty = "easy"
             elif difficulty_score <= 2.5:
@@ -302,9 +299,9 @@ class RadarIntegration:
                 summary.difficulty = "expert"
 
             # Add domain as key pattern
-            domain = getattr(complexity_metrics, 'primary_domain', None)
+            domain = getattr(complexity_metrics, "primary_domain", None)
             if domain:
-                domain_value = domain.value if hasattr(domain, 'value') else str(domain)
+                domain_value = domain.value if hasattr(domain, "value") else str(domain)
                 summary.key_patterns.append(f"domain:{domain_value}")
 
         # LLM analysis enrichment (overrides complexity-based values if available)
@@ -314,7 +311,9 @@ class RadarIntegration:
             if not summary.purpose:
                 summary.purpose = llm_analysis.purpose
             if llm_analysis.estimated_difficulty:
-                summary.difficulty = llm_analysis.estimated_difficulty.split()[0]  # "medium，xxx" -> "medium"
+                summary.difficulty = llm_analysis.estimated_difficulty.split()[
+                    0
+                ]  # "medium，xxx" -> "medium"
             if llm_analysis.similar_datasets:
                 summary.similar_datasets = llm_analysis.similar_datasets
 
@@ -322,6 +321,7 @@ class RadarIntegration:
         if not summary.similar_datasets and dataset_type:
             try:
                 from datarecipe.knowledge import DatasetCatalog
+
                 catalog = DatasetCatalog()
                 similar = catalog.find_similar_datasets(
                     dataset_id=dataset_id,
@@ -329,8 +329,7 @@ class RadarIntegration:
                     limit=5,
                 )
                 summary.similar_datasets = [
-                    s.dataset_id for s in similar
-                    if s.dataset_id.lower() != dataset_id.lower()
+                    s.dataset_id for s in similar if s.dataset_id.lower() != dataset_id.lower()
                 ][:3]
             except Exception:
                 pass
@@ -339,10 +338,14 @@ class RadarIntegration:
             if len(summary.similar_datasets) < 3:
                 try:
                     from datarecipe.knowledge import KnowledgeBase
+
                     kb = KnowledgeBase()
                     similar = kb.find_similar_datasets(dataset_type, dataset_id=dataset_id, limit=5)
                     for s in similar:
-                        if s.dataset_id.lower() != dataset_id.lower() and s.dataset_id not in summary.similar_datasets:
+                        if (
+                            s.dataset_id.lower() != dataset_id.lower()
+                            and s.dataset_id not in summary.similar_datasets
+                        ):
                             summary.similar_datasets.append(s.dataset_id)
                             if len(summary.similar_datasets) >= 3:
                                 break
@@ -385,7 +388,7 @@ class RadarIntegration:
         Returns:
             RecipeSummary object
         """
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return RecipeSummary.from_dict(data)
 

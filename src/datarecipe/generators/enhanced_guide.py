@@ -9,12 +9,12 @@ Generates comprehensive production guides that include:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
-from ..extractors.rubrics_analyzer import RubricsAnalysisResult
-from ..extractors.prompt_extractor import PromptLibrary
 from ..analyzers.context_strategy import ContextStrategy
+from ..extractors.prompt_extractor import PromptLibrary
+from ..extractors.rubrics_analyzer import RubricsAnalysisResult
 from .human_machine_split import HumanMachineAllocation
 
 
@@ -122,13 +122,9 @@ class EnhancedGuideGenerator:
         )
 
         # Calculate workload
-        guide.workload_estimates = self._estimate_workload(
-            target_size, allocation, region
-        )
+        guide.workload_estimates = self._estimate_workload(target_size, allocation, region)
         guide.total_person_days = sum(w.person_days for w in guide.workload_estimates)
-        guide.total_weeks = max(
-            (w.duration_weeks for w in guide.workload_estimates), default=0
-        )
+        guide.total_weeks = max((w.duration_weeks for w in guide.workload_estimates), default=0)
         guide.total_cost = sum(w.cost for w in guide.workload_estimates)
 
         # Recommend team structure
@@ -175,15 +171,17 @@ class EnhancedGuideGenerator:
             person_days = base_days * scale * automation_factor
             cost = person_days * 8 * 15 * cost_mult  # 8 hours/day, $15 base rate
 
-            estimates.append(WorkloadEstimate(
-                phase_name=phase_name,
-                person_days=person_days,
-                team_size=team_size,
-                duration_weeks=weeks * (scale ** 0.3),  # Sub-linear scaling
-                cost=cost,
-                critical_path=(phase_name in ["Context Creation", "Rubrics Writing"]),
-                dependencies=deps,
-            ))
+            estimates.append(
+                WorkloadEstimate(
+                    phase_name=phase_name,
+                    person_days=person_days,
+                    team_size=team_size,
+                    duration_weeks=weeks * (scale**0.3),  # Sub-linear scaling
+                    cost=cost,
+                    critical_path=(phase_name in ["Context Creation", "Rubrics Writing"]),
+                    dependencies=deps,
+                )
+            )
 
         return estimates
 
@@ -267,8 +265,7 @@ class EnhancedGuideGenerator:
                 "niche": "Verify domain accuracy with experts",
             }
             check = strategy_checks.get(
-                context_strategy.primary_strategy.value,
-                "Verify content quality"
+                context_strategy.primary_strategy.value, "Verify content quality"
             )
             checkpoints[0]["checks"].append(check)
 
@@ -288,7 +285,7 @@ class EnhancedGuideGenerator:
         # Executive Summary
         sections.append("## Executive Summary")
         sections.append("")
-        sections.append(f"| Metric | Value |")
+        sections.append("| Metric | Value |")
         sections.append("|--------|-------|")
         sections.append(f"| Total Effort | {guide.total_person_days:.0f} person-days |")
         sections.append(f"| Timeline | {guide.total_weeks:.1f} weeks |")
@@ -303,7 +300,9 @@ class EnhancedGuideGenerator:
             sections.append("")
             sections.append(f"- Human Work: {guide.allocation.human_work_percentage:.0f}%")
             sections.append(f"- Machine Work: {guide.allocation.machine_work_percentage:.0f}%")
-            sections.append(f"- Estimated Savings: ${guide.allocation.estimated_savings_vs_all_human:,.0f}")
+            sections.append(
+                f"- Estimated Savings: ${guide.allocation.estimated_savings_vs_all_human:,.0f}"
+            )
             sections.append("")
             sections.append("### Task Breakdown")
             sections.append("")
@@ -341,8 +340,7 @@ class EnhancedGuideGenerator:
             sections.append("**Top Verbs:**")
             sections.append("")
             for verb, count in sorted(
-                guide.rubrics_analysis.verb_distribution.items(),
-                key=lambda x: -x[1]
+                guide.rubrics_analysis.verb_distribution.items(), key=lambda x: -x[1]
             )[:10]:
                 pct = count / guide.rubrics_analysis.total_rubrics * 100
                 sections.append(f"- `{verb}`: {count} ({pct:.1f}%)")
@@ -369,7 +367,9 @@ class EnhancedGuideGenerator:
         if guide.context_strategy:
             sections.append("### Context Construction Strategy")
             sections.append("")
-            sections.append(f"**Primary Strategy:** {guide.context_strategy.primary_strategy.value}")
+            sections.append(
+                f"**Primary Strategy:** {guide.context_strategy.primary_strategy.value}"
+            )
             sections.append(f"**Confidence:** {guide.context_strategy.confidence:.0%}")
             sections.append("")
             sections.append("**Recommendations:**")
@@ -407,7 +407,7 @@ class EnhancedGuideGenerator:
             sections.append(f"### {checkpoint['phase']}")
             sections.append(f"**Threshold:** {checkpoint['threshold']}")
             sections.append("")
-            for check in checkpoint['checks']:
+            for check in checkpoint["checks"]:
                 sections.append(f"- [ ] {check}")
             sections.append("")
 

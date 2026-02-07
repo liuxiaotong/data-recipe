@@ -4,17 +4,16 @@ import re
 from typing import Optional
 
 from huggingface_hub import HfApi, hf_hub_download
-from huggingface_hub.utils import RepositoryNotFoundError, EntryNotFoundError
+from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError
 
 from datarecipe.schema import (
-    Recipe,
     Cost,
-    Reproducibility,
     GenerationMethod,
     GenerationType,
+    Recipe,
+    Reproducibility,
     SourceType,
 )
-
 
 # Known teacher models and their patterns
 TEACHER_MODEL_PATTERNS = [
@@ -134,7 +133,7 @@ class HuggingFaceExtractor:
             readme_path = hf_hub_download(
                 repo_id=dataset_id, filename="README.md", repo_type="dataset"
             )
-            with open(readme_path, "r", encoding="utf-8") as f:
+            with open(readme_path, encoding="utf-8") as f:
                 return f.read()
         except (EntryNotFoundError, Exception):
             return None
@@ -301,7 +300,9 @@ class HuggingFaceExtractor:
             missing.append("exact_prompts")
 
         # Check for code/scripts
-        if readme_content and ("github" in readme_content.lower() or "code" in readme_content.lower()):
+        if readme_content and (
+            "github" in readme_content.lower() or "code" in readme_content.lower()
+        ):
             available.append("source_code_reference")
             score += 1
         else:

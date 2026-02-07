@@ -4,10 +4,9 @@ import hashlib
 import json
 import os
 import shutil
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -66,11 +65,9 @@ class AnalysisCache:
         """Load cache index from disk."""
         if os.path.exists(self.index_path):
             try:
-                with open(self.index_path, "r", encoding="utf-8") as f:
+                with open(self.index_path, encoding="utf-8") as f:
                     data = json.load(f)
-                self.index = {
-                    k: CacheEntry.from_dict(v) for k, v in data.items()
-                }
+                self.index = {k: CacheEntry.from_dict(v) for k, v in data.items()}
             except Exception:
                 self.index = {}
         else:
@@ -266,9 +263,7 @@ class AnalysisCache:
         Returns:
             Number of entries cleared
         """
-        expired_keys = [
-            k for k, v in self.index.items() if v.is_expired()
-        ]
+        expired_keys = [k for k, v in self.index.items() if v.is_expired()]
 
         for key in expired_keys:
             entry = self.index[key]

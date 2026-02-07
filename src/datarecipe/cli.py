@@ -7,11 +7,9 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 from datarecipe.analyzer import DatasetAnalyzer
 from datarecipe.schema import Recipe
-
 
 console = Console()
 
@@ -37,9 +35,7 @@ def validate_output_path(output: str, base_dir: Path = None) -> Path:
         try:
             output_path.relative_to(base_resolved)
         except ValueError:
-            raise ValueError(
-                f"Output path '{output}' is outside allowed directory '{base_dir}'"
-            )
+            raise ValueError(f"Output path '{output}' is outside allowed directory '{base_dir}'")
 
     # Block obviously dangerous paths
     dangerous_patterns = ["/etc/", "/usr/", "/bin/", "/var/", "/root/"]
@@ -128,14 +124,16 @@ def recipe_to_markdown(recipe: Recipe) -> str:
         lines.append("### 生成流程")
         lines.append("")
         for i, method in enumerate(recipe.generation_methods, 1):
-            method_name = method_type_map.get(method.method_type, method.method_type.replace('_', ' ').title())
+            method_name = method_type_map.get(
+                method.method_type, method.method_type.replace("_", " ").title()
+            )
             lines.append(f"**步骤 {i}：{method_name}**")
             if method.teacher_model:
                 lines.append(f"- 教师模型：`{method.teacher_model}`")
             if method.platform:
                 lines.append(f"- 标注平台：{method.platform}")
             if method.prompt_template_available:
-                lines.append(f"- 提示词模板：✅ 可用")
+                lines.append("- 提示词模板：✅ 可用")
             lines.append("")
 
     # Cost Estimation
@@ -200,7 +198,7 @@ def recipe_to_markdown(recipe: Recipe) -> str:
             lines.append("#### ✅ 已提供的信息")
             lines.append("")
             for item in recipe.reproducibility.available:
-                translated = item_translation.get(item, item.replace('_', ' ').title())
+                translated = item_translation.get(item, item.replace("_", " ").title())
                 lines.append(f"- {translated}")
             lines.append("")
 
@@ -208,7 +206,7 @@ def recipe_to_markdown(recipe: Recipe) -> str:
             lines.append("#### ❌ 缺失的信息")
             lines.append("")
             for item in recipe.reproducibility.missing:
-                translated = item_translation.get(item, item.replace('_', ' ').title())
+                translated = item_translation.get(item, item.replace("_", " ").title())
                 lines.append(f"- {translated}")
             lines.append("")
 
@@ -223,7 +221,9 @@ def recipe_to_markdown(recipe: Recipe) -> str:
     # Footer
     lines.append("---")
     lines.append("")
-    lines.append("> 由 [DataRecipe](https://github.com/yourusername/data-recipe) 生成 — AI 数据集成分分析器")
+    lines.append(
+        "> 由 [DataRecipe](https://github.com/yourusername/data-recipe) 生成 — AI 数据集成分分析器"
+    )
 
     return "\n".join(lines)
 
@@ -286,9 +286,13 @@ def display_recipe(recipe: Recipe) -> None:
         lines.append(f"   [{score}/10] {score_bar}")
 
         if recipe.reproducibility.available:
-            lines.append(f"   [green]✓ Available:[/green] {', '.join(recipe.reproducibility.available[:3])}")
+            lines.append(
+                f"   [green]✓ Available:[/green] {', '.join(recipe.reproducibility.available[:3])}"
+            )
         if recipe.reproducibility.missing:
-            lines.append(f"   [red]✗ Missing:[/red] {', '.join(recipe.reproducibility.missing[:3])}")
+            lines.append(
+                f"   [red]✗ Missing:[/red] {', '.join(recipe.reproducibility.missing[:3])}"
+            )
     else:
         lines.append("   [dim]Not assessed[/dim]")
 
@@ -312,7 +316,12 @@ def main():
 
 @main.command()
 @click.argument("dataset_id")
-@click.option("--output", "-o", type=click.Path(), help="Export recipe to file (auto-detect format by extension)")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Export recipe to file (auto-detect format by extension)",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.option("--yaml", "as_yaml", is_flag=True, help="Output as YAML")
 @click.option("--markdown", "--md", "as_markdown", is_flag=True, help="Output as Markdown")
@@ -333,6 +342,7 @@ def analyze(dataset_id: str, output: str, as_json: bool, as_yaml: bool, as_markd
         except Exception as e:
             console.print(f"[red]Error analyzing dataset:[/red] {e}")
             import traceback
+
             console.print(f"[dim]{traceback.format_exc()}[/dim]")
             sys.exit(1)
 
@@ -357,6 +367,7 @@ def analyze(dataset_id: str, output: str, as_json: bool, as_yaml: bool, as_markd
             console.print(f"\n[green]Markdown exported to:[/green] {output}")
         elif output.endswith(".json"):
             import json
+
             output_path.write_text(json.dumps(recipe.to_dict(), indent=2), encoding="utf-8")
             console.print(f"\n[green]JSON exported to:[/green] {output}")
         else:
@@ -401,6 +412,7 @@ def export(dataset_id: str, output_file: str):
         except Exception as e:
             console.print(f"[red]Error analyzing dataset:[/red] {e}")
             import traceback
+
             console.print(f"[dim]{traceback.format_exc()}[/dim]")
             sys.exit(1)
 
@@ -449,13 +461,14 @@ def guide(dataset_id: str, output: str, target_size: int):
         except Exception as e:
             console.print(f"[red]Error analyzing dataset:[/red] {e}")
             import traceback
+
             console.print(f"[dim]{traceback.format_exc()}[/dim]")
             sys.exit(1)
 
     # Get appropriate pipeline template
     pipeline = get_pipeline_template(
         recipe.generation_type.value if recipe.generation_type else "unknown",
-        recipe.synthetic_ratio
+        recipe.synthetic_ratio,
     )
 
     # Customize pipeline with dataset info
@@ -470,20 +483,10 @@ def guide(dataset_id: str, output: str, target_size: int):
 
     # Add dataset-specific info at the top
     synthetic_pct = (
-        f"{recipe.synthetic_ratio * 100:.0f}%"
-        if recipe.synthetic_ratio is not None
-        else "N/A"
+        f"{recipe.synthetic_ratio * 100:.0f}%" if recipe.synthetic_ratio is not None else "N/A"
     )
-    human_pct = (
-        f"{recipe.human_ratio * 100:.0f}%"
-        if recipe.human_ratio is not None
-        else "N/A"
-    )
-    repro_score = (
-        f"{recipe.reproducibility.score}/10"
-        if recipe.reproducibility
-        else "N/A"
-    )
+    human_pct = f"{recipe.human_ratio * 100:.0f}%" if recipe.human_ratio is not None else "N/A"
+    repro_score = f"{recipe.reproducibility.score}/10" if recipe.reproducibility else "N/A"
 
     header = f"""# 数据生产指南：{recipe.name}
 
@@ -495,7 +498,7 @@ def guide(dataset_id: str, output: str, target_size: int):
 | **来源** | {recipe.source_type.value} |
 | **合成数据比例** | {synthetic_pct} |
 | **人工数据比例** | {human_pct} |
-| **教师模型** | {', '.join(recipe.teacher_models) if recipe.teacher_models else '无'} |
+| **教师模型** | {", ".join(recipe.teacher_models) if recipe.teacher_models else "无"} |
 | **可复现性评分** | {repro_score} |
 
 ---
@@ -522,8 +525,15 @@ def guide(dataset_id: str, output: str, target_size: int):
 @main.command("deep-guide")
 @click.argument("url")
 @click.option("--output", "-o", type=click.Path(), help="Output file path for production guide")
-@click.option("--llm/--no-llm", default=False, help="Use LLM for enhanced analysis (requires API key)")
-@click.option("--provider", type=click.Choice(["anthropic", "openai"]), default="anthropic", help="LLM provider")
+@click.option(
+    "--llm/--no-llm", default=False, help="Use LLM for enhanced analysis (requires API key)"
+)
+@click.option(
+    "--provider",
+    type=click.Choice(["anthropic", "openai"]),
+    default="anthropic",
+    help="LLM provider",
+)
 def deep_guide(url: str, output: str, llm: bool, provider: str):
     """Generate a customized production guide using deep analysis.
 
@@ -546,6 +556,7 @@ def deep_guide(url: str, output: str, llm: bool, provider: str):
     # Try to use LLMAnalyzer with PDF parsing (even without LLM)
     try:
         from datarecipe.llm_analyzer import LLMAnalyzer
+
         if llm:
             console.print(f"[cyan]使用 LLM 增强分析 (provider: {provider})...[/cyan]")
             analyzer = LLMAnalyzer(use_llm=True, llm_provider=provider, parse_pdf=True)
@@ -557,6 +568,7 @@ def deep_guide(url: str, output: str, llm: bool, provider: str):
             console.print(f"[yellow]Warning:[/yellow] {e}")
         console.print("[yellow]使用基础模式匹配分析...[/yellow]")
         from datarecipe.deep_analyzer import DeepAnalyzer
+
         analyzer = DeepAnalyzer()
 
     with console.status(f"[cyan]Performing deep analysis on {url}...[/cyan]"):
@@ -595,7 +607,7 @@ def deep_guide(url: str, output: str, llm: bool, provider: str):
         console.print(f"  代码可用: ✓ {result.code_url or ''}")
     if result.data_available:
         console.print(f"  数据可用: ✓ {result.data_url or ''}")
-    if hasattr(result, 'paper_url') and result.paper_url:
+    if hasattr(result, "paper_url") and result.paper_url:
         console.print(f"  [green]自动发现论文:[/green] {result.paper_url}")
 
 
@@ -606,7 +618,7 @@ def create(output: str):
 
     This command guides you through creating a recipe file step by step.
     """
-    from rich.prompt import Prompt, Confirm, IntPrompt, FloatPrompt
+    from rich.prompt import Confirm, FloatPrompt, IntPrompt, Prompt
 
     console.print("\n[bold cyan]📝 创建数据集配方 / Create Dataset Recipe[/bold cyan]\n")
 
@@ -617,25 +629,19 @@ def create(output: str):
     # Source
     console.print("\n[bold]数据来源 / Data Source[/bold]")
     source_type = Prompt.ask(
-        "来源类型 / Source type",
-        choices=["huggingface", "github", "web", "local"],
-        default="local"
+        "来源类型 / Source type", choices=["huggingface", "github", "web", "local"], default="local"
     )
     source_id = Prompt.ask("来源标识 / Source ID (URL or ID)", default="")
 
     # Generation
     console.print("\n[bold]生成方式 / Generation Method[/bold]")
-    synthetic_ratio = FloatPrompt.ask(
-        "合成数据比例 / Synthetic ratio (0.0-1.0)",
-        default=0.0
-    )
+    synthetic_ratio = FloatPrompt.ask("合成数据比例 / Synthetic ratio (0.0-1.0)", default=0.0)
     human_ratio = 1.0 - synthetic_ratio
 
     teacher_models = []
     if synthetic_ratio > 0:
         models_input = Prompt.ask(
-            "教师模型 / Teacher models (逗号分隔 / comma-separated)",
-            default=""
+            "教师模型 / Teacher models (逗号分隔 / comma-separated)", default=""
         )
         if models_input:
             teacher_models = [m.strip() for m in models_input.split(",")]
@@ -648,9 +654,7 @@ def create(output: str):
     if has_cost:
         cost_total = FloatPrompt.ask("预估总成本 (USD) / Estimated total cost", default=0)
         cost_confidence = Prompt.ask(
-            "置信度 / Confidence",
-            choices=["low", "medium", "high"],
-            default="low"
+            "置信度 / Confidence", choices=["low", "medium", "high"], default="low"
         )
 
     # Reproducibility
@@ -658,14 +662,13 @@ def create(output: str):
     repro_score = IntPrompt.ask("可复现性评分 (1-10) / Score", default=5)
 
     available_input = Prompt.ask(
-        "已提供的信息 / Available info (逗号分隔 / comma-separated)",
-        default="description"
+        "已提供的信息 / Available info (逗号分隔 / comma-separated)", default="description"
     )
     available = [a.strip() for a in available_input.split(",") if a.strip()]
 
     missing_input = Prompt.ask(
         "缺失的信息 / Missing info (逗号分隔 / comma-separated)",
-        default="exact_prompts,filtering_criteria"
+        default="exact_prompts,filtering_criteria",
     )
     missing = [m.strip() for m in missing_input.split(",") if m.strip()]
 
@@ -709,7 +712,7 @@ generation:
     yaml_content += f"""
 
 cost:
-  estimated_total_usd: {cost_total if cost_total else 'null'}
+  estimated_total_usd: {cost_total if cost_total else "null"}
   confidence: {cost_confidence}
 
 reproducibility:
@@ -718,7 +721,7 @@ reproducibility:
   missing: {missing}
 
 metadata:
-  num_examples: {num_examples if num_examples else 'null'}
+  num_examples: {num_examples if num_examples else "null"}
   languages: {languages}
   license: {license_str}
   tags: {tags}
@@ -772,6 +775,7 @@ def cost(dataset_id: str, model: str, examples: int, as_json: bool):
 
     if as_json:
         import json
+
         console.print(json.dumps(cost_breakdown.to_dict(), indent=2))
     else:
         console.print(f"\n[bold cyan]Cost Estimate for {dataset_id}[/bold cyan]")
@@ -847,6 +851,7 @@ def quality(dataset_id: str, sample_size: int, text_field: str, detect_ai: bool,
 
     if as_json:
         import json
+
         console.print(json.dumps(report.to_dict(), indent=2))
     else:
         console.print(f"\n[bold cyan]Quality Report for {dataset_id}[/bold cyan]")
@@ -914,7 +919,13 @@ def quality(dataset_id: str, sample_size: int, text_field: str, detect_ai: bool,
 @click.option("--file", "-f", type=click.Path(exists=True), help="File with dataset IDs")
 @click.option("--parallel", "-p", type=int, default=4, help="Number of parallel workers")
 @click.option("--output", "-o", type=click.Path(), help="Output directory for results")
-@click.option("--format", "fmt", type=click.Choice(["yaml", "json", "markdown"]), default="yaml", help="Output format")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["yaml", "json", "markdown"]),
+    default="yaml",
+    help="Output format",
+)
 def batch(dataset_ids: tuple, file: str, parallel: int, output: str, fmt: str):
     """Analyze multiple datasets in parallel.
 
@@ -940,7 +951,7 @@ def batch(dataset_ids: tuple, file: str, parallel: int, output: str, fmt: str):
         console.print("[red]Error:[/red] Provide dataset IDs or use -f to specify a file")
         sys.exit(1)
 
-    console.print(f"\n[bold cyan]Batch Analysis Complete[/bold cyan]")
+    console.print("\n[bold cyan]Batch Analysis Complete[/bold cyan]")
     console.print(f"  Total: {len(result.results)}")
     console.print(f"  [green]Successful: {result.successful}[/green]")
     console.print(f"  [red]Failed: {result.failed}[/red]")
@@ -959,7 +970,13 @@ def batch(dataset_ids: tuple, file: str, parallel: int, output: str, fmt: str):
 
 @main.command()
 @click.argument("dataset_ids", nargs=-1, required=True)
-@click.option("--format", "fmt", type=click.Choice(["table", "markdown"]), default="table", help="Output format")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["table", "markdown"]),
+    default="table",
+    help="Output format",
+)
 @click.option("--include-quality", is_flag=True, help="Include quality analysis (slower)")
 @click.option("--output", "-o", type=click.Path(), help="Output file")
 def compare(dataset_ids: tuple, fmt: str, include_quality: bool, output: str):
@@ -1005,7 +1022,12 @@ def compare(dataset_ids: tuple, fmt: str, include_quality: bool, output: str):
 @main.command()
 @click.argument("dataset_id")
 @click.option("--output", "-o", type=click.Path(), help="Output file for profile")
-@click.option("--region", "-r", default="china", help="Region for cost estimation (china, us, europe, india, sea)")
+@click.option(
+    "--region",
+    "-r",
+    default="china",
+    help="Region for cost estimation (china, us, europe, india, sea)",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 @click.option("--markdown", "--md", "as_markdown", is_flag=True, help="Output as Markdown")
 def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdown: bool):
@@ -1033,6 +1055,7 @@ def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdow
 
     if as_json:
         import json
+
         console.print(json.dumps(annotator_profile.to_dict(), indent=2))
     elif as_markdown:
         md_content = profile_to_markdown(annotator_profile, recipe.name)
@@ -1052,9 +1075,7 @@ def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdow
             priority = "required" if skill.required else "preferred"
             priority_color = {"required": "red", "preferred": "yellow"}.get(priority, "white")
             table.add_row(
-                skill.name,
-                skill.level,
-                f"[{priority_color}]{priority}[/{priority_color}]"
+                skill.name, skill.level, f"[{priority_color}]{priority}[/{priority_color}]"
             )
         console.print(table)
         console.print("")
@@ -1070,7 +1091,10 @@ def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdow
         console.print("")
 
         # Workload estimation
-        hourly_rate = (annotator_profile.hourly_rate_range.get("min", 15) + annotator_profile.hourly_rate_range.get("max", 45)) / 2
+        hourly_rate = (
+            annotator_profile.hourly_rate_range.get("min", 15)
+            + annotator_profile.hourly_rate_range.get("max", 45)
+        ) / 2
         estimated_labor_cost = annotator_profile.estimated_person_days * 8 * hourly_rate
         console.print("[bold]Workload Estimation:[/bold]")
         console.print(f"  Team Size: {annotator_profile.team_size} annotators")
@@ -1089,19 +1113,35 @@ def profile(dataset_id: str, output: str, region: str, as_json: bool, as_markdow
             console.print(f"\n[green]Profile exported to:[/green] {output}")
         elif output.endswith(".json"):
             import json
-            output_path.write_text(json.dumps(annotator_profile.to_dict(), indent=2), encoding="utf-8")
+
+            output_path.write_text(
+                json.dumps(annotator_profile.to_dict(), indent=2), encoding="utf-8"
+            )
             console.print(f"\n[green]Profile exported to:[/green] {output}")
         else:
             # Default to YAML
             import yaml
-            output_path.write_text(yaml.dump(annotator_profile.to_dict(), allow_unicode=True, default_flow_style=False), encoding="utf-8")
+
+            output_path.write_text(
+                yaml.dump(
+                    annotator_profile.to_dict(), allow_unicode=True, default_flow_style=False
+                ),
+                encoding="utf-8",
+            )
             console.print(f"\n[green]Profile exported to:[/green] {output}")
 
 
 @main.command()
 @click.argument("dataset_id")
-@click.option("--output", "-o", type=click.Path(), help="Output directory (default: ./projects/<dataset_name>)")
-@click.option("--provider", "-p", default="local", help="Deployment provider (local, judgeguild, etc.)")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output directory (default: ./projects/<dataset_name>)",
+)
+@click.option(
+    "--provider", "-p", default="local", help="Deployment provider (local, judgeguild, etc.)"
+)
 @click.option("--region", "-r", default="china", help="Region for cost estimation")
 @click.option("--submit", is_flag=True, help="Submit to provider after generating config")
 def deploy(dataset_id: str, output: str, provider: str, region: str, submit: bool):
@@ -1177,7 +1217,7 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
         )
 
     if result.success:
-        console.print(f"\n[bold green]Deployment successful![/bold green]")
+        console.print("\n[bold green]Deployment successful![/bold green]")
         if result.project_handle:
             console.print(f"  Project ID: {result.project_handle.project_id}")
         console.print(f"  Output: {output}")
@@ -1195,11 +1235,11 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
             if len(files) > 10:
                 console.print(f"  ... and {len(files) - 10} more")
 
-        console.print(f"\n[bold cyan]Next steps:[/bold cyan]")
+        console.print("\n[bold cyan]Next steps:[/bold cyan]")
         console.print(f"  1. cd {output}")
-        console.print(f"  2. Review annotation_guide.md")
-        console.print(f"  3. Review quality_rules.yaml")
-        console.print(f"  4. See README.md for detailed instructions")
+        console.print("  2. Review annotation_guide.md")
+        console.print("  3. Review quality_rules.yaml")
+        console.print("  4. See README.md for detailed instructions")
         if provider != "local" and not submit:
             console.print(
                 "  5. 使用 provider 平台手动提交项目 (本次未自动提交，需确认配置后再执行)"
@@ -1231,14 +1271,24 @@ def providers_list():
 
     console.print(table)
 
-    console.print("\n[dim]Install additional providers with: pip install datarecipe-<provider>[/dim]")
+    console.print(
+        "\n[dim]Install additional providers with: pip install datarecipe-<provider>[/dim]"
+    )
 
 
 @main.command()
 @click.argument("dataset_id")
-@click.option("--output", "-o", type=click.Path(), required=True, help="Output directory for project")
+@click.option(
+    "--output", "-o", type=click.Path(), required=True, help="Output directory for project"
+)
 @click.option("--target-size", "-n", type=int, help="Target number of examples")
-@click.option("--format", "fmt", type=click.Choice(["huggingface", "jsonl", "parquet"]), default="huggingface", help="Output format")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["huggingface", "jsonl", "parquet"]),
+    default="huggingface",
+    help="Output format",
+)
 def workflow(dataset_id: str, output: str, target_size: int, fmt: str):
     """Generate a production workflow for reproducing a dataset.
 
@@ -1263,7 +1313,7 @@ def workflow(dataset_id: str, output: str, target_size: int, fmt: str):
     # Export project
     created_files = wf.export_project(output)
 
-    console.print(f"\n[bold green]Workflow generated successfully![/bold green]")
+    console.print("\n[bold green]Workflow generated successfully![/bold green]")
     console.print(f"  Project: {output}")
     console.print(f"  Target size: {wf.target_size:,} examples")
     console.print(f"  Estimated cost: ${wf.estimated_total_cost:,.0f}")
@@ -1275,16 +1325,17 @@ def workflow(dataset_id: str, output: str, target_size: int, fmt: str):
     if len(created_files) > 10:
         console.print(f"  ... and {len(created_files) - 10} more")
 
-    console.print(f"\n[bold cyan]Next steps:[/bold cyan]")
+    console.print("\n[bold cyan]Next steps:[/bold cyan]")
     console.print(f"  1. cd {output}")
-    console.print(f"  2. pip install -r requirements.txt")
-    console.print(f"  3. cp .env.example .env && edit .env")
-    console.print(f"  4. See README.md for detailed instructions")
+    console.print("  2. pip install -r requirements.txt")
+    console.print("  3. cp .env.example .env && edit .env")
+    console.print("  4. See README.md for detailed instructions")
 
 
 # =============================================================================
 # New Commands: Pattern Extraction & Generation
 # =============================================================================
+
 
 @main.command("extract-rubrics")
 @click.argument("dataset_id")
@@ -1299,6 +1350,7 @@ def extract_rubrics(dataset_id: str, output: str, sample_size: int):
     try:
         # Load dataset
         from datasets import load_dataset
+
         ds = load_dataset(dataset_id, split="train", streaming=True)
 
         # Collect rubrics
@@ -1329,13 +1381,14 @@ def extract_rubrics(dataset_id: str, output: str, sample_size: int):
         console.print("\n[bold]Top Structured Templates:[/bold]")
         for entry in result.structured_templates[:5]:
             console.print(
-                f"• [{entry.get('category', 'general')}] {entry.get('action') or ''} → {entry.get('target') or ''}" +
-                (f" | 条件: {entry.get('condition')}" if entry.get('condition') else "")
+                f"• [{entry.get('category', 'general')}] {entry.get('action') or ''} → {entry.get('target') or ''}"
+                + (f" | 条件: {entry.get('condition')}" if entry.get("condition") else "")
             )
 
         # Export if requested
         if output:
             import json
+
             base = output
             if output.endswith(".json"):
                 data_path = output
@@ -1372,6 +1425,7 @@ def extract_prompts(dataset_id: str, output: str, sample_size: int):
 
     try:
         from datasets import load_dataset
+
         ds = load_dataset(dataset_id, split="train", streaming=True)
 
         # Collect messages with progress
@@ -1381,7 +1435,9 @@ def extract_prompts(dataset_id: str, output: str, sample_size: int):
             if i >= sample_size:
                 break
             if i > 0 and i % 100 == 0:
-                console.print(f"[dim]  Processed {i}/{sample_size} samples ({len(messages)} messages)[/dim]")
+                console.print(
+                    f"[dim]  Processed {i}/{sample_size} samples ({len(messages)} messages)[/dim]"
+                )
             # Try common message field names
             for field in ["messages", "conversation", "turns"]:
                 if field in item and isinstance(item[field], list):
@@ -1396,7 +1452,7 @@ def extract_prompts(dataset_id: str, output: str, sample_size: int):
         # Extract
         extractor = PromptExtractor()
         library = extractor.extract(messages)
-        console.print(f"[green]✓ Deduplication complete[/green]")
+        console.print("[green]✓ Deduplication complete[/green]")
 
         # Display summary
         console.print(Panel(library.summary(), title="Prompt Library"))
@@ -1404,6 +1460,7 @@ def extract_prompts(dataset_id: str, output: str, sample_size: int):
         # Export if output specified
         if output:
             import json
+
             data = extractor.to_dict(library)
             with open(output, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
@@ -1425,6 +1482,7 @@ def detect_strategy(dataset_id: str, output: str, sample_size: int):
 
     try:
         from datasets import load_dataset
+
         ds = load_dataset(dataset_id, split="train", streaming=True)
 
         # Collect contexts
@@ -1457,6 +1515,7 @@ def detect_strategy(dataset_id: str, output: str, sample_size: int):
         # Export if output specified
         if output:
             import json
+
             data = detector.to_dict(result)
             with open(output, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
@@ -1475,7 +1534,7 @@ def allocate(size: int, region: str, output: str, fmt: str):
     """Generate human-machine task allocation."""
     from datarecipe.generators import HumanMachineSplitter, TaskType
 
-    console.print(f"\n[bold]Generating human-machine allocation...[/bold]")
+    console.print("\n[bold]Generating human-machine allocation...[/bold]")
     console.print(f"Target size: {size:,} | Region: {region}\n")
 
     splitter = HumanMachineSplitter(region=region)
@@ -1487,7 +1546,7 @@ def allocate(size: int, region: str, output: str, fmt: str):
             TaskType.RUBRICS_WRITING,
             TaskType.DATA_GENERATION,
             TaskType.QUALITY_REVIEW,
-        ]
+        ],
     )
 
     if fmt == "table":
@@ -1498,11 +1557,13 @@ def allocate(size: int, region: str, output: str, fmt: str):
         console.print("\n" + result.to_markdown_table())
     else:
         import json
+
         data = splitter.to_dict(result)
         console.print(json.dumps(data, indent=2))
 
     if output:
         import json
+
         with open(output, "w", encoding="utf-8") as f:
             if output.endswith(".json"):
                 json.dump(splitter.to_dict(result), f, indent=2, ensure_ascii=False)
@@ -1518,9 +1579,9 @@ def allocate(size: int, region: str, output: str, fmt: str):
 @click.option("--region", "-r", default="china", help="Region for cost calculation")
 def enhanced_guide(dataset_id: str, output: str, size: int, region: str):
     """Generate enhanced production guide with patterns and allocation."""
-    from datarecipe.generators import EnhancedGuideGenerator, HumanMachineSplitter, TaskType
-    from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
     from datarecipe.analyzers import ContextStrategyDetector
+    from datarecipe.extractors import PromptExtractor, RubricsAnalyzer
+    from datarecipe.generators import EnhancedGuideGenerator, HumanMachineSplitter, TaskType
 
     console.print(f"\n[bold]Generating enhanced guide for {dataset_id}...[/bold]\n")
 
@@ -1532,6 +1593,7 @@ def enhanced_guide(dataset_id: str, output: str, size: int, region: str):
 
         try:
             from datasets import load_dataset
+
             ds = load_dataset(dataset_id, split="train", streaming=True)
 
             rubrics = []
@@ -1567,12 +1629,16 @@ def enhanced_guide(dataset_id: str, output: str, size: int, region: str):
                 console.print(f"[dim]  Deduplicating {len(messages)} messages...[/dim]")
                 extractor = PromptExtractor()
                 prompt_library = extractor.extract(messages)
-                console.print(f"[green]✓ Extracted {prompt_library.unique_count} unique prompts[/green]")
+                console.print(
+                    f"[green]✓ Extracted {prompt_library.unique_count} unique prompts[/green]"
+                )
 
             if contexts:
                 detector = ContextStrategyDetector()
                 strategy_result = detector.analyze(contexts[:100])
-                console.print(f"[green]✓ Detected strategy: {strategy_result.primary_strategy.value}[/green]")
+                console.print(
+                    f"[green]✓ Detected strategy: {strategy_result.primary_strategy.value}[/green]"
+                )
 
         except Exception as e:
             console.print(f"[yellow]Could not analyze dataset: {e}[/yellow]")
@@ -1586,7 +1652,7 @@ def enhanced_guide(dataset_id: str, output: str, size: int, region: str):
                 TaskType.TASK_DESIGN,
                 TaskType.RUBRICS_WRITING,
                 TaskType.QUALITY_REVIEW,
-            ]
+            ],
         )
 
         # Generate guide
@@ -1614,11 +1680,14 @@ def enhanced_guide(dataset_id: str, output: str, size: int, region: str):
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         import traceback
+
         traceback.print_exc()
 
 
 @main.command("generate")
-@click.option("--type", "gen_type", type=click.Choice(["rubrics", "prompts", "contexts"]), default="rubrics")
+@click.option(
+    "--type", "gen_type", type=click.Choice(["rubrics", "prompts", "contexts"]), default="rubrics"
+)
 @click.option("--count", "-n", default=10, help="Number of items to generate")
 @click.option("--context", "-c", default="the topic", help="Context/topic for generation")
 @click.option("--output", "-o", default=None, help="Output file path (JSONL)")
@@ -1661,15 +1730,44 @@ def generate(gen_type: str, count: int, context: str, output: str):
 @click.argument("dataset_id")
 @click.option("--output-dir", "-o", default="./analysis_output", help="Output directory")
 @click.option("--sample-size", "-n", default=500, help="Number of samples to analyze")
-@click.option("--size", "-s", default=None, type=int, help="Target dataset size (for cost estimation)")
+@click.option(
+    "--size", "-s", default=None, type=int, help="Target dataset size (for cost estimation)"
+)
 @click.option("--region", "-r", default="china", help="Region for cost calculation")
 @click.option("--split", default=None, help="Dataset split (auto-detect if not specified)")
-@click.option("--use-llm", is_flag=True, default=False, help="Use LLM for intelligent analysis of unknown dataset types")
-@click.option("--llm-provider", default="anthropic", type=click.Choice(["anthropic", "openai"]), help="LLM provider for intelligent analysis")
-@click.option("--enhance-mode", default="auto", type=click.Choice(["auto", "interactive", "api"]), help="LLM enhancement mode: auto (detect), interactive (Claude Code/App), api (standalone)")
+@click.option(
+    "--use-llm",
+    is_flag=True,
+    default=False,
+    help="Use LLM for intelligent analysis of unknown dataset types",
+)
+@click.option(
+    "--llm-provider",
+    default="anthropic",
+    type=click.Choice(["anthropic", "openai"]),
+    help="LLM provider for intelligent analysis",
+)
+@click.option(
+    "--enhance-mode",
+    default="auto",
+    type=click.Choice(["auto", "interactive", "api"]),
+    help="LLM enhancement mode: auto (detect), interactive (Claude Code/App), api (standalone)",
+)
 @click.option("--force", "-f", is_flag=True, help="Force re-analysis, ignore cache")
 @click.option("--no-cache", is_flag=True, help="Don't use or update cache")
-def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, region: str, split: str, use_llm: bool, llm_provider: str, enhance_mode: str, force: bool, no_cache: bool):
+def deep_analyze(
+    dataset_id: str,
+    output_dir: str,
+    sample_size: int,
+    size: int,
+    region: str,
+    split: str,
+    use_llm: bool,
+    llm_provider: str,
+    enhance_mode: str,
+    force: bool,
+    no_cache: bool,
+):
     """
     Run comprehensive deep analysis on a dataset.
 
@@ -1679,6 +1777,7 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
         datarecipe deep-analyze tencent/CL-bench -o ./output
     """
     import os
+
     from datarecipe.cache import AnalysisCache
     from datarecipe.core.deep_analyzer import DeepAnalyzerCore
 
@@ -1691,9 +1790,9 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
     if cache and not force:
         cached = cache.get(dataset_id, check_freshness=True)
         if cached:
-            console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-            console.print(f"[bold cyan]  DataRecipe 深度逆向分析 (缓存命中)[/bold cyan]")
-            console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+            console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+            console.print("[bold cyan]  DataRecipe 深度逆向分析 (缓存命中)[/bold cyan]")
+            console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
             console.print(f"数据集: [bold]{dataset_id}[/bold]")
             console.print(f"[green]✓ 使用缓存结果 (创建于 {cached.created_at[:10]})[/green]")
             console.print(f"  类型: {cached.dataset_type or 'unknown'}")
@@ -1706,13 +1805,13 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
             else:
                 console.print(f"  输出: {cached.output_dir}")
 
-            console.print(f"\n[dim]使用 --force 强制重新分析[/dim]")
+            console.print("\n[dim]使用 --force 强制重新分析[/dim]")
             return
 
     # Display header
-    console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-    console.print(f"[bold cyan]  DataRecipe 深度逆向分析[/bold cyan]")
-    console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+    console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+    console.print("[bold cyan]  DataRecipe 深度逆向分析[/bold cyan]")
+    console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
     console.print(f"数据集: [bold]{dataset_id}[/bold]")
     console.print(f"输出目录: [bold]{dataset_output_dir}[/bold]\n")
 
@@ -1742,39 +1841,41 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
 
         # Display analysis results
         if result.dataset_type == "preference":
-            console.print(f"\n[dim]🔄 分析偏好模式...[/dim]")
+            console.print("\n[dim]🔄 分析偏好模式...[/dim]")
             console.print(f"[green]✓ 偏好分析: {result.sample_count} 对[/green]")
         elif result.dataset_type == "swe_bench":
-            console.print(f"\n[dim]🔧 分析 SWE 任务...[/dim]")
-            console.print(f"[green]✓ SWE 分析完成[/green]")
+            console.print("\n[dim]🔧 分析 SWE 任务...[/dim]")
+            console.print("[green]✓ SWE 分析完成[/green]")
         elif result.rubric_patterns > 0:
-            console.print(f"\n[dim]📊 分析评分标准...[/dim]")
+            console.print("\n[dim]📊 分析评分标准...[/dim]")
             console.print(f"[green]✓ 评分标准: {result.rubric_patterns} 种模式[/green]")
 
         if result.prompt_templates > 0:
-            console.print(f"[dim]📝 提取 Prompt 模板...[/dim]")
+            console.print("[dim]📝 提取 Prompt 模板...[/dim]")
             console.print(f"[green]✓ Prompt模板: {result.prompt_templates} 个[/green]")
 
-        console.print(f"[dim]⚙️ 计算人机分配...[/dim]")
-        console.print(f"[green]✓ 人机分配: 人工 {result.human_percentage:.0f}%, 机器 {100-result.human_percentage:.0f}%[/green]")
+        console.print("[dim]⚙️ 计算人机分配...[/dim]")
+        console.print(
+            f"[green]✓ 人机分配: 人工 {result.human_percentage:.0f}%, 机器 {100 - result.human_percentage:.0f}%[/green]"
+        )
 
-        console.print(f"\n[dim]📄 生成综合报告...[/dim]")
-        console.print(f"[green]✓ 综合报告已保存[/green]")
-        console.print(f"[dim]📋 生成复刻指南...[/dim]")
-        console.print(f"[green]✓ 复刻指南已保存[/green]")
-        console.print(f"[dim]📦 生成标准化摘要...[/dim]")
-        console.print(f"[green]✓ 标准化摘要已保存 (Radar 兼容)[/green]")
-        console.print(f"[dim]📚 更新知识库...[/dim]")
-        console.print(f"[green]✓ 知识库已更新[/green]")
-        console.print(f"[dim]💾 更新缓存...[/dim]")
-        console.print(f"[green]✓ 缓存已更新[/green]")
+        console.print("\n[dim]📄 生成综合报告...[/dim]")
+        console.print("[green]✓ 综合报告已保存[/green]")
+        console.print("[dim]📋 生成复刻指南...[/dim]")
+        console.print("[green]✓ 复刻指南已保存[/green]")
+        console.print("[dim]📦 生成标准化摘要...[/dim]")
+        console.print("[green]✓ 标准化摘要已保存 (Radar 兼容)[/green]")
+        console.print("[dim]📚 更新知识库...[/dim]")
+        console.print("[green]✓ 知识库已更新[/green]")
+        console.print("[dim]💾 更新缓存...[/dim]")
+        console.print("[green]✓ 缓存已更新[/green]")
 
         # Display summary
-        console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-        console.print(f"[bold cyan]  分析完成[/bold cyan]")
-        console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+        console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+        console.print("[bold cyan]  分析完成[/bold cyan]")
+        console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
-        console.print(f"[bold]生成的文件:[/bold]")
+        console.print("[bold]生成的文件:[/bold]")
         for fname in result.files_generated:
             fpath = os.path.join(result.output_dir, fname)
             if os.path.exists(fpath):
@@ -1788,7 +1889,7 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
 
         report_path = os.path.join(result.output_dir, "ANALYSIS_REPORT.md")
         guide_path = os.path.join(result.output_dir, "REPRODUCTION_GUIDE.md")
-        console.print(f"\n[bold]核心产出:[/bold]")
+        console.print("\n[bold]核心产出:[/bold]")
         console.print(f"  📄 分析报告: [cyan]{report_path}[/cyan]")
         console.print(f"  📋 复刻指南: [cyan]{guide_path}[/cyan]")
 
@@ -1801,7 +1902,9 @@ def deep_analyze(dataset_id: str, output_dir: str, sample_size: int, size: int, 
     except Exception as e:
         console.print(f"[red]错误: {e}[/red]")
         import traceback
+
         traceback.print_exc()
+
 
 def _generate_analysis_report(
     dataset_id: str,
@@ -1834,14 +1937,22 @@ def _generate_analysis_report(
     lines.append("|------|------|")
 
     if rubrics_result:
-        lines.append(f"| **评分标准** | {rubrics_result.total_rubrics:,} 条，{rubrics_result.unique_patterns:,} 种独特模式 |")
+        lines.append(
+            f"| **评分标准** | {rubrics_result.total_rubrics:,} 条，{rubrics_result.unique_patterns:,} 种独特模式 |"
+        )
     if prompt_library:
         lines.append(f"| **Prompt模板** | {prompt_library.unique_count} 个去重后的系统提示模板 |")
     if strategy_result:
-        lines.append(f"| **数据来源** | 混合策略（合成 {strategy_result.synthetic_score*100:.0f}% + 改编 {strategy_result.modified_score*100:.0f}% + 专业 {strategy_result.niche_score*100:.0f}%） |")
+        lines.append(
+            f"| **数据来源** | 混合策略（合成 {strategy_result.synthetic_score * 100:.0f}% + 改编 {strategy_result.modified_score * 100:.0f}% + 专业 {strategy_result.niche_score * 100:.0f}%） |"
+        )
 
-    lines.append(f"| **复现成本** | 约 ${allocation.total_cost:,.0f}（人工 ${allocation.total_human_cost:,.0f} + API ${allocation.total_machine_cost:,.0f}） |")
-    lines.append(f"| **人机分配** | 人工 {allocation.human_work_percentage:.0f}%，机器 {allocation.machine_work_percentage:.0f}% |")
+    lines.append(
+        f"| **复现成本** | 约 ${allocation.total_cost:,.0f}（人工 ${allocation.total_human_cost:,.0f} + API ${allocation.total_machine_cost:,.0f}） |"
+    )
+    lines.append(
+        f"| **人机分配** | 人工 {allocation.human_work_percentage:.0f}%，机器 {allocation.machine_work_percentage:.0f}% |"
+    )
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -1927,7 +2038,9 @@ def _generate_analysis_report(
         if prompt_library.domain_counts:
             lines.append("### 2.3 领域分布")
             lines.append("")
-            for domain, count in sorted(prompt_library.domain_counts.items(), key=lambda x: -x[1])[:5]:
+            for domain, count in sorted(prompt_library.domain_counts.items(), key=lambda x: -x[1])[
+                :5
+            ]:
                 pct = count / prompt_library.unique_count * 100
                 lines.append(f"- **{domain}**: {count} ({pct:.0f}%)")
             lines.append("")
@@ -1948,9 +2061,15 @@ def _generate_analysis_report(
         lines.append("")
         lines.append("| 策略 | 得分 | 说明 |")
         lines.append("|------|------|------|")
-        lines.append(f"| 🔧 合成生成 | {strategy_result.synthetic_score*100:.1f}% | 使用 AI 模型生成虚构内容 |")
-        lines.append(f"| 📝 改编修改 | {strategy_result.modified_score*100:.1f}% | 基于真实来源改编 |")
-        lines.append(f"| 🔬 专业领域 | {strategy_result.niche_score*100:.1f}% | 专业/小众领域内容 |")
+        lines.append(
+            f"| 🔧 合成生成 | {strategy_result.synthetic_score * 100:.1f}% | 使用 AI 模型生成虚构内容 |"
+        )
+        lines.append(
+            f"| 📝 改编修改 | {strategy_result.modified_score * 100:.1f}% | 基于真实来源改编 |"
+        )
+        lines.append(
+            f"| 🔬 专业领域 | {strategy_result.niche_score * 100:.1f}% | 专业/小众领域内容 |"
+        )
         lines.append("")
 
         lines.append("### 3.3 检测到的指标")
@@ -2007,7 +2126,9 @@ def _generate_analysis_report(
     }
     for task in allocation.tasks:
         dec = decision_zh.get(task.decision.value, task.decision.value)
-        lines.append(f"| **{task.task_name}** | {dec} | {task.human_percentage:.0f}% | {task.human_hours:.1f}h | ${task.human_cost:,.0f} | ${task.machine_cost:.1f} |")
+        lines.append(
+            f"| **{task.task_name}** | {dec} | {task.human_percentage:.0f}% | {task.human_hours:.1f}h | ${task.human_cost:,.0f} | ${task.machine_cost:.1f} |"
+        )
     lines.append("")
 
     lines.append("### 4.3 成本估算")
@@ -2074,6 +2195,7 @@ def _generate_reproduction_guide(
 ) -> str:
     """Generate a practical reproduction guide for recreating a similar dataset."""
     import json
+
     from datarecipe.analyzers.llm_dataset_analyzer import generate_llm_guide_section
 
     preference_pairs = preference_pairs or []
@@ -2086,9 +2208,13 @@ def _generate_reproduction_guide(
     lines.append("")
 
     if is_swe_dataset:
-        lines.append("> **这是一个软件工程评测数据集 (SWE-bench 风格)。本指南提供任务构建规范，帮助你构建类似的代码修复/功能实现评测集。**")
+        lines.append(
+            "> **这是一个软件工程评测数据集 (SWE-bench 风格)。本指南提供任务构建规范，帮助你构建类似的代码修复/功能实现评测集。**"
+        )
     elif is_preference_dataset:
-        lines.append("> **这是一个 RLHF 偏好数据集。本指南提供偏好标注规范，帮助你构建类似的人类偏好数据。**")
+        lines.append(
+            "> **这是一个 RLHF 偏好数据集。本指南提供偏好标注规范，帮助你构建类似的人类偏好数据。**"
+        )
     elif llm_analysis and llm_analysis.dataset_type != "unknown":
         lines.append(f"> **数据集类型: {llm_analysis.dataset_type}。{llm_analysis.purpose}**")
     else:
@@ -2197,7 +2323,9 @@ def _generate_reproduction_guide(
         lines.append("## 🔄 偏好数据集专用指南")
         lines.append("")
         lines.append("这是一个 RLHF (Reinforcement Learning from Human Feedback) 偏好数据集。")
-        lines.append("每条数据包含一对回复：`chosen`（被选中的更好回复）和 `rejected`（被拒绝的较差回复）。")
+        lines.append(
+            "每条数据包含一对回复：`chosen`（被选中的更好回复）和 `rejected`（被拒绝的较差回复）。"
+        )
         lines.append("")
 
         # Preference patterns analysis
@@ -2289,7 +2417,9 @@ def _generate_reproduction_guide(
     if is_swe_dataset and swe_stats:
         lines.append("## 🔧 软件工程评测数据集专用指南")
         lines.append("")
-        lines.append("这是一个 SWE-bench 风格的软件工程评测数据集，用于评估 AI 代码修复和功能实现能力。")
+        lines.append(
+            "这是一个 SWE-bench 风格的软件工程评测数据集，用于评估 AI 代码修复和功能实现能力。"
+        )
         lines.append("")
 
         # Language distribution
@@ -2351,7 +2481,9 @@ def _generate_reproduction_guide(
             lines.append("### 问题描述示例")
             lines.append("")
             for i, ex in enumerate(swe_stats["examples"][:2], 1):
-                lines.append(f"**示例 {i}** (`{ex.get('repo', 'unknown')}` - {ex.get('language', 'unknown')})")
+                lines.append(
+                    f"**示例 {i}** (`{ex.get('repo', 'unknown')}` - {ex.get('language', 'unknown')})"
+                )
                 lines.append("")
                 lines.append("**Problem Statement:**")
                 lines.append("```")
@@ -2415,7 +2547,9 @@ def _generate_reproduction_guide(
 
     if system_prompts_by_domain:
         for domain, prompts in list(system_prompts_by_domain.items())[:5]:
-            lines.append(f"### 3.{list(system_prompts_by_domain.keys()).index(domain)+1} {domain}")
+            lines.append(
+                f"### 3.{list(system_prompts_by_domain.keys()).index(domain) + 1} {domain}"
+            )
             lines.append("")
             for i, p in enumerate(prompts[:2], 1):
                 content = p["content"]
@@ -2672,7 +2806,12 @@ def _generate_reproduction_guide(
 @click.option("--min-downloads", default=0, type=int, help="Minimum downloads")
 @click.option("--use-llm", is_flag=True, help="Use LLM for unknown types")
 @click.option("--region", "-r", default="china", help="Region for cost calculation")
-@click.option("--sort-by", type=click.Choice(["downloads", "name", "category"]), default="downloads", help="Sort datasets by")
+@click.option(
+    "--sort-by",
+    type=click.Choice(["downloads", "name", "category"]),
+    default="downloads",
+    help="Sort datasets by",
+)
 @click.option("--incremental", "-i", is_flag=True, help="Skip already analyzed datasets")
 @click.option("--parallel", "-p", default=1, type=int, help="Parallel workers (1=sequential)")
 def batch_from_radar(
@@ -2701,11 +2840,12 @@ def batch_from_radar(
     """
     import json
     import os
-    from datarecipe.integrations.radar import RadarIntegration, RecipeSummary
 
-    console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-    console.print(f"[bold cyan]  DataRecipe 批量分析 (Radar 集成)[/bold cyan]")
-    console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+    from datarecipe.integrations.radar import RadarIntegration
+
+    console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+    console.print("[bold cyan]  DataRecipe 批量分析 (Radar 集成)[/bold cyan]")
+    console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
     # Load radar report
     console.print(f"[dim]📂 加载 Radar 报告: {radar_report}[/dim]")
@@ -2787,8 +2927,8 @@ def batch_from_radar(
         try:
             # Import here to avoid circular imports
             from datasets import load_dataset
-            from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
-            from datarecipe.analyzers import ContextStrategyDetector
+
+            from datarecipe.extractors import PromptExtractor, RubricsAnalyzer
             from datarecipe.generators import HumanMachineSplitter, TaskType
 
             # Create output directory
@@ -2821,10 +2961,7 @@ def batch_from_radar(
                 if j < 5:
                     for field, value in item.items():
                         if field not in schema_info:
-                            schema_info[field] = {
-                                "type": type(value).__name__,
-                                "nested_type": None
-                            }
+                            schema_info[field] = {"type": type(value).__name__, "nested_type": None}
                     sample_items.append(item)
 
                 # Collect rubrics/messages
@@ -2865,7 +3002,7 @@ def batch_from_radar(
                     TaskType.RUBRICS_WRITING,
                     TaskType.DATA_GENERATION,
                     TaskType.QUALITY_REVIEW,
-                ]
+                ],
             )
 
             # Rubrics analysis
@@ -2886,6 +3023,7 @@ def batch_from_radar(
                 console.print("[dim]  🤖 LLM 分析中...[/dim]")
                 try:
                     from datarecipe.analyzers.llm_dataset_analyzer import LLMDatasetAnalyzer
+
                     llm_analyzer = LLMDatasetAnalyzer()
                     llm_analysis = llm_analyzer.analyze(
                         dataset_id=ds.id,
@@ -2916,7 +3054,9 @@ def batch_from_radar(
             summaries.append(summary)
             success_count += 1
 
-            console.print(f"[green]  ✓ 完成: {dataset_type or 'unknown'}, ${allocation.total_cost:,.0f}[/green]")
+            console.print(
+                f"[green]  ✓ 完成: {dataset_type or 'unknown'}, ${allocation.total_cost:,.0f}[/green]"
+            )
 
             # Update progress file
             progress = {
@@ -2944,9 +3084,9 @@ def batch_from_radar(
         os.remove(progress_file)
 
     # Generate aggregated report
-    console.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
+    console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
     console.print("[bold cyan]  批量分析完成[/bold cyan]")
-    console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+    console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
     console.print(f"成功: [green]{success_count}[/green]")
     console.print(f"失败: [red]{fail_count}[/red]")
@@ -2960,12 +3100,12 @@ def batch_from_radar(
         with open(aggregate_path, "w", encoding="utf-8") as f:
             json.dump(aggregate, f, indent=2, ensure_ascii=False)
 
-        console.print(f"\n[bold]汇总统计:[/bold]")
+        console.print("\n[bold]汇总统计:[/bold]")
         console.print(f"  总复刻成本: ${aggregate['total_reproduction_cost']['total']:,.0f}")
         console.print(f"  平均人工占比: {aggregate['avg_human_percentage']:.0f}%")
         console.print(f"  类型分布: {aggregate['type_distribution']}")
 
-        console.print(f"\n[bold]输出文件:[/bold]")
+        console.print("\n[bold]输出文件:[/bold]")
         console.print(f"  📊 汇总报告: [cyan]{aggregate_path}[/cyan]")
         console.print(f"  📁 各数据集: [cyan]{output_dir}/<dataset>/recipe_summary.json[/cyan]")
 
@@ -2976,7 +3116,9 @@ def batch_from_radar(
 @click.option("--recipe-dir", default="./analysis_output", help="Recipe analysis directory")
 @click.option("--start-date", help="Period start date (YYYY-MM-DD)")
 @click.option("--end-date", help="Period end date (YYYY-MM-DD)")
-@click.option("--format", "-f", "formats", multiple=True, default=["md", "json"], help="Output formats")
+@click.option(
+    "--format", "-f", "formats", multiple=True, default=["md", "json"], help="Output formats"
+)
 def integrate_report(
     radar_report: str,
     output_dir: str,
@@ -2994,7 +3136,7 @@ def integrate_report(
     """
     from datarecipe.reports import IntegratedReportGenerator
 
-    console.print(f"\n[bold cyan]生成整合报告[/bold cyan]\n")
+    console.print("\n[bold cyan]生成整合报告[/bold cyan]\n")
 
     generator = IntegratedReportGenerator(
         recipe_output_dir=recipe_dir,
@@ -3073,7 +3215,7 @@ def watch_cmd(
             max_datasets_per_report=limit,
         )
 
-    console.print(f"\n[bold cyan]DataRecipe Radar Watcher[/bold cyan]\n")
+    console.print("\n[bold cyan]DataRecipe Radar Watcher[/bold cyan]\n")
     console.print(f"监听目录: {watch_dir}")
     console.print(f"输出目录: {output_dir}")
     console.print(f"检查间隔: {interval}s")
@@ -3090,7 +3232,9 @@ def watch_cmd(
     # Create watcher
     def on_complete(dataset_id: str, result: dict):
         if result.get("success"):
-            console.print(f"[green]✓[/green] {dataset_id}: {result.get('type', 'unknown')}, ${result.get('cost', 0):,.0f}")
+            console.print(
+                f"[green]✓[/green] {dataset_id}: {result.get('type', 'unknown')}, ${result.get('cost', 0):,.0f}"
+            )
         else:
             console.print(f"[red]✗[/red] {dataset_id}: {result.get('error', 'Unknown error')}")
 
@@ -3183,7 +3327,9 @@ def cache_cmd(list_cache: bool, stats: bool, clear: bool, clear_expired: bool, i
     # Default: show stats
     s = cache.get_stats()
     console.print("\n[bold]缓存概览[/bold]\n")
-    console.print(f"缓存条目: {s['total_entries']} ({s['valid_entries']} 有效, {s['expired_entries']} 过期)")
+    console.print(
+        f"缓存条目: {s['total_entries']} ({s['valid_entries']} 有效, {s['expired_entries']} 过期)"
+    )
     console.print(f"占用空间: {s['total_size_mb']} MB")
     console.print("\n使用 --help 查看更多选项")
 
@@ -3195,7 +3341,9 @@ def cache_cmd(list_cache: bool, stats: bool, clear: bool, clear_expired: bool, i
 @click.option("--trends", "-t", is_flag=True, help="Show recent trends")
 @click.option("--recommend", help="Get recommendations for a dataset type")
 @click.option("--output", "-o", help="Output path for report")
-def knowledge_cmd(report: bool, patterns: bool, benchmarks: bool, trends: bool, recommend: str, output: str):
+def knowledge_cmd(
+    report: bool, patterns: bool, benchmarks: bool, trends: bool, recommend: str, output: str
+):
     """
     Query the knowledge base for patterns, benchmarks, and trends.
 
@@ -3272,7 +3420,9 @@ def knowledge_cmd(report: bool, patterns: bool, benchmarks: bool, trends: bool, 
 
         if recs.get("cost_estimate"):
             ce = recs["cost_estimate"]
-            console.print(f"成本估算: ${ce['avg_total']:,.0f} (范围 ${ce['range'][0]:,.0f}-${ce['range'][1]:,.0f})")
+            console.print(
+                f"成本估算: ${ce['avg_total']:,.0f} (范围 ${ce['range'][0]:,.0f}-${ce['range'][1]:,.0f})"
+            )
             console.print(f"人工占比: {ce['avg_human_percentage']:.0f}%")
             console.print(f"基于: {ce['based_on']} 个数据集")
 
@@ -3299,12 +3449,38 @@ def knowledge_cmd(report: bool, patterns: bool, benchmarks: bool, trends: bool, 
 @main.command("analyze-spec")
 @click.argument("file_path", type=click.Path(exists=True), required=False)
 @click.option("--output-dir", "-o", default="./spec_output", help="Output directory")
-@click.option("--size", "-s", default=100, type=int, help="Target dataset size (for cost estimation)")
+@click.option(
+    "--size", "-s", default=100, type=int, help="Target dataset size (for cost estimation)"
+)
 @click.option("--region", "-r", default="china", help="Region for cost calculation (china/us)")
-@click.option("--provider", "-p", default="anthropic", type=click.Choice(["anthropic", "openai"]), help="LLM provider")
-@click.option("--interactive", "-i", is_flag=True, help="Interactive mode: output prompt, wait for JSON input from stdin")
-@click.option("--from-json", "from_json", type=click.Path(exists=True), help="Load analysis from JSON file instead of using LLM")
-def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provider: str, interactive: bool, from_json: str):
+@click.option(
+    "--provider",
+    "-p",
+    default="anthropic",
+    type=click.Choice(["anthropic", "openai"]),
+    help="LLM provider",
+)
+@click.option(
+    "--interactive",
+    "-i",
+    is_flag=True,
+    help="Interactive mode: output prompt, wait for JSON input from stdin",
+)
+@click.option(
+    "--from-json",
+    "from_json",
+    type=click.Path(exists=True),
+    help="Load analysis from JSON file instead of using LLM",
+)
+def analyze_spec(
+    file_path: str,
+    output_dir: str,
+    size: int,
+    region: str,
+    provider: str,
+    interactive: bool,
+    from_json: str,
+):
     """
     Analyze a specification/requirements document and generate project artifacts.
 
@@ -3347,9 +3523,9 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
     # Display header (to stderr in interactive mode)
     output = console if not interactive else Console(file=sys.stderr)
 
-    output.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-    output.print(f"[bold cyan]  DataRecipe 需求文档分析[/bold cyan]")
-    output.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+    output.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+    output.print("[bold cyan]  DataRecipe 需求文档分析[/bold cyan]")
+    output.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
     if file_path:
         file_name = Path(file_path).name
@@ -3358,9 +3534,9 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
     output.print(f"区域: [bold]{region}[/bold]")
 
     if interactive:
-        output.print(f"模式: [bold]交互模式[/bold] (等待 stdin 输入)\n")
+        output.print("模式: [bold]交互模式[/bold] (等待 stdin 输入)\n")
     elif from_json:
-        output.print(f"模式: [bold]从 JSON 加载[/bold]\n")
+        output.print("模式: [bold]从 JSON 加载[/bold]\n")
     else:
         output.print(f"LLM: [bold]{provider}[/bold]\n")
 
@@ -3371,7 +3547,7 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
         # Mode 1: From JSON file
         if from_json:
             output.print("[dim]📄 从 JSON 加载分析结果...[/dim]")
-            with open(from_json, "r", encoding="utf-8") as f:
+            with open(from_json, encoding="utf-8") as f:
                 extracted = json.load(f)
 
             # Parse document if provided (for metadata)
@@ -3381,7 +3557,7 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
                 if doc.has_images():
                     output.print(f"[green]✓ 文档解析完成 (包含 {len(doc.images)} 张图片)[/green]")
                 else:
-                    output.print(f"[green]✓ 文档解析完成[/green]")
+                    output.print("[green]✓ 文档解析完成[/green]")
 
             analysis = analyzer.create_analysis_from_json(extracted, doc)
             output.print(f"[green]✓ 加载完成: {analysis.project_name or '未命名项目'}[/green]")
@@ -3394,12 +3570,14 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
             if doc.has_images():
                 output.print(f"[green]✓ 文档解析完成 (包含 {len(doc.images)} 张图片)[/green]")
             else:
-                output.print(f"[green]✓ 文档解析完成[/green]")
+                output.print("[green]✓ 文档解析完成[/green]")
 
             # Output prompt to stdout
             prompt = analyzer.get_extraction_prompt(doc)
             output.print("\n[bold yellow]=" * 60 + "[/bold yellow]")
-            output.print("[bold yellow]请将以下内容交给 LLM 分析，然后输入 JSON 结果：[/bold yellow]")
+            output.print(
+                "[bold yellow]请将以下内容交给 LLM 分析，然后输入 JSON 结果：[/bold yellow]"
+            )
             output.print("[bold yellow]=" * 60 + "[/bold yellow]\n")
 
             # Print prompt to stdout (for piping to LLM)
@@ -3428,6 +3606,7 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
             try:
                 # Try to extract JSON from markdown code block
                 import re
+
                 json_match = re.search(r"```json\s*(.*?)\s*```", json_text, re.DOTALL)
                 if json_match:
                     json_text = json_match.group(1)
@@ -3438,7 +3617,9 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
 
                 extracted = json.loads(json_text)
                 analysis = analyzer.create_analysis_from_json(extracted, doc)
-                output.print(f"[green]✓ JSON 解析成功: {analysis.project_name or '未命名项目'}[/green]")
+                output.print(
+                    f"[green]✓ JSON 解析成功: {analysis.project_name or '未命名项目'}[/green]"
+                )
             except json.JSONDecodeError as e:
                 output.print(f"[red]错误: JSON 解析失败 - {e}[/red]")
                 return
@@ -3451,7 +3632,7 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
             if analysis.has_images:
                 output.print(f"[green]✓ 文档解析完成 (包含 {analysis.image_count} 张图片)[/green]")
             else:
-                output.print(f"[green]✓ 文档解析完成[/green]")
+                output.print("[green]✓ 文档解析完成[/green]")
 
             output.print("[dim]🤖 使用 LLM 提取结构化信息...[/dim]")
             if analysis.project_name:
@@ -3466,6 +3647,7 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
         enhanced_context = None
         try:
             from datarecipe.generators.llm_enhancer import LLMEnhancer
+
             enhance_mode = "api" if not interactive else "interactive"
             enhancer = LLMEnhancer(mode=enhance_mode, provider=provider)
             enhanced_context = enhancer.enhance(
@@ -3495,14 +3677,14 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
             output.print(f"[red]错误: {result.error}[/red]")
             return
 
-        output.print(f"[green]✓ 生成完成[/green]")
+        output.print("[green]✓ 生成完成[/green]")
 
         # Display summary
-        output.print(f"\n[bold cyan]{'='*60}[/bold cyan]")
-        output.print(f"[bold cyan]  分析完成[/bold cyan]")
-        output.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+        output.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+        output.print("[bold cyan]  分析完成[/bold cyan]")
+        output.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
 
-        output.print(f"[bold]生成的文件:[/bold]")
+        output.print("[bold]生成的文件:[/bold]")
         for fname in result.files_generated:
             fpath = os.path.join(result.output_dir, fname)
             if os.path.exists(fpath):
@@ -3517,10 +3699,16 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
         output.print(f"\n[bold]输出目录:[/bold] [cyan]{result.output_dir}[/cyan]")
 
         # Key files
-        output.print(f"\n[bold]核心产出:[/bold]")
-        output.print(f"  📄 执行摘要: [cyan]{result.output_dir}/01_决策参考/EXECUTIVE_SUMMARY.md[/cyan]")
-        output.print(f"  📋 里程碑计划: [cyan]{result.output_dir}/02_项目管理/MILESTONE_PLAN.md[/cyan]")
-        output.print(f"  📝 标注规范: [cyan]{result.output_dir}/03_标注规范/ANNOTATION_SPEC.md[/cyan]")
+        output.print("\n[bold]核心产出:[/bold]")
+        output.print(
+            f"  📄 执行摘要: [cyan]{result.output_dir}/01_决策参考/EXECUTIVE_SUMMARY.md[/cyan]"
+        )
+        output.print(
+            f"  📋 里程碑计划: [cyan]{result.output_dir}/02_项目管理/MILESTONE_PLAN.md[/cyan]"
+        )
+        output.print(
+            f"  📝 标注规范: [cyan]{result.output_dir}/03_标注规范/ANNOTATION_SPEC.md[/cyan]"
+        )
 
     except FileNotFoundError as e:
         output.print(f"[red]错误: 文件未找到 - {e}[/red]")
@@ -3532,6 +3720,7 @@ def analyze_spec(file_path: str, output_dir: str, size: int, region: str, provid
     except Exception as e:
         output.print(f"[red]错误: {e}[/red]")
         import traceback
+
         traceback.print_exc()
 
 

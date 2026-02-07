@@ -49,7 +49,7 @@ class EnhancedContext:
     raw_response: str = ""
 
 
-ENHANCEMENT_PROMPT = '''你是一个数据集工程和项目管理专家。请基于以下数据集分析结果，生成针对性的增强内容。
+ENHANCEMENT_PROMPT = """你是一个数据集工程和项目管理专家。请基于以下数据集分析结果，生成针对性的增强内容。
 
 ## 数据集信息
 - 名称: {dataset_id}
@@ -137,7 +137,7 @@ ENHANCEMENT_PROMPT = '''你是一个数据集工程和项目管理专家。请�
 }}
 ```
 
-请确保输出有效的 JSON 格式。所有内容必须具体、可操作，避免空泛的模板化表述。'''
+请确保输出有效的 JSON 格式。所有内容必须具体、可操作，避免空泛的模板化表述。"""
 
 
 class LLMEnhancer:
@@ -210,9 +210,9 @@ class LLMEnhancer:
 
         # Extract metrics from analysis objects
         if complexity_metrics:
-            if hasattr(complexity_metrics, 'primary_domain'):
+            if hasattr(complexity_metrics, "primary_domain"):
                 domain = complexity_metrics.primary_domain.value
-            if hasattr(complexity_metrics, 'difficulty_score'):
+            if hasattr(complexity_metrics, "difficulty_score"):
                 difficulty = f"{complexity_metrics.difficulty_score}/10"
         if allocation:
             human_percentage = allocation.human_work_percentage
@@ -225,7 +225,7 @@ class LLMEnhancer:
                 f"- 评分标准: {rubrics_result.total_rubrics} 条, "
                 f"{rubrics_result.unique_patterns} 种独特模式"
             )
-        if llm_analysis and hasattr(llm_analysis, 'purpose') and llm_analysis.purpose:
+        if llm_analysis and hasattr(llm_analysis, "purpose") and llm_analysis.purpose:
             analysis_parts.append(f"- LLM 分析: {llm_analysis.purpose}")
         existing_analysis = "\n".join(analysis_parts) if analysis_parts else "无额外分析"
 
@@ -280,7 +280,7 @@ class LLMEnhancer:
             EnhancedContext loaded from file
         """
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
             return self._dict_to_context(data)
         except Exception as e:
@@ -393,6 +393,7 @@ class LLMEnhancer:
         if self.provider == "anthropic":
             try:
                 import anthropic
+
                 api_key = os.environ.get("ANTHROPIC_API_KEY")
                 if not api_key:
                     raise ValueError("ANTHROPIC_API_KEY not set")
@@ -402,6 +403,7 @@ class LLMEnhancer:
         elif self.provider == "openai":
             try:
                 import openai
+
                 api_key = os.environ.get("OPENAI_API_KEY")
                 if not api_key:
                     raise ValueError("OPENAI_API_KEY not set")

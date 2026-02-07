@@ -4,18 +4,17 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Dict, List
 
 # Output directory structure
 OUTPUT_SUBDIRS = {
-    "decision": "01_决策参考",      # Executive summary
-    "project": "02_项目管理",       # Milestone plan, industry benchmark
-    "annotation": "03_标注规范",    # Annotation spec, rubric templates
-    "guide": "04_复刻指南",         # Reproduction guide, analysis report
-    "cost": "05_成本分析",          # Cost breakdown, allocation, token analysis
-    "data": "06_原始数据",          # Raw analysis data
-    "ai_agent": "08_AI_Agent",      # AI Agent layer
+    "decision": "01_决策参考",  # Executive summary
+    "project": "02_项目管理",  # Milestone plan, industry benchmark
+    "annotation": "03_标注规范",  # Annotation spec, rubric templates
+    "guide": "04_复刻指南",  # Reproduction guide, analysis report
+    "cost": "05_成本分析",  # Cost breakdown, allocation, token analysis
+    "data": "06_原始数据",  # Raw analysis data
+    "ai_agent": "08_AI_Agent",  # AI Agent layer
 }
 
 
@@ -51,7 +50,7 @@ class OutputManager:
         """Generate README.md explaining directory structure."""
         content = f"""# {dataset_id} 分析产出
 
-> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+> 生成时间: {datetime.now().strftime("%Y-%m-%d %H:%M")}
 > 数据类型: {dataset_type}
 
 ## 目录结构
@@ -61,27 +60,27 @@ class OutputManager:
 ├── README.md                    # 本文件
 ├── recipe_summary.json          # 核心摘要 (Radar 兼容)
 │
-├── {OUTPUT_SUBDIRS['decision']}/           # 👔 决策层
+├── {OUTPUT_SUBDIRS["decision"]}/           # 👔 决策层
 │   ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (价值评分、ROI)
 │   └── executive_summary.json
 │
-├── {OUTPUT_SUBDIRS['project']}/           # 📋 项目管理
+├── {OUTPUT_SUBDIRS["project"]}/           # 📋 项目管理
 │   ├── MILESTONE_PLAN.md        # 里程碑计划 (验收标准)
 │   ├── milestone_plan.json
 │   ├── INDUSTRY_BENCHMARK.md    # 行业基准对比
 │   └── industry_benchmark.json
 │
-├── {OUTPUT_SUBDIRS['annotation']}/           # 📝 标注团队
+├── {OUTPUT_SUBDIRS["annotation"]}/           # 📝 标注团队
 │   ├── ANNOTATION_SPEC.md       # 标注规范 (外包交付用)
 │   ├── annotation_spec.json
 │   ├── rubric_template.md       # 评分标准模板
 │   └── rubric_template.json
 │
-├── {OUTPUT_SUBDIRS['guide']}/           # 🔧 技术团队
+├── {OUTPUT_SUBDIRS["guide"]}/           # 🔧 技术团队
 │   ├── REPRODUCTION_GUIDE.md    # 复刻指南
 │   └── ANALYSIS_REPORT.md       # 分析报告
 │
-├── {OUTPUT_SUBDIRS['cost']}/           # 💰 成本分析
+├── {OUTPUT_SUBDIRS["cost"]}/           # 💰 成本分析
 │   ├── COST_BREAKDOWN.md        # 成本明细
 │   ├── allocation.json          # 人机分配
 │   ├── phased_cost.json         # 分阶段成本
@@ -89,12 +88,12 @@ class OutputManager:
 │   ├── cost_calibration.json    # 成本校准
 │   └── token_analysis.json      # Token 分析
 │
-├── {OUTPUT_SUBDIRS['data']}/           # 📊 原始数据
+├── {OUTPUT_SUBDIRS["data"]}/           # 📊 原始数据
 │   ├── complexity_analysis.json # 复杂度分析
 │   ├── prompt_templates.json    # Prompt 模板
 │   └── ...                      # 其他分析数据
 │
-└── {OUTPUT_SUBDIRS['ai_agent']}/          # 🤖 AI Agent
+└── {OUTPUT_SUBDIRS["ai_agent"]}/          # 🤖 AI Agent
     ├── agent_context.json       # 聚合入口
     ├── workflow_state.json      # 工作流状态
     ├── reasoning_traces.json    # 推理链
@@ -106,12 +105,12 @@ class OutputManager:
 
 | 目标 | 查看文件 |
 |------|----------|
-| **快速决策** | `{OUTPUT_SUBDIRS['decision']}/EXECUTIVE_SUMMARY.md` |
-| **项目规划** | `{OUTPUT_SUBDIRS['project']}/MILESTONE_PLAN.md` |
-| **外包标注** | `{OUTPUT_SUBDIRS['annotation']}/ANNOTATION_SPEC.md` |
-| **技术复刻** | `{OUTPUT_SUBDIRS['guide']}/REPRODUCTION_GUIDE.md` |
-| **成本预算** | `{OUTPUT_SUBDIRS['cost']}/COST_BREAKDOWN.md` |
-| **AI Agent** | `{OUTPUT_SUBDIRS['ai_agent']}/agent_context.json` |
+| **快速决策** | `{OUTPUT_SUBDIRS["decision"]}/EXECUTIVE_SUMMARY.md` |
+| **项目规划** | `{OUTPUT_SUBDIRS["project"]}/MILESTONE_PLAN.md` |
+| **外包标注** | `{OUTPUT_SUBDIRS["annotation"]}/ANNOTATION_SPEC.md` |
+| **技术复刻** | `{OUTPUT_SUBDIRS["guide"]}/REPRODUCTION_GUIDE.md` |
+| **成本预算** | `{OUTPUT_SUBDIRS["cost"]}/COST_BREAKDOWN.md` |
+| **AI Agent** | `{OUTPUT_SUBDIRS["ai_agent"]}/agent_context.json` |
 
 ---
 
@@ -205,8 +204,9 @@ class DeepAnalyzerCore:
 
         try:
             from datasets import load_dataset
-            from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
+
             from datarecipe.analyzers import ContextStrategyDetector
+            from datarecipe.extractors import PromptExtractor, RubricsAnalyzer
             from datarecipe.generators import HumanMachineSplitter, TaskType
             from datarecipe.integrations.radar import RadarIntegration
 
@@ -250,15 +250,23 @@ class DeepAnalyzerCore:
             preference_pairs = []
             preference_topics = {}
             preference_patterns = {
-                "chosen_longer": 0, "rejected_longer": 0, "same_length": 0,
-                "chosen_more_detailed": 0, "chosen_more_helpful": 0, "chosen_safer": 0,
+                "chosen_longer": 0,
+                "rejected_longer": 0,
+                "same_length": 0,
+                "chosen_more_detailed": 0,
+                "chosen_more_helpful": 0,
+                "chosen_safer": 0,
             }
 
             # SWE-bench support
             is_swe_dataset = False
             swe_stats = {
-                "repos": {}, "languages": {}, "issue_types": {},
-                "issue_categories": {}, "patch_lines": [], "examples": [],
+                "repos": {},
+                "languages": {},
+                "issue_types": {},
+                "issue_categories": {},
+                "patch_lines": [],
+                "examples": [],
             }
 
             # Collect samples
@@ -275,7 +283,7 @@ class DeepAnalyzerCore:
                             schema_info[fld] = {
                                 "type": type(value).__name__,
                                 "examples": [],
-                                "nested_type": None
+                                "nested_type": None,
                             }
                             if isinstance(value, list) and value:
                                 schema_info[fld]["nested_type"] = type(value[0]).__name__
@@ -314,11 +322,13 @@ class DeepAnalyzerCore:
                             item_rubrics.append(value)
 
                 if item_rubrics and len(rubrics_examples) < 10:
-                    rubrics_examples.append({
-                        "rubrics": item_rubrics,
-                        "metadata": item.get("metadata", {}),
-                        "messages": item.get("messages", [])
-                    })
+                    rubrics_examples.append(
+                        {
+                            "rubrics": item_rubrics,
+                            "metadata": item.get("metadata", {}),
+                            "messages": item.get("messages", []),
+                        }
+                    )
 
                 # Messages and system prompts
                 if "messages" in item and isinstance(item["messages"], list):
@@ -329,15 +339,16 @@ class DeepAnalyzerCore:
                             if content and len(content) > 50:
                                 domain = "general"
                                 if "metadata" in item and isinstance(item["metadata"], dict):
-                                    domain = item["metadata"].get("context_category",
-                                             item["metadata"].get("category", "general"))
+                                    domain = item["metadata"].get(
+                                        "context_category",
+                                        item["metadata"].get("category", "general"),
+                                    )
                                 if domain not in system_prompts_by_domain:
                                     system_prompts_by_domain[domain] = []
                                 if len(system_prompts_by_domain[domain]) < 3:
-                                    system_prompts_by_domain[domain].append({
-                                        "content": content,
-                                        "metadata": item.get("metadata", {})
-                                    })
+                                    system_prompts_by_domain[domain].append(
+                                        {"content": content, "metadata": item.get("metadata", {})}
+                                    )
 
                 # Contexts
                 context_found = False
@@ -357,7 +368,9 @@ class DeepAnalyzerCore:
                 # RLHF preference detection
                 if "chosen" in item and "rejected" in item:
                     is_preference_dataset = True
-                    self._analyze_preference_pair(item, preference_pairs, preference_topics, preference_patterns)
+                    self._analyze_preference_pair(
+                        item, preference_pairs, preference_topics, preference_patterns
+                    )
 
                 # SWE-bench detection
                 if "repo" in item and "patch" in item and "problem_statement" in item:
@@ -385,18 +398,30 @@ class DeepAnalyzerCore:
                 result.rubric_patterns = rubrics_result.unique_patterns
 
                 # Save rubric analysis to data/
-                with open(output_mgr.get_path("data", "rubrics_analysis.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("data", "rubrics_analysis.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(analyzer.to_dict(rubrics_result), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("data", "rubrics_analysis.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("data", "rubrics_analysis.json")
+                )
 
                 # Save rubric templates to annotation/
-                with open(output_mgr.get_path("annotation", "rubric_template.yaml"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("annotation", "rubric_template.yaml"), "w", encoding="utf-8"
+                ) as f:
                     f.write(analyzer.to_yaml_templates(rubrics_result))
-                result.files_generated.append(output_mgr.get_relative_path("annotation", "rubric_template.yaml"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("annotation", "rubric_template.yaml")
+                )
 
-                with open(output_mgr.get_path("annotation", "rubric_template.md"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("annotation", "rubric_template.md"), "w", encoding="utf-8"
+                ) as f:
                     f.write(analyzer.to_markdown_templates(rubrics_result))
-                result.files_generated.append(output_mgr.get_relative_path("annotation", "rubric_template.md"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("annotation", "rubric_template.md")
+                )
 
             prompt_library = None
             if messages:
@@ -404,17 +429,25 @@ class DeepAnalyzerCore:
                 prompt_library = extractor.extract(messages)
                 result.prompt_templates = prompt_library.unique_count
 
-                with open(output_mgr.get_path("data", "prompt_templates.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("data", "prompt_templates.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(extractor.to_dict(prompt_library), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("data", "prompt_templates.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("data", "prompt_templates.json")
+                )
 
             strategy_result = None
             if contexts:
                 detector = ContextStrategyDetector()
                 strategy_result = detector.analyze(contexts[:100])
-                with open(output_mgr.get_path("data", "context_strategy.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("data", "context_strategy.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(detector.to_dict(strategy_result), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("data", "context_strategy.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("data", "context_strategy.json")
+                )
 
             # Preference analysis
             if is_preference_dataset and preference_pairs:
@@ -425,25 +458,39 @@ class DeepAnalyzerCore:
                     "patterns": preference_patterns,
                     "examples": preference_pairs[:10],
                 }
-                with open(output_mgr.get_path("data", "preference_analysis.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("data", "preference_analysis.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(preference_analysis, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("data", "preference_analysis.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("data", "preference_analysis.json")
+                )
 
             # SWE analysis
             if is_swe_dataset and swe_stats["repos"]:
-                avg_patch = sum(swe_stats["patch_lines"]) / len(swe_stats["patch_lines"]) if swe_stats["patch_lines"] else 0
+                avg_patch = (
+                    sum(swe_stats["patch_lines"]) / len(swe_stats["patch_lines"])
+                    if swe_stats["patch_lines"]
+                    else 0
+                )
                 swe_analysis = {
                     "is_swe_dataset": True,
                     "total_tasks": sample_count,
                     "repos_count": len(swe_stats["repos"]),
-                    "repo_distribution": dict(sorted(swe_stats["repos"].items(), key=lambda x: -x[1])[:20]),
+                    "repo_distribution": dict(
+                        sorted(swe_stats["repos"].items(), key=lambda x: -x[1])[:20]
+                    ),
                     "language_distribution": swe_stats["languages"],
                     "avg_patch_lines": avg_patch,
                     "examples": swe_stats["examples"],
                 }
-                with open(output_mgr.get_path("data", "swe_analysis.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("data", "swe_analysis.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(swe_analysis, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("data", "swe_analysis.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("data", "swe_analysis.json")
+                )
 
             # LLM analysis
             llm_analysis = None
@@ -451,6 +498,7 @@ class DeepAnalyzerCore:
             if self.use_llm and not is_known_type:
                 try:
                     from datarecipe.analyzers.llm_dataset_analyzer import LLMDatasetAnalyzer
+
                     llm_analyzer = LLMDatasetAnalyzer(provider=self.llm_provider)
                     llm_analysis = llm_analyzer.analyze(
                         dataset_id=dataset_id,
@@ -470,9 +518,13 @@ class DeepAnalyzerCore:
                         "estimated_difficulty": llm_analysis.estimated_difficulty,
                         "similar_datasets": llm_analysis.similar_datasets,
                     }
-                    with open(output_mgr.get_path("data", "llm_analysis.json"), "w", encoding="utf-8") as f:
+                    with open(
+                        output_mgr.get_path("data", "llm_analysis.json"), "w", encoding="utf-8"
+                    ) as f:
                         json.dump(llm_result_dict, f, indent=2, ensure_ascii=False)
-                    result.files_generated.append(output_mgr.get_relative_path("data", "llm_analysis.json"))
+                    result.files_generated.append(
+                        output_mgr.get_relative_path("data", "llm_analysis.json")
+                    )
                 except Exception as e:
                     result.warnings.append(f"LLM 数据集分析跳过: {e}")
 
@@ -483,6 +535,7 @@ class DeepAnalyzerCore:
             token_stats = None
             try:
                 from datarecipe.cost import PreciseCostCalculator
+
                 cost_calc = PreciseCostCalculator()
                 precise_estimate = cost_calc.calculate(
                     samples=sample_items,
@@ -494,9 +547,13 @@ class DeepAnalyzerCore:
                 token_stats = precise_estimate.token_stats
 
                 # Save token analysis to cost/
-                with open(output_mgr.get_path("cost", "token_analysis.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("cost", "token_analysis.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(precise_estimate.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("cost", "token_analysis.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("cost", "token_analysis.json")
+                )
 
                 # Model comparison
                 comparisons = cost_calc.compare_models(
@@ -505,9 +562,13 @@ class DeepAnalyzerCore:
                     models=["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "deepseek-v3"],
                 )
                 comparison_data = {m: e.to_dict() for m, e in comparisons.items()}
-                with open(output_mgr.get_path("cost", "cost_comparison.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("cost", "cost_comparison.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(comparison_data, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("cost", "cost_comparison.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("cost", "cost_comparison.json")
+                )
 
             except Exception as e:
                 result.warnings.append(f"Token 成本计算跳过: {e}")
@@ -516,6 +577,7 @@ class DeepAnalyzerCore:
             complexity_metrics = None
             try:
                 from datarecipe.cost import ComplexityAnalyzer
+
                 complexity_analyzer = ComplexityAnalyzer()
                 complexity_metrics = complexity_analyzer.analyze(
                     samples=sample_items,
@@ -524,9 +586,13 @@ class DeepAnalyzerCore:
                 )
 
                 # Save complexity analysis to data/
-                with open(output_mgr.get_path("data", "complexity_analysis.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("data", "complexity_analysis.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(complexity_metrics.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("data", "complexity_analysis.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("data", "complexity_analysis.json")
+                )
 
             except Exception as e:
                 result.warnings.append(f"复杂度分析跳过: {e}")
@@ -541,7 +607,7 @@ class DeepAnalyzerCore:
                     TaskType.RUBRICS_WRITING,
                     TaskType.DATA_GENERATION,
                     TaskType.QUALITY_REVIEW,
-                ]
+                ],
             )
 
             # Apply complexity multipliers to human cost
@@ -556,6 +622,7 @@ class DeepAnalyzerCore:
             calibration_result = None
             try:
                 from datarecipe.cost import CostCalibrator
+
                 calibrator = CostCalibrator()
                 calibration_result = calibrator.calibrate(
                     dataset_type=detected_type or "unknown",
@@ -570,9 +637,13 @@ class DeepAnalyzerCore:
                 api_cost = calibration_result.calibrated_api_cost
 
                 # Save calibration analysis to cost/
-                with open(output_mgr.get_path("cost", "cost_calibration.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("cost", "cost_calibration.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(calibration_result.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("cost", "cost_calibration.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("cost", "cost_calibration.json")
+                )
 
             except Exception as e:
                 result.warnings.append(f"成本校准跳过: {e}")
@@ -583,12 +654,15 @@ class DeepAnalyzerCore:
             phased_breakdown = None
             try:
                 from datarecipe.cost import PhasedCostModel
+
                 phased_model = PhasedCostModel(region=self.region)
 
                 # Calculate API cost per sample for phased model
                 api_per_sample = api_cost / actual_size if actual_size > 0 else 0.01
                 complexity_mult = complexity_metrics.cost_multiplier if complexity_metrics else 1.0
-                quality_req = complexity_metrics.quality_requirement if complexity_metrics else "standard"
+                quality_req = (
+                    complexity_metrics.quality_requirement if complexity_metrics else "standard"
+                )
 
                 phased_breakdown = phased_model.calculate(
                     target_size=actual_size,
@@ -600,15 +674,23 @@ class DeepAnalyzerCore:
                 )
 
                 # Save phased cost analysis to cost/
-                with open(output_mgr.get_path("cost", "phased_cost.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("cost", "phased_cost.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(phased_breakdown.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("cost", "phased_cost.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("cost", "phased_cost.json")
+                )
 
                 # Save phased cost report to cost/
                 phased_report = phased_model.format_report(phased_breakdown)
-                with open(output_mgr.get_path("cost", "COST_BREAKDOWN.md"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("cost", "COST_BREAKDOWN.md"), "w", encoding="utf-8"
+                ) as f:
                     f.write(phased_report)
-                result.files_generated.append(output_mgr.get_relative_path("cost", "COST_BREAKDOWN.md"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("cost", "COST_BREAKDOWN.md")
+                )
 
             except Exception as e:
                 result.warnings.append(f"分阶段成本分析跳过: {e}")
@@ -668,6 +750,7 @@ class DeepAnalyzerCore:
             if self.use_llm:
                 try:
                     from datarecipe.generators.llm_enhancer import LLMEnhancer
+
                     enhancer = LLMEnhancer(mode=self.enhance_mode, provider=self.llm_provider)
                     enhanced_context = enhancer.enhance(
                         dataset_id=dataset_id,
@@ -682,40 +765,74 @@ class DeepAnalyzerCore:
                     )
                     if enhanced_context and enhanced_context.generated:
                         enhanced_dict = {
-                            k: v for k, v in enhanced_context.__dict__.items()
+                            k: v
+                            for k, v in enhanced_context.__dict__.items()
                             if k not in ("raw_response",)
                         }
-                        with open(output_mgr.get_path("data", "enhanced_context.json"), "w", encoding="utf-8") as f:
+                        with open(
+                            output_mgr.get_path("data", "enhanced_context.json"),
+                            "w",
+                            encoding="utf-8",
+                        ) as f:
                             json.dump(enhanced_dict, f, indent=2, ensure_ascii=False, default=str)
-                        result.files_generated.append(output_mgr.get_relative_path("data", "enhanced_context.json"))
+                        result.files_generated.append(
+                            output_mgr.get_relative_path("data", "enhanced_context.json")
+                        )
                 except Exception as e:
                     result.warnings.append(f"LLM 增强跳过: {e}")
 
             # Generate reports to guide/
             report = self._generate_analysis_report(
-                dataset_id, sample_count, actual_size,
-                rubrics_result, prompt_library, strategy_result, allocation, self.region,
+                dataset_id,
+                sample_count,
+                actual_size,
+                rubrics_result,
+                prompt_library,
+                strategy_result,
+                allocation,
+                self.region,
                 enhanced_context=enhanced_context,
             )
-            with open(output_mgr.get_path("guide", "ANALYSIS_REPORT.md"), "w", encoding="utf-8") as f:
+            with open(
+                output_mgr.get_path("guide", "ANALYSIS_REPORT.md"), "w", encoding="utf-8"
+            ) as f:
                 f.write(report)
-            result.files_generated.append(output_mgr.get_relative_path("guide", "ANALYSIS_REPORT.md"))
+            result.files_generated.append(
+                output_mgr.get_relative_path("guide", "ANALYSIS_REPORT.md")
+            )
 
             guide = self._generate_reproduction_guide(
-                dataset_id, schema_info, category_set, sub_category_set,
-                system_prompts_by_domain, rubrics_examples, sample_items,
-                rubrics_result, prompt_library, allocation,
-                is_preference_dataset, preference_pairs, preference_topics, preference_patterns,
-                is_swe_dataset, swe_stats, llm_analysis,
+                dataset_id,
+                schema_info,
+                category_set,
+                sub_category_set,
+                system_prompts_by_domain,
+                rubrics_examples,
+                sample_items,
+                rubrics_result,
+                prompt_library,
+                allocation,
+                is_preference_dataset,
+                preference_pairs,
+                preference_topics,
+                preference_patterns,
+                is_swe_dataset,
+                swe_stats,
+                llm_analysis,
                 enhanced_context=enhanced_context,
             )
-            with open(output_mgr.get_path("guide", "REPRODUCTION_GUIDE.md"), "w", encoding="utf-8") as f:
+            with open(
+                output_mgr.get_path("guide", "REPRODUCTION_GUIDE.md"), "w", encoding="utf-8"
+            ) as f:
                 f.write(guide)
-            result.files_generated.append(output_mgr.get_relative_path("guide", "REPRODUCTION_GUIDE.md"))
+            result.files_generated.append(
+                output_mgr.get_relative_path("guide", "REPRODUCTION_GUIDE.md")
+            )
 
             # Annotation specification (forward-looking production guide)
             try:
                 from datarecipe.generators.annotation_spec import AnnotationSpecGenerator
+
                 spec_generator = AnnotationSpecGenerator()
                 annotation_spec = spec_generator.generate(
                     dataset_id=dataset_id,
@@ -730,15 +847,23 @@ class DeepAnalyzerCore:
 
                 # Save as Markdown to annotation/
                 spec_md = spec_generator.to_markdown(annotation_spec)
-                with open(output_mgr.get_path("annotation", "ANNOTATION_SPEC.md"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("annotation", "ANNOTATION_SPEC.md"), "w", encoding="utf-8"
+                ) as f:
                     f.write(spec_md)
-                result.files_generated.append(output_mgr.get_relative_path("annotation", "ANNOTATION_SPEC.md"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("annotation", "ANNOTATION_SPEC.md")
+                )
 
                 # Save as JSON to annotation/
                 spec_dict = spec_generator.to_dict(annotation_spec)
-                with open(output_mgr.get_path("annotation", "annotation_spec.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("annotation", "annotation_spec.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(spec_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("annotation", "annotation_spec.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("annotation", "annotation_spec.json")
+                )
 
             except Exception as e:
                 result.warnings.append(f"标注规范生成失败: {e}")
@@ -746,6 +871,7 @@ class DeepAnalyzerCore:
             # Milestone plan (for project management)
             try:
                 from datarecipe.generators.milestone_plan import MilestonePlanGenerator
+
                 milestone_generator = MilestonePlanGenerator()
                 milestone_plan = milestone_generator.generate(
                     dataset_id=dataset_id,
@@ -760,15 +886,23 @@ class DeepAnalyzerCore:
 
                 # Save as Markdown to project/
                 milestone_md = milestone_generator.to_markdown(milestone_plan)
-                with open(output_mgr.get_path("project", "MILESTONE_PLAN.md"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("project", "MILESTONE_PLAN.md"), "w", encoding="utf-8"
+                ) as f:
                     f.write(milestone_md)
-                result.files_generated.append(output_mgr.get_relative_path("project", "MILESTONE_PLAN.md"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("project", "MILESTONE_PLAN.md")
+                )
 
                 # Save as JSON to project/
                 milestone_dict = milestone_generator.to_dict(milestone_plan)
-                with open(output_mgr.get_path("project", "milestone_plan.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("project", "milestone_plan.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(milestone_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("project", "milestone_plan.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("project", "milestone_plan.json")
+                )
 
             except Exception as e:
                 result.warnings.append(f"里程碑计划生成失败: {e}")
@@ -776,6 +910,7 @@ class DeepAnalyzerCore:
             # Executive summary (for decision makers)
             try:
                 from datarecipe.generators.executive_summary import ExecutiveSummaryGenerator
+
                 exec_generator = ExecutiveSummaryGenerator()
                 exec_assessment = exec_generator.generate(
                     dataset_id=dataset_id,
@@ -797,15 +932,23 @@ class DeepAnalyzerCore:
                     reproduction_cost=result.reproduction_cost,
                     phased_breakdown=phased_breakdown,
                 )
-                with open(output_mgr.get_path("decision", "EXECUTIVE_SUMMARY.md"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("decision", "EXECUTIVE_SUMMARY.md"), "w", encoding="utf-8"
+                ) as f:
                     f.write(exec_md)
-                result.files_generated.append(output_mgr.get_relative_path("decision", "EXECUTIVE_SUMMARY.md"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("decision", "EXECUTIVE_SUMMARY.md")
+                )
 
                 # Save as JSON to decision/
                 exec_dict = exec_generator.to_dict(exec_assessment)
-                with open(output_mgr.get_path("decision", "executive_summary.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("decision", "executive_summary.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(exec_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("decision", "executive_summary.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("decision", "executive_summary.json")
+                )
 
             except Exception as e:
                 result.warnings.append(f"执行摘要生成失败: {e}")
@@ -813,6 +956,7 @@ class DeepAnalyzerCore:
             # Industry benchmark comparison
             try:
                 from datarecipe.generators.industry_benchmark import IndustryBenchmarkGenerator
+
                 benchmark_generator = IndustryBenchmarkGenerator()
                 benchmark_comparison = benchmark_generator.generate(
                     dataset_id=dataset_id,
@@ -824,15 +968,23 @@ class DeepAnalyzerCore:
 
                 # Save as Markdown to project/
                 benchmark_md = benchmark_generator.to_markdown(benchmark_comparison)
-                with open(output_mgr.get_path("project", "INDUSTRY_BENCHMARK.md"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("project", "INDUSTRY_BENCHMARK.md"), "w", encoding="utf-8"
+                ) as f:
                     f.write(benchmark_md)
-                result.files_generated.append(output_mgr.get_relative_path("project", "INDUSTRY_BENCHMARK.md"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("project", "INDUSTRY_BENCHMARK.md")
+                )
 
                 # Save as JSON to project/
                 benchmark_dict = benchmark_generator.to_dict(benchmark_comparison)
-                with open(output_mgr.get_path("project", "industry_benchmark.json"), "w", encoding="utf-8") as f:
+                with open(
+                    output_mgr.get_path("project", "industry_benchmark.json"), "w", encoding="utf-8"
+                ) as f:
                     json.dump(benchmark_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(output_mgr.get_relative_path("project", "industry_benchmark.json"))
+                result.files_generated.append(
+                    output_mgr.get_relative_path("project", "industry_benchmark.json")
+                )
 
             except Exception as e:
                 result.warnings.append(f"行业基准对比生成失败: {e}")
@@ -883,6 +1035,7 @@ class DeepAnalyzerCore:
             # Update knowledge base
             try:
                 from datarecipe.knowledge import KnowledgeBase
+
                 kb = KnowledgeBase()
                 kb.ingest_analysis(
                     dataset_id=dataset_id,
@@ -896,6 +1049,7 @@ class DeepAnalyzerCore:
             # Update cache
             try:
                 from datarecipe.cache import AnalysisCache
+
                 cache = AnalysisCache()
                 cache.put(
                     dataset_id=dataset_id,
@@ -925,9 +1079,12 @@ class DeepAnalyzerCore:
         # Parse conversation
         def parse_conv(text):
             turns = []
-            for h_pat, a_pat in [(r'\n\nHuman:', r'\n\nAssistant:'), (r'\nHuman:', r'\nAssistant:')]:
-                if h_pat.replace(r'\n', '\n') in text:
-                    parts = re.split(r'(' + h_pat + '|' + a_pat + ')', text)
+            for h_pat, a_pat in [
+                (r"\n\nHuman:", r"\n\nAssistant:"),
+                (r"\nHuman:", r"\nAssistant:"),
+            ]:
+                if h_pat.replace(r"\n", "\n") in text:
+                    parts = re.split(r"(" + h_pat + "|" + a_pat + ")", text)
                     role, content = None, ""
                     for part in parts:
                         if re.match(h_pat, part):
@@ -976,16 +1133,20 @@ class DeepAnalyzerCore:
 
         # Safety patterns
         safety_words = ["sorry", "can't", "cannot", "won't", "inappropriate"]
-        if any(w in rejected.lower() for w in safety_words) and not any(w in chosen.lower() for w in safety_words):
+        if any(w in rejected.lower() for w in safety_words) and not any(
+            w in chosen.lower() for w in safety_words
+        ):
             patterns["chosen_safer"] += 1
 
         # Save example
         if len(pairs) < 20:
-            pairs.append({
-                "topic": topic,
-                "turn_count": len(chosen_turns),
-                "human_query": chosen_turns[0].get("content", "")[:300] if chosen_turns else "",
-            })
+            pairs.append(
+                {
+                    "topic": topic,
+                    "turn_count": len(chosen_turns),
+                    "human_query": chosen_turns[0].get("content", "")[:300] if chosen_turns else "",
+                }
+            )
 
     def _analyze_swe_item(self, item, stats):
         """Analyze a SWE-bench style item."""
@@ -1015,16 +1176,26 @@ class DeepAnalyzerCore:
 
         # Examples
         if len(stats["examples"]) < 5:
-            stats["examples"].append({
-                "repo": repo,
-                "language": lang,
-                "problem_statement": item.get("problem_statement", "")[:800],
-            })
+            stats["examples"].append(
+                {
+                    "repo": repo,
+                    "language": lang,
+                    "problem_statement": item.get("problem_statement", "")[:800],
+                }
+            )
 
-    def _generate_analysis_report(self, dataset_id, sample_count, actual_size,
-                                   rubrics_result, prompt_library, strategy_result,
-                                   allocation, region,
-                                   enhanced_context=None) -> str:
+    def _generate_analysis_report(
+        self,
+        dataset_id,
+        sample_count,
+        actual_size,
+        rubrics_result,
+        prompt_library,
+        strategy_result,
+        allocation,
+        region,
+        enhanced_context=None,
+    ) -> str:
         """Generate analysis report markdown."""
         lines = []
         lines.append(f"# 🔬 {dataset_id} 深度逆向分析报告")
@@ -1036,7 +1207,11 @@ class DeepAnalyzerCore:
         lines.append("")
 
         # LLM-enhanced purpose summary
-        if enhanced_context and enhanced_context.generated and enhanced_context.dataset_purpose_summary:
+        if (
+            enhanced_context
+            and enhanced_context.generated
+            and enhanced_context.dataset_purpose_summary
+        ):
             lines.append(f"> {enhanced_context.dataset_purpose_summary}")
             lines.append("")
 
@@ -1049,18 +1224,32 @@ class DeepAnalyzerCore:
         lines.append("|------|------|")
 
         if rubrics_result:
-            lines.append(f"| **评分标准** | {rubrics_result.total_rubrics:,} 条，{rubrics_result.unique_patterns:,} 种独特模式 |")
+            lines.append(
+                f"| **评分标准** | {rubrics_result.total_rubrics:,} 条，{rubrics_result.unique_patterns:,} 种独特模式 |"
+            )
         if prompt_library:
-            lines.append(f"| **Prompt模板** | {prompt_library.unique_count} 个去重后的系统提示模板 |")
+            lines.append(
+                f"| **Prompt模板** | {prompt_library.unique_count} 个去重后的系统提示模板 |"
+            )
         if strategy_result:
-            lines.append(f"| **数据来源** | 混合策略（合成 {strategy_result.synthetic_score*100:.0f}% + 改编 {strategy_result.modified_score*100:.0f}%） |")
+            lines.append(
+                f"| **数据来源** | 混合策略（合成 {strategy_result.synthetic_score * 100:.0f}% + 改编 {strategy_result.modified_score * 100:.0f}%） |"
+            )
 
-        lines.append(f"| **复现成本** | 约 ${allocation.total_cost:,.0f}（人工 ${allocation.total_human_cost:,.0f} + API ${allocation.total_machine_cost:,.0f}） |")
-        lines.append(f"| **人机分配** | 人工 {allocation.human_work_percentage:.0f}%，机器 {allocation.machine_work_percentage:.0f}% |")
+        lines.append(
+            f"| **复现成本** | 约 ${allocation.total_cost:,.0f}（人工 ${allocation.total_human_cost:,.0f} + API ${allocation.total_machine_cost:,.0f}） |"
+        )
+        lines.append(
+            f"| **人机分配** | 人工 {allocation.human_work_percentage:.0f}%，机器 {allocation.machine_work_percentage:.0f}% |"
+        )
         lines.append("")
 
         # LLM-enhanced methodology insights
-        if enhanced_context and enhanced_context.generated and enhanced_context.key_methodology_insights:
+        if (
+            enhanced_context
+            and enhanced_context.generated
+            and enhanced_context.key_methodology_insights
+        ):
             lines.append("## 🔍 方法学洞察")
             lines.append("")
             for insight in enhanced_context.key_methodology_insights:
@@ -1068,14 +1257,22 @@ class DeepAnalyzerCore:
             lines.append("")
 
         # LLM-enhanced competitive positioning
-        if enhanced_context and enhanced_context.generated and enhanced_context.competitive_positioning:
+        if (
+            enhanced_context
+            and enhanced_context.generated
+            and enhanced_context.competitive_positioning
+        ):
             lines.append("## 🏆 竞争定位")
             lines.append("")
             lines.append(enhanced_context.competitive_positioning)
             lines.append("")
 
         # LLM-enhanced domain tips
-        if enhanced_context and enhanced_context.generated and enhanced_context.domain_specific_tips:
+        if (
+            enhanced_context
+            and enhanced_context.generated
+            and enhanced_context.domain_specific_tips
+        ):
             lines.append("## 💡 领域建议")
             lines.append("")
             for tip in enhanced_context.domain_specific_tips:
@@ -1088,13 +1285,27 @@ class DeepAnalyzerCore:
 
         return "\n".join(lines)
 
-    def _generate_reproduction_guide(self, dataset_id, schema_info, category_set,
-                                      sub_category_set, system_prompts_by_domain,
-                                      rubrics_examples, sample_items, rubrics_result,
-                                      prompt_library, allocation, is_preference_dataset,
-                                      preference_pairs, preference_topics, preference_patterns,
-                                      is_swe_dataset, swe_stats, llm_analysis,
-                                      enhanced_context=None) -> str:
+    def _generate_reproduction_guide(
+        self,
+        dataset_id,
+        schema_info,
+        category_set,
+        sub_category_set,
+        system_prompts_by_domain,
+        rubrics_examples,
+        sample_items,
+        rubrics_result,
+        prompt_library,
+        allocation,
+        is_preference_dataset,
+        preference_pairs,
+        preference_topics,
+        preference_patterns,
+        is_swe_dataset,
+        swe_stats,
+        llm_analysis,
+        enhanced_context=None,
+    ) -> str:
         """Generate reproduction guide markdown."""
         lines = []
         lines.append(f"# 📋 {dataset_id} 复刻指南")
@@ -1104,7 +1315,11 @@ class DeepAnalyzerCore:
             lines.append("> **这是一个软件工程评测数据集 (SWE-bench 风格)。**")
         elif is_preference_dataset:
             lines.append("> **这是一个 RLHF 偏好数据集。**")
-        elif enhanced_context and enhanced_context.generated and enhanced_context.dataset_purpose_summary:
+        elif (
+            enhanced_context
+            and enhanced_context.generated
+            and enhanced_context.dataset_purpose_summary
+        ):
             lines.append(f"> {enhanced_context.dataset_purpose_summary}")
         elif llm_analysis and llm_analysis.dataset_type != "unknown":
             lines.append(f"> **数据集类型: {llm_analysis.dataset_type}。{llm_analysis.purpose}**")
@@ -1115,14 +1330,22 @@ class DeepAnalyzerCore:
         lines.append("")
 
         # LLM-enhanced reproduction strategy
-        if enhanced_context and enhanced_context.generated and enhanced_context.reproduction_strategy:
+        if (
+            enhanced_context
+            and enhanced_context.generated
+            and enhanced_context.reproduction_strategy
+        ):
             lines.append("## 🎯 复刻策略")
             lines.append("")
             lines.append(enhanced_context.reproduction_strategy)
             lines.append("")
 
         # LLM-enhanced methodology insights
-        if enhanced_context and enhanced_context.generated and enhanced_context.key_methodology_insights:
+        if (
+            enhanced_context
+            and enhanced_context.generated
+            and enhanced_context.key_methodology_insights
+        ):
             lines.append("## 🔍 方法学洞察")
             lines.append("")
             for insight in enhanced_context.key_methodology_insights:
@@ -1132,6 +1355,7 @@ class DeepAnalyzerCore:
         # LLM analysis section (for unknown types analyzed by LLM)
         if llm_analysis and llm_analysis.dataset_type != "unknown":
             from datarecipe.analyzers.llm_dataset_analyzer import generate_llm_guide_section
+
             lines.append(generate_llm_guide_section(llm_analysis))
             lines.append("")
 
@@ -1155,7 +1379,11 @@ class DeepAnalyzerCore:
             lines.append("")
 
         # LLM-enhanced domain tips
-        if enhanced_context and enhanced_context.generated and enhanced_context.domain_specific_tips:
+        if (
+            enhanced_context
+            and enhanced_context.generated
+            and enhanced_context.domain_specific_tips
+        ):
             lines.append("## 💡 领域建议")
             lines.append("")
             for tip in enhanced_context.domain_specific_tips:
@@ -1170,7 +1398,9 @@ class DeepAnalyzerCore:
             lines.append("|------|------|----------|")
             for risk in enhanced_context.tailored_risks:
                 if isinstance(risk, dict):
-                    lines.append(f"| {risk.get('level', '')} | {risk.get('description', '')} | {risk.get('mitigation', '')} |")
+                    lines.append(
+                        f"| {risk.get('level', '')} | {risk.get('description', '')} | {risk.get('mitigation', '')} |"
+                    )
             lines.append("")
 
         lines.append("---")
@@ -1200,31 +1430,47 @@ class DeepAnalyzerCore:
 
         # Generate agent_context.json
         self._generate_ai_agent_context(
-            output_mgr, result, dataset_id, dataset_type, sample_count, actual_size,
-            allocation, complexity_metrics, subdirs
+            output_mgr,
+            result,
+            dataset_id,
+            dataset_type,
+            sample_count,
+            actual_size,
+            allocation,
+            complexity_metrics,
+            subdirs,
         )
 
         # Generate workflow_state.json
-        self._generate_ai_workflow_state(
-            output_mgr, result, dataset_id, dataset_type, subdirs
-        )
+        self._generate_ai_workflow_state(output_mgr, result, dataset_id, dataset_type, subdirs)
 
         # Generate reasoning_traces.json
         self._generate_ai_reasoning_traces(
-            output_mgr, result, dataset_id, dataset_type, actual_size,
-            allocation, complexity_metrics, rubrics_result, prompt_library, subdirs
+            output_mgr,
+            result,
+            dataset_id,
+            dataset_type,
+            actual_size,
+            allocation,
+            complexity_metrics,
+            rubrics_result,
+            prompt_library,
+            subdirs,
         )
 
         # Generate pipeline.yaml
         self._generate_ai_pipeline(
-            output_mgr, result, dataset_id, dataset_type,
-            is_preference_dataset, is_swe_dataset, subdirs
+            output_mgr,
+            result,
+            dataset_id,
+            dataset_type,
+            is_preference_dataset,
+            is_swe_dataset,
+            subdirs,
         )
 
         # Generate README.md for AI Agent directory
-        self._generate_ai_agent_readme(
-            output_mgr, result, dataset_id, dataset_type, subdirs
-        )
+        self._generate_ai_agent_readme(output_mgr, result, dataset_id, dataset_type, subdirs)
 
     def _generate_ai_agent_context(
         self,
@@ -1244,7 +1490,7 @@ class DeepAnalyzerCore:
                 "version": "1.0",
                 "generated_at": datetime.now().isoformat(),
                 "generator": "DataRecipe",
-                "purpose": "AI Agent 聚合入口，引用其他文件而非复制"
+                "purpose": "AI Agent 聚合入口，引用其他文件而非复制",
             },
             "project": {
                 "name": dataset_id,
@@ -1266,18 +1512,18 @@ class DeepAnalyzerCore:
                 {
                     "decision": "dataset_type",
                     "value": dataset_type or "unknown",
-                    "reasoning_ref": "#/reasoning/dataset_type"
+                    "reasoning_ref": "#/reasoning/dataset_type",
                 },
                 {
                     "decision": "human_percentage",
                     "value": result.human_percentage,
-                    "reasoning_ref": "#/reasoning/human_percentage"
+                    "reasoning_ref": "#/reasoning/human_percentage",
                 },
                 {
                     "decision": "cost_estimate",
                     "value": result.reproduction_cost.get("total", 0),
-                    "reasoning_ref": "#/reasoning/cost"
-                }
+                    "reasoning_ref": "#/reasoning/cost",
+                },
             ],
             "complexity": None,
             "file_references": {
@@ -1294,27 +1540,29 @@ class DeepAnalyzerCore:
                     "action": "review_spec",
                     "description": "审核标注规范",
                     "file": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
-                    "assignee": "human"
+                    "assignee": "human",
                 },
                 {
                     "action": "review_cost",
                     "description": "审核成本估算",
                     "file": f"../{subdirs['cost']}/COST_BREAKDOWN.md",
-                    "assignee": "human"
+                    "assignee": "human",
                 },
                 {
                     "action": "start_reproduction",
                     "description": "开始复刻生产",
                     "file": f"../{subdirs['guide']}/REPRODUCTION_GUIDE.md",
-                    "assignee": "human"
-                }
-            ]
+                    "assignee": "human",
+                },
+            ],
         }
 
         # Add complexity info if available
         if complexity_metrics:
             context["complexity"] = {
-                "domain": complexity_metrics.primary_domain.value if hasattr(complexity_metrics.primary_domain, 'value') else str(complexity_metrics.primary_domain),
+                "domain": complexity_metrics.primary_domain.value
+                if hasattr(complexity_metrics.primary_domain, "value")
+                else str(complexity_metrics.primary_domain),
                 "difficulty_score": complexity_metrics.difficulty_score,
                 "time_multiplier": complexity_metrics.time_multiplier,
                 "cost_multiplier": complexity_metrics.cost_multiplier,
@@ -1323,7 +1571,9 @@ class DeepAnalyzerCore:
         path = output_mgr.get_path("ai_agent", "agent_context.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(context, f, indent=2, ensure_ascii=False)
-        result.files_generated.append(output_mgr.get_relative_path("ai_agent", "agent_context.json"))
+        result.files_generated.append(
+            output_mgr.get_relative_path("ai_agent", "agent_context.json")
+        )
 
     def _generate_ai_workflow_state(
         self,
@@ -1338,7 +1588,7 @@ class DeepAnalyzerCore:
             "_meta": {
                 "version": "1.0",
                 "generated_at": datetime.now().isoformat(),
-                "purpose": "工作流状态追踪，供 AI Agent 了解当前进度和下一步"
+                "purpose": "工作流状态追踪，供 AI Agent 了解当前进度和下一步",
             },
             "current_phase": "analysis_complete",
             "phases": {
@@ -1352,7 +1602,7 @@ class DeepAnalyzerCore:
                     "outputs": [
                         f"../{subdirs['data']}/complexity_analysis.json",
                         f"../{subdirs['cost']}/allocation.json",
-                    ]
+                    ],
                 },
                 "report_generation": {
                     "status": "completed",
@@ -1362,26 +1612,26 @@ class DeepAnalyzerCore:
                         f"../{subdirs['project']}/MILESTONE_PLAN.md",
                         f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
                         f"../{subdirs['guide']}/REPRODUCTION_GUIDE.md",
-                    ]
+                    ],
                 },
                 "review": {
                     "status": "pending",
                     "description": "人工审核分析结果",
                     "blocked_by": [],
-                    "assignee": "human"
+                    "assignee": "human",
                 },
                 "reproduction_planning": {
                     "status": "pending",
                     "description": "制定复刻计划",
                     "blocked_by": ["review"],
-                    "assignee": "human"
+                    "assignee": "human",
                 },
                 "production": {
                     "status": "pending",
                     "description": "开始数据生产",
                     "blocked_by": ["reproduction_planning"],
-                    "assignee": "human"
-                }
+                    "assignee": "human",
+                },
             },
             "next_actions": [
                 {
@@ -1389,42 +1639,44 @@ class DeepAnalyzerCore:
                     "description": "审核执行摘要，确认分析结论",
                     "file": f"../{subdirs['decision']}/EXECUTIVE_SUMMARY.md",
                     "assignee": "human",
-                    "priority": "high"
+                    "priority": "high",
                 },
                 {
                     "action": "review_cost_estimate",
                     "description": "审核成本估算，确认预算",
                     "file": f"../{subdirs['cost']}/COST_BREAKDOWN.md",
                     "assignee": "human",
-                    "priority": "high"
+                    "priority": "high",
                 },
                 {
                     "action": "review_annotation_spec",
                     "description": "审核标注规范，准备生产",
                     "file": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
                     "assignee": "human",
-                    "priority": "medium"
-                }
+                    "priority": "medium",
+                },
             ],
             "blockers": [],
             "decisions_needed": [
                 {
                     "question": "是否采用此数据集的方法论？",
                     "options": ["approved", "needs_modification", "rejected"],
-                    "impact": "影响后续复刻策略"
+                    "impact": "影响后续复刻策略",
                 },
                 {
                     "question": "成本预算是否可接受？",
                     "options": ["approved", "needs_adjustment"],
-                    "impact": "影响项目规模和时间线"
-                }
-            ]
+                    "impact": "影响项目规模和时间线",
+                },
+            ],
         }
 
         path = output_mgr.get_path("ai_agent", "workflow_state.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2, ensure_ascii=False)
-        result.files_generated.append(output_mgr.get_relative_path("ai_agent", "workflow_state.json"))
+        result.files_generated.append(
+            output_mgr.get_relative_path("ai_agent", "workflow_state.json")
+        )
 
     def _generate_ai_reasoning_traces(
         self,
@@ -1448,41 +1700,38 @@ class DeepAnalyzerCore:
             "_meta": {
                 "version": "1.0",
                 "generated_at": datetime.now().isoformat(),
-                "purpose": "所有结论的推理链，供人类理解和 AI 验证"
+                "purpose": "所有结论的推理链，供人类理解和 AI 验证",
             },
             "reasoning": {
                 "dataset_type": {
                     "conclusion": {
                         "value": dataset_type or "unknown",
-                        "display": f"数据集类型: {dataset_type or 'unknown'}"
+                        "display": f"数据集类型: {dataset_type or 'unknown'}",
                     },
                     "chain": [],
                     "confidence": 0.0,
-                    "human_explanation": ""
+                    "human_explanation": "",
                 },
                 "human_percentage": {
                     "conclusion": {
                         "value": result.human_percentage,
-                        "display": f"人工比例: {result.human_percentage}%"
+                        "display": f"人工比例: {result.human_percentage}%",
                     },
                     "chain": [],
                     "confidence": 0.0,
-                    "human_explanation": ""
+                    "human_explanation": "",
                 },
                 "cost": {
-                    "conclusion": {
-                        "value": total_cost,
-                        "display": f"总成本: ${total_cost:,.0f}"
-                    },
+                    "conclusion": {"value": total_cost, "display": f"总成本: ${total_cost:,.0f}"},
                     "chain": [],
                     "confidence": 0.0,
                     "range": {
                         "low": round(total_cost * 0.7, 2),
-                        "high": round(total_cost * 1.4, 2)
+                        "high": round(total_cost * 1.4, 2),
                     },
-                    "human_explanation": ""
-                }
-            }
+                    "human_explanation": "",
+                },
+            },
         }
 
         # Build dataset type reasoning chain
@@ -1490,25 +1739,31 @@ class DeepAnalyzerCore:
         type_confidence = 0.5
 
         if dataset_type == "preference":
-            type_chain.append({
-                "step": "检测偏好数据结构",
-                "evidence": "发现 chosen/rejected 字段对",
-                "impact": "判定为 RLHF 偏好数据集"
-            })
+            type_chain.append(
+                {
+                    "step": "检测偏好数据结构",
+                    "evidence": "发现 chosen/rejected 字段对",
+                    "impact": "判定为 RLHF 偏好数据集",
+                }
+            )
             type_confidence = 0.95
         elif dataset_type == "evaluation":
-            type_chain.append({
-                "step": "检测评分标准",
-                "evidence": f"发现 {result.rubric_patterns} 种评分模式",
-                "impact": "判定为评测数据集"
-            })
+            type_chain.append(
+                {
+                    "step": "检测评分标准",
+                    "evidence": f"发现 {result.rubric_patterns} 种评分模式",
+                    "impact": "判定为评测数据集",
+                }
+            )
             type_confidence = 0.9
         elif dataset_type == "swe_bench":
-            type_chain.append({
-                "step": "检测 SWE 结构",
-                "evidence": "发现 repo/patch/problem_statement 字段",
-                "impact": "判定为软件工程评测数据集"
-            })
+            type_chain.append(
+                {
+                    "step": "检测 SWE 结构",
+                    "evidence": "发现 repo/patch/problem_statement 字段",
+                    "impact": "判定为软件工程评测数据集",
+                }
+            )
             type_confidence = 0.95
 
         traces["reasoning"]["dataset_type"]["chain"] = type_chain
@@ -1522,20 +1777,28 @@ class DeepAnalyzerCore:
         human_confidence = 0.7
 
         if allocation:
-            human_chain.append({
-                "step": "分析任务类型",
-                "evidence": f"包含 {len(allocation.tasks)} 种任务类型",
-                "impact": f"人工占比 {result.human_percentage}%"
-            })
+            human_chain.append(
+                {
+                    "step": "分析任务类型",
+                    "evidence": f"包含 {len(allocation.tasks)} 种任务类型",
+                    "impact": f"人工占比 {result.human_percentage}%",
+                }
+            )
             human_confidence = 0.8
 
         if complexity_metrics:
-            domain = complexity_metrics.primary_domain.value if hasattr(complexity_metrics.primary_domain, 'value') else str(complexity_metrics.primary_domain)
-            human_chain.append({
-                "step": "评估复杂度",
-                "evidence": f"领域: {domain}, 难度分数: {complexity_metrics.difficulty_score:.2f}",
-                "impact": f"成本乘数: {complexity_metrics.cost_multiplier:.2f}"
-            })
+            domain = (
+                complexity_metrics.primary_domain.value
+                if hasattr(complexity_metrics.primary_domain, "value")
+                else str(complexity_metrics.primary_domain)
+            )
+            human_chain.append(
+                {
+                    "step": "评估复杂度",
+                    "evidence": f"领域: {domain}, 难度分数: {complexity_metrics.difficulty_score:.2f}",
+                    "impact": f"成本乘数: {complexity_metrics.cost_multiplier:.2f}",
+                }
+            )
             human_confidence += 0.1
 
         traces["reasoning"]["human_percentage"]["chain"] = human_chain
@@ -1549,27 +1812,31 @@ class DeepAnalyzerCore:
             {
                 "step": "计算人工成本",
                 "evidence": f"人工任务成本 ${human_cost:,.0f}",
-                "value": human_cost
+                "value": human_cost,
             },
             {
                 "step": "计算 API 成本",
                 "evidence": f"API 调用成本 ${api_cost:,.0f}",
-                "value": api_cost
-            }
+                "value": api_cost,
+            },
         ]
 
         if complexity_metrics:
-            cost_chain.append({
-                "step": "应用复杂度乘数",
-                "evidence": f"复杂度乘数 {complexity_metrics.cost_multiplier:.2f}",
-                "multiplier": complexity_metrics.cost_multiplier
-            })
+            cost_chain.append(
+                {
+                    "step": "应用复杂度乘数",
+                    "evidence": f"复杂度乘数 {complexity_metrics.cost_multiplier:.2f}",
+                    "multiplier": complexity_metrics.cost_multiplier,
+                }
+            )
 
-        cost_chain.append({
-            "step": "计算总成本",
-            "evidence": f"人工 ${human_cost:,.0f} + API ${api_cost:,.0f}",
-            "result": total_cost
-        })
+        cost_chain.append(
+            {
+                "step": "计算总成本",
+                "evidence": f"人工 ${human_cost:,.0f} + API ${api_cost:,.0f}",
+                "result": total_cost,
+            }
+        )
 
         traces["reasoning"]["cost"]["chain"] = cost_chain
         traces["reasoning"]["cost"]["confidence"] = 0.75
@@ -1581,7 +1848,9 @@ class DeepAnalyzerCore:
         path = output_mgr.get_path("ai_agent", "reasoning_traces.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(traces, f, indent=2, ensure_ascii=False)
-        result.files_generated.append(output_mgr.get_relative_path("ai_agent", "reasoning_traces.json"))
+        result.files_generated.append(
+            output_mgr.get_relative_path("ai_agent", "reasoning_traces.json")
+        )
 
     def _generate_ai_pipeline(
         self,
@@ -1607,8 +1876,8 @@ class DeepAnalyzerCore:
 
         # Variables section
         lines.append("variables:")
-        lines.append(f"  source_dataset: \"{dataset_id}\"")
-        lines.append(f"  target_size: 1000  # 可调整")
+        lines.append(f'  source_dataset: "{dataset_id}"')
+        lines.append("  target_size: 1000  # 可调整")
         lines.append(f"  human_percentage: {result.human_percentage}")
         lines.append(f"  estimated_cost: {result.reproduction_cost.get('total', 0)}")
         lines.append("")
@@ -1677,7 +1946,7 @@ class DeepAnalyzerCore:
         lines.append("    steps:")
         lines.append("      - action: batch_production")
         lines.append("        description: 批量生产")
-        lines.append("        count: \"{{ target_size }}\"")
+        lines.append('        count: "{{ target_size }}"')
         lines.append("        assignee: human")
         lines.append("")
         lines.append("      - action: incremental_qa")

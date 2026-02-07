@@ -159,7 +159,9 @@ class CostCalculator:
         if avg_output_tokens <= 0:
             raise ValueError(f"avg_output_tokens must be positive, got {avg_output_tokens}")
         if not 0.0 <= human_annotation_ratio <= 1.0:
-            raise ValueError(f"human_annotation_ratio must be between 0.0 and 1.0, got {human_annotation_ratio}")
+            raise ValueError(
+                f"human_annotation_ratio must be between 0.0 and 1.0, got {human_annotation_ratio}"
+            )
         if compute_hours < 0:
             raise ValueError(f"compute_hours must be non-negative, got {compute_hours}")
         if retries < 1.0:
@@ -182,7 +184,7 @@ class CostCalculator:
         )
         if human_annotation_type:
             assumptions.append(
-                f"Human annotation: {human_annotation_type} for {human_annotation_ratio*100:.0f}%"
+                f"Human annotation: {human_annotation_type} for {human_annotation_ratio * 100:.0f}%"
             )
 
         # Compute costs
@@ -323,9 +325,7 @@ class CostCalculator:
         if compute_type is None or compute_hours == 0:
             return CostEstimate(0, 0, 0)
 
-        cost_per_hour = self.COMPUTE_COSTS.get(
-            compute_type, self.COMPUTE_COSTS["cpu_standard"]
-        )
+        cost_per_hour = self.COMPUTE_COSTS.get(compute_type, self.COMPUTE_COSTS["cpu_standard"])
 
         expected = compute_hours * cost_per_hour
         low = expected * 0.8
@@ -416,9 +416,7 @@ class CostCalculator:
         else:
             return "quality_check"
 
-    def _estimate_compute(
-        self, recipe: Recipe, num_examples: int
-    ) -> tuple[Optional[str], float]:
+    def _estimate_compute(self, recipe: Recipe, num_examples: int) -> tuple[Optional[str], float]:
         """Estimate compute requirements."""
         # Check for compute-intensive methods
         for method in recipe.generation_methods:
@@ -499,11 +497,11 @@ REGION_COST_MULTIPLIERS = {
     "us": 1.0,
     "uk": 0.9,
     "eu": 0.85,
-    "cn": 0.4,      # 中国
+    "cn": 0.4,  # 中国
     "china": 0.4,
-    "in": 0.25,     # 印度
+    "in": 0.25,  # 印度
     "india": 0.25,
-    "sea": 0.3,     # 东南亚
+    "sea": 0.3,  # 东南亚
     "latam": 0.35,  # 拉美
 }
 
@@ -603,8 +601,7 @@ class EnhancedCostCalculator(CostCalculator):
 
         # 计算标注时间
         minutes_per_item = ANNOTATION_TIME_ESTIMATES.get(
-            annotation_type,
-            ANNOTATION_TIME_ESTIMATES["text_classification"]
+            annotation_type, ANNOTATION_TIME_ESTIMATES["text_classification"]
         )
 
         # 标注成本
@@ -695,7 +692,7 @@ class EnhancedCostCalculator(CostCalculator):
 
             assumptions.append(f"人力成本基于 {region} 地区费率")
             assumptions.append(f"标注类型: {annotation_type}")
-            assumptions.append(f"人工数据量: {human_examples:,} ({recipe.human_ratio*100:.0f}%)")
+            assumptions.append(f"人工数据量: {human_examples:,} ({recipe.human_ratio * 100:.0f}%)")
 
         # 4. 总成本
         total = CostEstimate(
@@ -776,23 +773,35 @@ class EnhancedCostCalculator(CostCalculator):
 
         lines.append("## 成本分解")
         lines.append("")
-        lines.append(f"| 类别 | 最低 | 预期 | 最高 |")
-        lines.append(f"|------|------|------|------|")
-        lines.append(f"| API 成本 | ${breakdown.api_cost.low:,.0f} | ${breakdown.api_cost.expected:,.0f} | ${breakdown.api_cost.high:,.0f} |")
-        lines.append(f"| 人力成本 | ${breakdown.labor_cost.low:,.0f} | ${breakdown.labor_cost.expected:,.0f} | ${breakdown.labor_cost.high:,.0f} |")
-        lines.append(f"| 算力成本 | ${breakdown.compute_cost.low:,.0f} | ${breakdown.compute_cost.expected:,.0f} | ${breakdown.compute_cost.high:,.0f} |")
-        lines.append(f"| **总计** | **${breakdown.total.low:,.0f}** | **${breakdown.total.expected:,.0f}** | **${breakdown.total.high:,.0f}** |")
+        lines.append("| 类别 | 最低 | 预期 | 最高 |")
+        lines.append("|------|------|------|------|")
+        lines.append(
+            f"| API 成本 | ${breakdown.api_cost.low:,.0f} | ${breakdown.api_cost.expected:,.0f} | ${breakdown.api_cost.high:,.0f} |"
+        )
+        lines.append(
+            f"| 人力成本 | ${breakdown.labor_cost.low:,.0f} | ${breakdown.labor_cost.expected:,.0f} | ${breakdown.labor_cost.high:,.0f} |"
+        )
+        lines.append(
+            f"| 算力成本 | ${breakdown.compute_cost.low:,.0f} | ${breakdown.compute_cost.expected:,.0f} | ${breakdown.compute_cost.high:,.0f} |"
+        )
+        lines.append(
+            f"| **总计** | **${breakdown.total.low:,.0f}** | **${breakdown.total.expected:,.0f}** | **${breakdown.total.high:,.0f}** |"
+        )
         lines.append("")
 
         if breakdown.labor_breakdown:
             lines.append("## 人力成本细分")
             lines.append("")
             for key, value in breakdown.labor_breakdown.items():
-                key_zh = {"annotation": "标注", "review": "审核", "project_management": "项目管理"}.get(key, key)
+                key_zh = {
+                    "annotation": "标注",
+                    "review": "审核",
+                    "project_management": "项目管理",
+                }.get(key, key)
                 lines.append(f"- {key_zh}: ${value:,.2f}")
             lines.append("")
 
-        lines.append(f"## 地区信息")
+        lines.append("## 地区信息")
         lines.append("")
         lines.append(f"- 地区: {breakdown.region}")
         lines.append(f"- 地区系数: {breakdown.region_multiplier}")

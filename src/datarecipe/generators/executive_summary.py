@@ -10,12 +10,13 @@ Generates a 1-page executive summary with:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class Recommendation(Enum):
     """Recommendation levels."""
+
     HIGHLY_RECOMMENDED = "highly_recommended"
     RECOMMENDED = "recommended"
     CONDITIONAL = "conditional"
@@ -184,7 +185,7 @@ class ExecutiveSummaryGenerator:
 
         # Set use cases - prefer LLM-enhanced if available
         ec = enhanced_context
-        if ec and getattr(ec, 'generated', False) and ec.tailored_use_cases:
+        if ec and getattr(ec, "generated", False) and ec.tailored_use_cases:
             assessment.primary_use_case = ec.tailored_use_cases[0]
             assessment.secondary_use_cases = ec.tailored_use_cases[1:]
         else:
@@ -219,7 +220,7 @@ class ExecutiveSummaryGenerator:
         )
 
         # Generate payback scenarios - prefer LLM-enhanced
-        if ec and getattr(ec, 'generated', False) and ec.tailored_roi_scenarios:
+        if ec and getattr(ec, "generated", False) and ec.tailored_roi_scenarios:
             assessment.payback_scenarios = ec.tailored_roi_scenarios
         else:
             assessment.payback_scenarios = self._generate_payback_scenarios(
@@ -228,7 +229,7 @@ class ExecutiveSummaryGenerator:
             )
 
         # Assess risks - prefer LLM-enhanced
-        if ec and getattr(ec, 'generated', False) and ec.tailored_risks:
+        if ec and getattr(ec, "generated", False) and ec.tailored_risks:
             assessment.risks = ec.tailored_risks
         else:
             assessment.risks = self._assess_risks(
@@ -239,7 +240,7 @@ class ExecutiveSummaryGenerator:
 
         # Find alternatives
         assessment.alternatives = self._find_alternatives(dataset_id, dataset_type)
-        if ec and getattr(ec, 'generated', False) and ec.competitive_positioning:
+        if ec and getattr(ec, "generated", False) and ec.competitive_positioning:
             assessment.competitive_advantage = ec.competitive_positioning
         else:
             assessment.competitive_advantage = self._get_competitive_advantage(
@@ -289,7 +290,7 @@ class ExecutiveSummaryGenerator:
 
         # Complexity factor (moderate complexity is good)
         if complexity_metrics:
-            difficulty = getattr(complexity_metrics, 'difficulty_score', 2.0)
+            difficulty = getattr(complexity_metrics, "difficulty_score", 2.0)
             if 1.5 <= difficulty <= 3.0:
                 score += 0.5  # Good complexity range
             elif difficulty > 4.0:
@@ -312,28 +313,25 @@ class ExecutiveSummaryGenerator:
         if score >= 8.0:
             return (
                 Recommendation.HIGHLY_RECOMMENDED,
-                f"数据集价值高 (评分 {score}/10)，强烈建议复刻"
+                f"数据集价值高 (评分 {score}/10)，强烈建议复刻",
             )
         elif score >= 6.0:
-            return (
-                Recommendation.RECOMMENDED,
-                f"数据集价值良好 (评分 {score}/10)，建议复刻"
-            )
+            return (Recommendation.RECOMMENDED, f"数据集价值良好 (评分 {score}/10)，建议复刻")
         elif score >= 4.0:
             if total_cost > 10000:
                 return (
                     Recommendation.CONDITIONAL,
-                    f"数据集有一定价值 (评分 {score}/10)，但成本较高，建议评估预算后决定"
+                    f"数据集有一定价值 (评分 {score}/10)，但成本较高，建议评估预算后决定",
                 )
             else:
                 return (
                     Recommendation.CONDITIONAL,
-                    f"数据集有一定价值 (评分 {score}/10)，建议根据具体需求决定"
+                    f"数据集有一定价值 (评分 {score}/10)，建议根据具体需求决定",
                 )
         else:
             return (
                 Recommendation.NOT_RECOMMENDED,
-                f"数据集价值较低 (评分 {score}/10)，建议寻找替代方案"
+                f"数据集价值较低 (评分 {score}/10)，建议寻找替代方案",
             )
 
     def _calculate_roi(
@@ -390,33 +388,33 @@ class ExecutiveSummaryGenerator:
 
         if dataset_type == "preference":
             scenarios = [
-                f"场景 A: 用于内部模型对齐，避免 1 次重大 PR 危机即可收回成本",
-                f"场景 B: 提升用户满意度 5%，按用户价值计算可在 3 个月内回本",
-                f"场景 C: 作为数据资产出售/授权给其他团队",
+                "场景 A: 用于内部模型对齐，避免 1 次重大 PR 危机即可收回成本",
+                "场景 B: 提升用户满意度 5%，按用户价值计算可在 3 个月内回本",
+                "场景 C: 作为数据资产出售/授权给其他团队",
             ]
         elif dataset_type == "evaluation":
             scenarios = [
-                f"场景 A: 避免选择错误模型导致的返工成本",
-                f"场景 B: 缩短模型选型周期，节省团队时间",
-                f"场景 C: 作为标准化评测基准持续复用",
+                "场景 A: 避免选择错误模型导致的返工成本",
+                "场景 B: 缩短模型选型周期，节省团队时间",
+                "场景 C: 作为标准化评测基准持续复用",
             ]
         elif dataset_type == "sft":
             scenarios = [
-                f"场景 A: 微调后模型性能提升带来的业务价值",
-                f"场景 B: 减少对昂贵 API 的依赖",
-                f"场景 C: 构建差异化能力形成竞争壁垒",
+                "场景 A: 微调后模型性能提升带来的业务价值",
+                "场景 B: 减少对昂贵 API 的依赖",
+                "场景 C: 构建差异化能力形成竞争壁垒",
             ]
         elif dataset_type == "swe_bench":
             scenarios = [
-                f"场景 A: 评估代码助手投资决策",
-                f"场景 B: 提升开发效率带来的人力成本节省",
-                f"场景 C: 技术领先带来的品牌价值",
+                "场景 A: 评估代码助手投资决策",
+                "场景 B: 提升开发效率带来的人力成本节省",
+                "场景 C: 技术领先带来的品牌价值",
             ]
         else:
             scenarios = [
-                f"场景 A: 直接业务应用价值",
-                f"场景 B: 研究和技术储备价值",
-                f"场景 C: 数据资产长期价值",
+                "场景 A: 直接业务应用价值",
+                "场景 B: 研究和技术储备价值",
+                "场景 C: 数据资产长期价值",
             ]
 
         return scenarios
@@ -438,10 +436,10 @@ class ExecutiveSummaryGenerator:
 
         # Expert requirement risk
         if complexity_metrics:
-            domain = getattr(complexity_metrics, 'primary_domain', None)
+            domain = getattr(complexity_metrics, "primary_domain", None)
             if domain:
-                domain_value = domain.value if hasattr(domain, 'value') else str(domain)
-                if domain_value in ['medical', 'legal', 'finance']:
+                domain_value = domain.value if hasattr(domain, "value") else str(domain)
+                if domain_value in ["medical", "legal", "finance"]:
                     risks.append(RISK_TEMPLATES["expert_required"])
 
         # Human-heavy risk
@@ -462,6 +460,7 @@ class ExecutiveSummaryGenerator:
         # Try to get from knowledge base
         try:
             from datarecipe.knowledge import KnowledgeBase
+
             kb = KnowledgeBase()
             similar = kb.find_similar_datasets(dataset_type, limit=5)
             return [s.dataset_id for s in similar if s.dataset_id != dataset_id][:3]
@@ -574,10 +573,14 @@ class ExecutiveSummaryGenerator:
         lines.append("")
         total_cost = reproduction_cost.get("total", 0)
         human_cost = reproduction_cost.get("human", 0)
-        lines.append(f"| 指标 | 数值 |")
-        lines.append(f"|------|------|")
+        lines.append("| 指标 | 数值 |")
+        lines.append("|------|------|")
         lines.append(f"| 总成本 | ${total_cost:,.0f} |")
-        lines.append(f"| 人工成本 | ${human_cost:,.0f} ({human_cost/total_cost*100:.0f}%) |" if total_cost > 0 else f"| 人工成本 | ${human_cost:,.0f} |")
+        lines.append(
+            f"| 人工成本 | ${human_cost:,.0f} ({human_cost / total_cost * 100:.0f}%) |"
+            if total_cost > 0
+            else f"| 人工成本 | ${human_cost:,.0f} |"
+        )
         lines.append(f"| 投资回报率 | {assessment.roi_ratio:.1f}x |")
         lines.append("")
 
@@ -586,7 +589,7 @@ class ExecutiveSummaryGenerator:
         lines.append("")
         lines.append("## 用途与价值")
         lines.append("")
-        lines.append(f"### 主要用途")
+        lines.append("### 主要用途")
         lines.append(f"**{assessment.primary_use_case}**")
         lines.append("")
 

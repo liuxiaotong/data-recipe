@@ -11,13 +11,12 @@
 from typing import Optional
 
 from datarecipe.schema import (
-    Recipe,
     AnnotatorProfile,
-    SkillRequirement,
-    ExperienceLevel,
     EducationLevel,
+    ExperienceLevel,
+    Recipe,
+    SkillRequirement,
 )
-
 
 # 数据集类型 → 技能要求映射
 DATASET_TYPE_SKILLS = {
@@ -277,9 +276,7 @@ class AnnotatorProfiler:
             return self.custom_rules["skills"][dataset_type]
 
         # 获取基础技能
-        base_skills = DATASET_TYPE_SKILLS.get(
-            dataset_type, DATASET_TYPE_SKILLS["general"]
-        )
+        base_skills = DATASET_TYPE_SKILLS.get(dataset_type, DATASET_TYPE_SKILLS["general"])
 
         # 复制一份避免修改原始数据
         skills = [
@@ -295,18 +292,13 @@ class AnnotatorProfiler:
 
         # 根据生成类型添加额外技能
         if recipe.synthetic_ratio and recipe.synthetic_ratio > 0.5:
-            skills.append(SkillRequirement(
-                "domain", "AI生成内容识别", "intermediate", False
-            ))
+            skills.append(SkillRequirement("domain", "AI生成内容识别", "intermediate", False))
 
         return skills
 
     def _derive_experience(self, dataset_type: str) -> tuple[ExperienceLevel, int]:
         """推导经验要求"""
-        return DATASET_TYPE_EXPERIENCE.get(
-            dataset_type,
-            (ExperienceLevel.MID, 1)
-        )
+        return DATASET_TYPE_EXPERIENCE.get(dataset_type, (ExperienceLevel.MID, 1))
 
     def _derive_education(self, dataset_type: str) -> EducationLevel:
         """推导学历要求"""
@@ -561,7 +553,9 @@ def profile_to_markdown(profile: AnnotatorProfile, dataset_name: str = "") -> st
     lines.append("## 费率参考")
     lines.append("")
     lines.append(f"- **地区**: {profile.hourly_rate_range.get('region', 'us')}")
-    lines.append(f"- **小时费率**: ${profile.hourly_rate_range['min']:.2f} - ${profile.hourly_rate_range['max']:.2f} {profile.hourly_rate_range['currency']}")
+    lines.append(
+        f"- **小时费率**: ${profile.hourly_rate_range['min']:.2f} - ${profile.hourly_rate_range['max']:.2f} {profile.hourly_rate_range['currency']}"
+    )
     lines.append(f"- **每条数据耗时**: {profile.estimated_hours_per_example * 60:.1f} 分钟")
     lines.append("")
 

@@ -3,7 +3,6 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Any, Optional
 
 
 @dataclass
@@ -24,7 +23,7 @@ class LLMDatasetAnalysis:
     raw_response: str = ""  # Raw LLM response for debugging
 
 
-DATASET_ANALYSIS_PROMPT = '''你是一个数据集工程专家。请分析以下数据集样本，帮助用户理解如何复刻类似的数据集。
+DATASET_ANALYSIS_PROMPT = """你是一个数据集工程专家。请分析以下数据集样本，帮助用户理解如何复刻类似的数据集。
 
 ## 数据集信息
 - 名称: {dataset_id}
@@ -79,7 +78,7 @@ DATASET_ANALYSIS_PROMPT = '''你是一个数据集工程专家。请分析以下
 }}
 ```
 
-请确保输出有效的 JSON 格式。基于样本数据给出具体、可操作的建议。'''
+请确保输出有效的 JSON 格式。基于样本数据给出具体、可操作的建议。"""
 
 
 class LLMDatasetAnalyzer:
@@ -144,7 +143,10 @@ class LLMDatasetAnalyzer:
         """
         # Prepare schema for prompt
         schema_str = json.dumps(
-            {k: {"type": v["type"], "nested": v.get("nested_type")} for k, v in schema_info.items()},
+            {
+                k: {"type": v["type"], "nested": v.get("nested_type")}
+                for k, v in schema_info.items()
+            },
             indent=2,
             ensure_ascii=False,
         )
@@ -254,7 +256,7 @@ def generate_llm_guide_section(analysis: LLMDatasetAnalysis) -> str:
     lines.append("## 🤖 LLM 智能分析结果")
     lines.append("")
     lines.append(f"> 数据集类型: **{analysis.dataset_type}**")
-    lines.append(f">")
+    lines.append(">")
     lines.append(f"> {analysis.purpose}")
     lines.append("")
 

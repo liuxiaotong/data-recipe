@@ -11,6 +11,7 @@ from datarecipe.schema import DeploymentProvider
 
 class ProviderNotFoundError(Exception):
     """Provider 未找到"""
+
     pass
 
 
@@ -36,6 +37,7 @@ def discover_providers() -> dict[str, type]:
     # 确保 local provider 始终可用
     if "local" not in providers:
         from datarecipe.providers.local import LocalFilesProvider
+
         providers["local"] = LocalFilesProvider
 
     return providers
@@ -78,15 +80,19 @@ def list_providers() -> list[dict]:
     for name, provider_class in providers.items():
         try:
             instance = provider_class()
-            result.append({
-                "name": name,
-                "description": instance.description,
-            })
+            result.append(
+                {
+                    "name": name,
+                    "description": instance.description,
+                }
+            )
         except Exception as e:
-            result.append({
-                "name": name,
-                "description": f"(Error loading: {e})",
-            })
+            result.append(
+                {
+                    "name": name,
+                    "description": f"(Error loading: {e})",
+                }
+            )
 
     return result
 

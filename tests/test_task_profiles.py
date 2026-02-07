@@ -1,12 +1,11 @@
 """Tests for TaskTypeProfile (Upgrade 7)."""
 
-import pytest
 from datarecipe.task_profiles import (
+    _PROFILE_REGISTRY,
     TaskTypeProfile,
     get_task_profile,
     list_task_profiles,
     register_task_profile,
-    _PROFILE_REGISTRY,
 )
 
 

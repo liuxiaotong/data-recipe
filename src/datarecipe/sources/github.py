@@ -6,11 +6,11 @@ from typing import Optional
 import requests
 
 from datarecipe.schema import (
-    Recipe,
     Cost,
-    Reproducibility,
     GenerationMethod,
     GenerationType,
+    Recipe,
+    Reproducibility,
     SourceType,
 )
 
@@ -91,6 +91,7 @@ class GitHubExtractor:
                 data = response.json()
                 # Decode base64 content
                 import base64
+
                 content = base64.b64decode(data.get("content", "")).decode("utf-8")
                 return content
         except Exception:
@@ -153,19 +154,25 @@ class GitHubExtractor:
 
         if teacher_models:
             for model in teacher_models:
-                methods.append(GenerationMethod(
-                    method_type="distillation",
-                    teacher_model=model,
-                ))
+                methods.append(
+                    GenerationMethod(
+                        method_type="distillation",
+                        teacher_model=model,
+                    )
+                )
 
         if generation_type in [GenerationType.HUMAN, GenerationType.MIXED]:
-            methods.append(GenerationMethod(
-                method_type="human_annotation",
-            ))
+            methods.append(
+                GenerationMethod(
+                    method_type="human_annotation",
+                )
+            )
 
         return methods
 
-    def _assess_reproducibility(self, repo_info: dict, readme_content: Optional[str]) -> Reproducibility:
+    def _assess_reproducibility(
+        self, repo_info: dict, readme_content: Optional[str]
+    ) -> Reproducibility:
         """Assess reproducibility of the dataset."""
         available = []
         missing = []

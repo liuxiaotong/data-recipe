@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from datarecipe.analyzers.spec_analyzer import FieldDefinition, SpecificationAnalysis
-from datarecipe.pipeline import assemble_pipeline
 from datarecipe.task_profiles import get_task_profile
 
 
@@ -73,11 +72,33 @@ class SpecOutputGenerator:
             result.output_dir = output_dir
 
             # Generate each document
-            self._generate_annotation_spec(analysis, output_dir, subdirs, result, enhanced_context=enhanced_context)
-            self._generate_executive_summary(analysis, output_dir, subdirs, target_size, region, result, enhanced_context=enhanced_context)
-            self._generate_milestone_plan(analysis, output_dir, subdirs, target_size, region, result, enhanced_context=enhanced_context)
-            self._generate_cost_breakdown(analysis, output_dir, subdirs, target_size, region, result)
-            self._generate_industry_benchmark(analysis, output_dir, subdirs, target_size, region, result)
+            self._generate_annotation_spec(
+                analysis, output_dir, subdirs, result, enhanced_context=enhanced_context
+            )
+            self._generate_executive_summary(
+                analysis,
+                output_dir,
+                subdirs,
+                target_size,
+                region,
+                result,
+                enhanced_context=enhanced_context,
+            )
+            self._generate_milestone_plan(
+                analysis,
+                output_dir,
+                subdirs,
+                target_size,
+                region,
+                result,
+                enhanced_context=enhanced_context,
+            )
+            self._generate_cost_breakdown(
+                analysis, output_dir, subdirs, target_size, region, result
+            )
+            self._generate_industry_benchmark(
+                analysis, output_dir, subdirs, target_size, region, result
+            )
             self._generate_raw_analysis(analysis, output_dir, subdirs, result)
 
             # Generate production documents
@@ -91,9 +112,13 @@ class SpecOutputGenerator:
             self._generate_validation_guide(analysis, output_dir, subdirs, result)
 
             # Generate AI Agent layer
-            self._generate_ai_agent_context(analysis, output_dir, subdirs, target_size, region, result)
+            self._generate_ai_agent_context(
+                analysis, output_dir, subdirs, target_size, region, result
+            )
             self._generate_ai_workflow_state(analysis, output_dir, subdirs, result)
-            self._generate_ai_reasoning_traces(analysis, output_dir, subdirs, target_size, region, result)
+            self._generate_ai_reasoning_traces(
+                analysis, output_dir, subdirs, target_size, region, result
+            )
             self._generate_ai_pipeline(analysis, output_dir, subdirs, result)
             self._generate_ai_readme(analysis, output_dir, subdirs, result)
 
@@ -401,7 +426,9 @@ class SpecOutputGenerator:
         lines.append("| 指标 | 数值 |")
         lines.append("|------|------|")
         lines.append(f"| 总成本 | ${total_cost:,.0f} |")
-        lines.append(f"| 人工成本 | ${human_cost:,.0f} ({analysis.estimated_human_percentage:.0f}%) |")
+        lines.append(
+            f"| 人工成本 | ${human_cost:,.0f} ({analysis.estimated_human_percentage:.0f}%) |"
+        )
         lines.append(f"| 难度 | {analysis.estimated_difficulty} |")
         lines.append(f"| 领域 | {analysis.estimated_domain} |")
         lines.append("")
@@ -453,8 +480,13 @@ class SpecOutputGenerator:
                 mit = risk.get("mitigation", "")
                 lines.append(f"| {level} | {desc} | {mit} |")
         else:
-            if "AI" in str(analysis.forbidden_items) or "ai" in str(analysis.forbidden_items).lower():
-                lines.append("| 高 | 禁止使用AI生成内容，全人工成本高 | 严格审核流程，确保数据原创性 |")
+            if (
+                "AI" in str(analysis.forbidden_items)
+                or "ai" in str(analysis.forbidden_items).lower()
+            ):
+                lines.append(
+                    "| 高 | 禁止使用AI生成内容，全人工成本高 | 严格审核流程，确保数据原创性 |"
+                )
 
             if analysis.estimated_difficulty in ["hard", "expert"]:
                 lines.append("| 中 | 难度较高，需要专业人员 | 提前储备人才，加强培训 |")
@@ -574,16 +606,40 @@ class SpecOutputGenerator:
         lines.append("")
 
         milestones = [
-            ("M1", "项目启动与规范制定", "完成项目初始化、制定标注规范和质量标准",
-             ["标注指南文档 v1.0", "Schema 定义与示例", "标注工具配置完成", "团队培训材料"]),
-            ("M2", "试点标注与标准校准", "完成试点批次，验证标注流程和质量标准",
-             [f"试点数据 ({max(5, target_size // 20)} 条)", "标注一致性报告", "流程问题清单与解决方案"]),
-            ("M3", "主体标注 - 第一批次", "完成 40% 的标注量",
-             [f"已标注数据 ({int(target_size * 0.4)} 条)", "质量周报"]),
-            ("M4", "主体标注 - 第二批次", "完成剩余 60% 的标注量",
-             [f"已标注数据 ({target_size} 条)", "质量周报"]),
-            ("M5", "质量审核与交付", "完成最终质量审核和数据交付",
-             ["最终数据集", "质量报告", "数据文档"]),
+            (
+                "M1",
+                "项目启动与规范制定",
+                "完成项目初始化、制定标注规范和质量标准",
+                ["标注指南文档 v1.0", "Schema 定义与示例", "标注工具配置完成", "团队培训材料"],
+            ),
+            (
+                "M2",
+                "试点标注与标准校准",
+                "完成试点批次，验证标注流程和质量标准",
+                [
+                    f"试点数据 ({max(5, target_size // 20)} 条)",
+                    "标注一致性报告",
+                    "流程问题清单与解决方案",
+                ],
+            ),
+            (
+                "M3",
+                "主体标注 - 第一批次",
+                "完成 40% 的标注量",
+                [f"已标注数据 ({int(target_size * 0.4)} 条)", "质量周报"],
+            ),
+            (
+                "M4",
+                "主体标注 - 第二批次",
+                "完成剩余 60% 的标注量",
+                [f"已标注数据 ({target_size} 条)", "质量周报"],
+            ),
+            (
+                "M5",
+                "质量审核与交付",
+                "完成最终质量审核和数据交付",
+                ["最终数据集", "质量报告", "数据文档"],
+            ),
         ]
 
         for mid, name, desc, deliverables in milestones:
@@ -711,7 +767,9 @@ class SpecOutputGenerator:
         lines.append("")
         lines.append("| 项目 | 成本 | 单价 |")
         lines.append("|------|------|------|")
-        lines.append(f"| 人工标注 | ${production_cost:.0f} | ${production_cost / target_size:.2f}/条 |")
+        lines.append(
+            f"| 人工标注 | ${production_cost:.0f} | ${production_cost / target_size:.2f}/条 |"
+        )
 
         if analysis.has_images:
             img_cost = target_size * 5  # $5 per image
@@ -736,7 +794,9 @@ class SpecOutputGenerator:
         lines.append("| 阶段 | 成本 | 占比 |")
         lines.append("|------|------|------|")
         lines.append(f"| 设计阶段 | ${design_cost:.0f} | {design_cost / grand_total * 100:.1f}% |")
-        lines.append(f"| 生产阶段 | ${production_cost:.0f} | {production_cost / grand_total * 100:.1f}% |")
+        lines.append(
+            f"| 生产阶段 | ${production_cost:.0f} | {production_cost / grand_total * 100:.1f}% |"
+        )
         lines.append(f"| 质量阶段 | ${qa_cost:.0f} | {qa_cost / grand_total * 100:.1f}% |")
         lines.append(f"| 风险预留 (15%) | ${contingency:.0f} | 15% |")
         lines.append(f"| **总计** | **${grand_total:.0f}** | 100% |")
@@ -867,7 +927,7 @@ class SpecOutputGenerator:
         lines.append("")
         lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
         lines.append(f"> 数据类型: {analysis.dataset_type}")
-        lines.append(f"> 来源: 需求文档分析")
+        lines.append("> 来源: 需求文档分析")
         lines.append("")
         lines.append("## 目录结构")
         lines.append("")
@@ -1102,7 +1162,7 @@ class SpecOutputGenerator:
             lines.append("")
             lines.append("| 错误类型 | 示例 | 正确做法 |")
             lines.append("|----------|------|----------|")
-            lines.append("| 标准模糊 | \"回答正确得分\" | 明确什么样的回答算正确 |")
+            lines.append('| 标准模糊 | "回答正确得分" | 明确什么样的回答算正确 |')
             lines.append("| 遗漏情况 | 只写满分条件 | 包含满分、部分分、零分条件 |")
             lines.append("")
 
@@ -1261,7 +1321,9 @@ class SpecOutputGenerator:
             lines.append("")
             lines.append("| 检查项 | 通过标准 | 检查结果 |")
             lines.append("|--------|----------|----------|")
-            lines.append(f"| 测试次数 | 已完成 {diff_val.get('test_count', 3)} 次测试 | ☐ 通过 ☐ 不通过 |")
+            lines.append(
+                f"| 测试次数 | 已完成 {diff_val.get('test_count', 3)} 次测试 | ☐ 通过 ☐ 不通过 |"
+            )
             lines.append(f"| 正确次数 | ≤ {diff_val.get('max_correct', 1)} 次 | ☐ 通过 ☐ 不通过 |")
             lines.append("| 记录完整 | 三次回答和判定都有记录 | ☐ 通过 ☐ 不通过 |")
             lines.append("")
@@ -1362,6 +1424,7 @@ class SpecOutputGenerator:
             lines.append("")
             # Group by field_name
             from collections import defaultdict
+
             by_field: dict = defaultdict(list)
             for c in constraints:
                 by_field[c.field_name].append(c)
@@ -1420,7 +1483,9 @@ class SpecOutputGenerator:
         settings = diff_val.get("settings", "默认设置")
         test_count = diff_val.get("test_count", 3)
         max_correct = diff_val.get("max_correct", 1)
-        pass_criteria = diff_val.get("pass_criteria", f"跑 {test_count} 次，正确次数 ≤ {max_correct} 次")
+        pass_criteria = diff_val.get(
+            "pass_criteria", f"跑 {test_count} 次，正确次数 ≤ {max_correct} 次"
+        )
 
         lines = []
         lines.append(f"# {analysis.project_name} 难度验证流程")
@@ -1435,7 +1500,9 @@ class SpecOutputGenerator:
         lines.append("")
         lines.append("确保题目对当前主流大模型具有足够难度，避免生产无效数据。")
         lines.append("")
-        lines.append(f"**有效数据标准：** {model_name} {settings}跑 {test_count} 次，正确次数 ≤ {max_correct} 次")
+        lines.append(
+            f"**有效数据标准：** {model_name} {settings}跑 {test_count} 次，正确次数 ≤ {max_correct} 次"
+        )
         lines.append("")
 
         # Section 2: Environment Setup
@@ -1551,7 +1618,12 @@ class SpecOutputGenerator:
         if max_correct >= 1:
             lines.append("| 002 |" + " ❌ |" * (test_count - 1) + " ✅ | 1 | ✅ |")
         if test_count > 2:
-            lines.append("| 003 |" + " ✅ |" * 2 + " ❌ |" * (test_count - 2) + f" 2 | {'❌' if max_correct < 2 else '✅'} |")
+            lines.append(
+                "| 003 |"
+                + " ✅ |" * 2
+                + " ❌ |" * (test_count - 2)
+                + f" 2 | {'❌' if max_correct < 2 else '✅'} |"
+            )
         lines.append("")
 
         # Section 5: Handling Invalid Questions
@@ -1707,6 +1779,7 @@ class SpecOutputGenerator:
             context: optional dict with task_type, sample_index etc.
         """
         from datarecipe.analyzers.spec_analyzer import _map_type
+
         json_type = _map_type(fd.type)
 
         # Enum → pick first value for template, vary for sample
@@ -1785,7 +1858,11 @@ class SpecOutputGenerator:
                 "model": model_name,
                 "settings": settings,
                 "results": [
-                    {"attempt": i, "response": f"模型第{i}次的回答...", "is_correct": i == test_count}
+                    {
+                        "attempt": i,
+                        "response": f"模型第{i}次的回答...",
+                        "is_correct": i == test_count,
+                    }
                     for i in range(1, test_count + 1)
                 ],
                 "valid": True,
@@ -1899,8 +1976,8 @@ class SpecOutputGenerator:
             lines.append("### 验证步骤")
             lines.append("")
             lines.append(f"1. 将题目输入 {model_name}（{settings}）")
-            lines.append(f"2. 记录模型回答")
-            lines.append(f"3. 判定正确/错误")
+            lines.append("2. 记录模型回答")
+            lines.append("3. 判定正确/错误")
             lines.append(f"4. 重复 {test_count} 次（每次新对话）")
             lines.append("")
             lines.append("### 判定标准")
@@ -2117,7 +2194,10 @@ class SpecOutputGenerator:
                     "type": "object",
                     "properties": {
                         "category": {"type": "string"},
-                        "difficulty": {"type": "string", "enum": ["easy", "medium", "hard", "expert"]},
+                        "difficulty": {
+                            "type": "string",
+                            "enum": ["easy", "medium", "hard", "expert"],
+                        },
                         "created_by": {"type": "string"},
                         "created_at": {"type": "string", "format": "date"},
                         "reviewed_by": {"type": "string"},
@@ -2182,7 +2262,7 @@ class SpecOutputGenerator:
                 "version": "1.0",
                 "generated_at": datetime.now().isoformat(),
                 "generator": "DataRecipe",
-                "purpose": "AI Agent 聚合入口，引用其他文件而非复制"
+                "purpose": "AI Agent 聚合入口，引用其他文件而非复制",
             },
             "project": {
                 "name": analysis.project_name,
@@ -2205,18 +2285,18 @@ class SpecOutputGenerator:
                 {
                     "decision": "difficulty_level",
                     "value": analysis.estimated_difficulty,
-                    "reasoning_ref": "#/reasoning/difficulty"
+                    "reasoning_ref": "#/reasoning/difficulty",
                 },
                 {
                     "decision": "human_percentage",
                     "value": analysis.estimated_human_percentage,
-                    "reasoning_ref": "#/reasoning/human_percentage"
+                    "reasoning_ref": "#/reasoning/human_percentage",
                 },
                 {
                     "decision": "cost_estimate",
                     "value": round(total_cost, 2),
-                    "reasoning_ref": "#/reasoning/cost"
-                }
+                    "reasoning_ref": "#/reasoning/cost",
+                },
             ],
             "validation": None,
             "file_references": {
@@ -2236,21 +2316,21 @@ class SpecOutputGenerator:
                     "action": "review_spec",
                     "description": "审核标注规范",
                     "file": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
-                    "assignee": "human"
+                    "assignee": "human",
                 },
                 {
                     "action": "setup_tool",
                     "description": "配置标注工具",
                     "config": f"../{subdirs['guide']}/DATA_SCHEMA.json",
-                    "assignee": "agent"
+                    "assignee": "agent",
                 },
                 {
                     "action": "create_sample",
                     "description": "创建样本数据",
                     "template": f"../{subdirs['templates']}/data_template.json",
-                    "assignee": "human"
-                }
-            ]
+                    "assignee": "human",
+                },
+            ],
         }
 
         # Add validation config if present
@@ -2262,9 +2342,11 @@ class SpecOutputGenerator:
                 "settings": diff_val.get("settings"),
                 "test_count": diff_val.get("test_count", 3),
                 "max_correct": diff_val.get("max_correct", 1),
-                "guide_ref": f"../{subdirs['guide']}/DIFFICULTY_VALIDATION.md"
+                "guide_ref": f"../{subdirs['guide']}/DIFFICULTY_VALIDATION.md",
             }
-            context["file_references"]["difficulty_validation"] = f"../{subdirs['guide']}/DIFFICULTY_VALIDATION.md"
+            context["file_references"]["difficulty_validation"] = (
+                f"../{subdirs['guide']}/DIFFICULTY_VALIDATION.md"
+            )
 
         path = os.path.join(output_dir, subdirs["ai_agent"], "agent_context.json")
         with open(path, "w", encoding="utf-8") as f:
@@ -2283,16 +2365,14 @@ class SpecOutputGenerator:
             "_meta": {
                 "version": "1.0",
                 "generated_at": datetime.now().isoformat(),
-                "purpose": "工作流状态追踪，供 AI Agent 了解当前进度和下一步"
+                "purpose": "工作流状态追踪，供 AI Agent 了解当前进度和下一步",
             },
             "current_phase": "ready_for_review",
             "phases": {
                 "analysis": {
                     "status": "completed",
                     "description": "需求文档分析",
-                    "outputs": [
-                        f"../{subdirs['data']}/spec_analysis.json"
-                    ]
+                    "outputs": [f"../{subdirs['data']}/spec_analysis.json"],
                 },
                 "planning": {
                     "status": "completed",
@@ -2300,8 +2380,8 @@ class SpecOutputGenerator:
                     "outputs": [
                         f"../{subdirs['decision']}/EXECUTIVE_SUMMARY.md",
                         f"../{subdirs['project']}/MILESTONE_PLAN.md",
-                        f"../{subdirs['cost']}/COST_BREAKDOWN.md"
-                    ]
+                        f"../{subdirs['cost']}/COST_BREAKDOWN.md",
+                    ],
                 },
                 "spec_generation": {
                     "status": "completed",
@@ -2309,33 +2389,33 @@ class SpecOutputGenerator:
                     "outputs": [
                         f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
                         f"../{subdirs['annotation']}/TRAINING_GUIDE.md",
-                        f"../{subdirs['annotation']}/QA_CHECKLIST.md"
-                    ]
+                        f"../{subdirs['annotation']}/QA_CHECKLIST.md",
+                    ],
                 },
                 "review": {
                     "status": "pending",
                     "description": "人工审核标注规范",
                     "blocked_by": [],
-                    "assignee": "human"
+                    "assignee": "human",
                 },
                 "pilot": {
                     "status": "pending",
                     "description": "试点标注",
                     "blocked_by": ["review"],
-                    "assignee": "human"
+                    "assignee": "human",
                 },
                 "production": {
                     "status": "pending",
                     "description": "主体标注",
                     "blocked_by": ["pilot"],
-                    "assignee": "human"
+                    "assignee": "human",
                 },
                 "quality_check": {
                     "status": "pending",
                     "description": "质量审核",
                     "blocked_by": ["production"],
-                    "assignee": "human"
-                }
+                    "assignee": "human",
+                },
             },
             "next_actions": [
                 {
@@ -2343,36 +2423,36 @@ class SpecOutputGenerator:
                     "description": "审核标注规范是否符合需求",
                     "file": f"../{subdirs['annotation']}/ANNOTATION_SPEC.md",
                     "assignee": "human",
-                    "priority": "high"
+                    "priority": "high",
                 },
                 {
                     "action": "review_training_guide",
                     "description": "审核培训手册是否清晰",
                     "file": f"../{subdirs['annotation']}/TRAINING_GUIDE.md",
                     "assignee": "human",
-                    "priority": "high"
+                    "priority": "high",
                 },
                 {
                     "action": "approve_cost_estimate",
                     "description": "确认成本估算并批准预算",
                     "file": f"../{subdirs['cost']}/COST_BREAKDOWN.md",
                     "assignee": "human",
-                    "priority": "medium"
-                }
+                    "priority": "medium",
+                },
             ],
             "blockers": [],
             "decisions_needed": [
                 {
                     "question": "标注规范是否需要修改？",
                     "options": ["approved", "needs_revision"],
-                    "impact": "影响后续试点阶段启动"
+                    "impact": "影响后续试点阶段启动",
                 },
                 {
                     "question": "成本预算是否批准？",
                     "options": ["approved", "needs_adjustment", "rejected"],
-                    "impact": "影响项目是否继续"
-                }
-            ]
+                    "impact": "影响项目是否继续",
+                },
+            ],
         }
 
         path = os.path.join(output_dir, subdirs["ai_agent"], "workflow_state.json")
@@ -2396,47 +2476,44 @@ class SpecOutputGenerator:
             "_meta": {
                 "version": "1.0",
                 "generated_at": datetime.now().isoformat(),
-                "purpose": "所有结论的推理链，供人类理解和 AI 验证"
+                "purpose": "所有结论的推理链，供人类理解和 AI 验证",
             },
             "reasoning": {
                 "difficulty": {
                     "conclusion": {
                         "value": analysis.estimated_difficulty,
-                        "display": f"难度: {analysis.estimated_difficulty}"
+                        "display": f"难度: {analysis.estimated_difficulty}",
                     },
                     "chain": [],
                     "confidence": 0.0,
-                    "assumptions": [
-                        "假设标注员无相关领域背景",
-                        "假设按照标准培训流程"
-                    ],
-                    "human_explanation": ""
+                    "assumptions": ["假设标注员无相关领域背景", "假设按照标准培训流程"],
+                    "human_explanation": "",
                 },
                 "human_percentage": {
                     "conclusion": {
                         "value": analysis.estimated_human_percentage,
-                        "display": f"人工比例: {analysis.estimated_human_percentage}%"
+                        "display": f"人工比例: {analysis.estimated_human_percentage}%",
                     },
                     "chain": [],
                     "confidence": 0.0,
                     "assumptions": [],
-                    "human_explanation": ""
+                    "human_explanation": "",
                 },
                 "cost": {
                     "conclusion": {
                         "value": round(cost_per_item * target_size, 2),
-                        "display": f"总成本: ${cost_per_item * target_size:,.0f}"
+                        "display": f"总成本: ${cost_per_item * target_size:,.0f}",
                     },
                     "chain": [],
                     "confidence": 0.0,
                     "range": {
                         "low": round(cost_per_item * target_size * 0.7, 2),
-                        "high": round(cost_per_item * target_size * 1.4, 2)
+                        "high": round(cost_per_item * target_size * 1.4, 2),
                     },
                     "assumptions": [],
-                    "human_explanation": ""
-                }
-            }
+                    "human_explanation": "",
+                },
+            },
         }
 
         # Build difficulty reasoning chain
@@ -2445,61 +2522,77 @@ class SpecOutputGenerator:
 
         if analysis.reasoning_chain:
             chain_len = len(analysis.reasoning_chain)
-            difficulty_chain.append({
-                "step": "分析推理链长度",
-                "evidence": f"推理链有 {chain_len} 步",
-                "impact": "hard" if chain_len > 3 else "medium" if chain_len > 2 else "easy"
-            })
+            difficulty_chain.append(
+                {
+                    "step": "分析推理链长度",
+                    "evidence": f"推理链有 {chain_len} 步",
+                    "impact": "hard" if chain_len > 3 else "medium" if chain_len > 2 else "easy",
+                }
+            )
             confidence += 0.1
 
         if analysis.cognitive_requirements:
             req_count = len(analysis.cognitive_requirements)
-            difficulty_chain.append({
-                "step": "评估认知要求",
-                "evidence": f"需要 {req_count} 项认知能力",
-                "impact": "expert" if req_count > 3 else "hard" if req_count > 2 else "medium"
-            })
+            difficulty_chain.append(
+                {
+                    "step": "评估认知要求",
+                    "evidence": f"需要 {req_count} 项认知能力",
+                    "impact": "expert" if req_count > 3 else "hard" if req_count > 2 else "medium",
+                }
+            )
             confidence += 0.1
 
         if analysis.has_images:
-            difficulty_chain.append({
-                "step": "检测多模态要求",
-                "evidence": f"包含 {analysis.image_count} 张图片",
-                "impact": "增加难度 - 需要视觉理解能力"
-            })
+            difficulty_chain.append(
+                {
+                    "step": "检测多模态要求",
+                    "evidence": f"包含 {analysis.image_count} 张图片",
+                    "impact": "增加难度 - 需要视觉理解能力",
+                }
+            )
             confidence += 0.1
 
         if analysis.forbidden_items:
-            difficulty_chain.append({
-                "step": "检查禁止项",
-                "evidence": f"有 {len(analysis.forbidden_items)} 项禁止内容",
-                "impact": "增加难度 - 需要更严格的质量控制"
-            })
+            difficulty_chain.append(
+                {
+                    "step": "检查禁止项",
+                    "evidence": f"有 {len(analysis.forbidden_items)} 项禁止内容",
+                    "impact": "增加难度 - 需要更严格的质量控制",
+                }
+            )
             confidence += 0.05
 
         traces["reasoning"]["difficulty"]["chain"] = difficulty_chain
         traces["reasoning"]["difficulty"]["confidence"] = min(confidence, 0.95)
-        traces["reasoning"]["difficulty"]["human_explanation"] = self._build_difficulty_explanation(analysis)
+        traces["reasoning"]["difficulty"]["human_explanation"] = self._build_difficulty_explanation(
+            analysis
+        )
 
         # Build human percentage reasoning chain
         human_chain = []
         human_confidence = 0.7
 
         if analysis.forbidden_items:
-            has_ai_restriction = any("AI" in item or "ai" in item.lower() for item in analysis.forbidden_items)
+            has_ai_restriction = any(
+                "AI" in item or "ai" in item.lower() for item in analysis.forbidden_items
+            )
             if has_ai_restriction:
-                human_chain.append({
-                    "step": "检测 AI 内容限制",
-                    "evidence": "禁止使用 AI 生成内容",
-                    "impact": "人工比例 100%"
-                })
+                human_chain.append(
+                    {
+                        "step": "检测 AI 内容限制",
+                        "evidence": "禁止使用 AI 生成内容",
+                        "impact": "人工比例 100%",
+                    }
+                )
                 human_confidence = 0.95
             else:
-                human_chain.append({
-                    "step": "检测内容限制",
-                    "evidence": f"有 {len(analysis.forbidden_items)} 项限制",
-                    "impact": "人工比例 > 80%"
-                })
+                human_chain.append(
+                    {
+                        "step": "检测内容限制",
+                        "evidence": f"有 {len(analysis.forbidden_items)} 项限制",
+                        "impact": "人工比例 > 80%",
+                    }
+                )
 
         traces["reasoning"]["human_percentage"]["chain"] = human_chain
         traces["reasoning"]["human_percentage"]["confidence"] = human_confidence
@@ -2513,50 +2606,54 @@ class SpecOutputGenerator:
             {
                 "step": "确定基础成本",
                 "evidence": f"难度 {analysis.estimated_difficulty} 对应基础成本",
-                "value": {"easy": 5, "medium": 10, "hard": 20, "expert": 40}.get(analysis.estimated_difficulty, 15)
+                "value": {"easy": 5, "medium": 10, "hard": 20, "expert": 40}.get(
+                    analysis.estimated_difficulty, 15
+                ),
             }
         ]
 
         if analysis.has_images:
-            cost_chain.append({
-                "step": "应用图片乘数",
-                "evidence": "包含图片，成本 ×1.5",
-                "multiplier": 1.5
-            })
+            cost_chain.append(
+                {"step": "应用图片乘数", "evidence": "包含图片，成本 ×1.5", "multiplier": 1.5}
+            )
 
         if len(analysis.reasoning_chain) > 3:
-            cost_chain.append({
-                "step": "应用复杂度乘数",
-                "evidence": "推理链 > 3 步，成本 ×1.3",
-                "multiplier": 1.3
-            })
+            cost_chain.append(
+                {
+                    "step": "应用复杂度乘数",
+                    "evidence": "推理链 > 3 步，成本 ×1.3",
+                    "multiplier": 1.3,
+                }
+            )
 
         if analysis.forbidden_items:
-            cost_chain.append({
-                "step": "应用人工乘数",
-                "evidence": "有内容限制，需全人工，成本 ×1.2",
-                "multiplier": 1.2
-            })
+            cost_chain.append(
+                {
+                    "step": "应用人工乘数",
+                    "evidence": "有内容限制，需全人工，成本 ×1.2",
+                    "multiplier": 1.2,
+                }
+            )
 
         if region == "china":
-            cost_chain.append({
-                "step": "应用区域调整",
-                "evidence": "中国区域，成本 ×0.6",
-                "multiplier": 0.6
-            })
+            cost_chain.append(
+                {"step": "应用区域调整", "evidence": "中国区域，成本 ×0.6", "multiplier": 0.6}
+            )
 
-        cost_chain.append({
-            "step": "计算总成本",
-            "evidence": f"单条 ${cost_per_item:.2f} × {target_size} 条",
-            "result": round(cost_per_item * target_size, 2)
-        })
+        cost_chain.append(
+            {
+                "step": "计算总成本",
+                "evidence": f"单条 ${cost_per_item:.2f} × {target_size} 条",
+                "result": round(cost_per_item * target_size, 2),
+            }
+        )
 
         traces["reasoning"]["cost"]["chain"] = cost_chain
         traces["reasoning"]["cost"]["confidence"] = 0.75
         traces["reasoning"]["cost"]["assumptions"] = [
             "假设标注效率稳定",
             "假设返工率 < 10%",
-            "假设无突发人力短缺"
+            "假设无突发人力短缺",
         ]
         traces["reasoning"]["cost"]["human_explanation"] = (
             f"基于难度({analysis.estimated_difficulty})、图片({analysis.has_images})、"
@@ -2607,13 +2704,13 @@ class SpecOutputGenerator:
 
         # Variables section
         lines.append("variables:")
-        lines.append(f"  project_name: \"{analysis.project_name}\"")
-        lines.append(f"  target_size: 100  # 可调整")
-        lines.append(f"  difficulty: \"{analysis.estimated_difficulty}\"")
+        lines.append(f'  project_name: "{analysis.project_name}"')
+        lines.append("  target_size: 100  # 可调整")
+        lines.append(f'  difficulty: "{analysis.estimated_difficulty}"')
         if analysis.has_difficulty_validation():
             diff_val = analysis.difficulty_validation
-            lines.append(f"  validation_model: \"{diff_val.get('model', '')}\"")
-            lines.append(f"  validation_settings: \"{diff_val.get('settings', '')}\"")
+            lines.append(f'  validation_model: "{diff_val.get("model", "")}"')
+            lines.append(f'  validation_settings: "{diff_val.get("settings", "")}"')
             lines.append(f"  validation_test_count: {diff_val.get('test_count', 3)}")
             lines.append(f"  validation_max_correct: {diff_val.get('max_correct', 1)}")
         lines.append("")
@@ -2683,8 +2780,8 @@ class SpecOutputGenerator:
                 lines.append("      - action: run_model_test")
                 lines.append("        description: 执行模型测试")
                 lines.append("        config:")
-                lines.append(f"          model: \"{cfg.get('model', '')}\"")
-                lines.append(f"          settings: \"{cfg.get('settings', '')}\"")
+                lines.append(f'          model: "{cfg.get("model", "")}"')
+                lines.append(f'          settings: "{cfg.get("settings", "")}"')
                 lines.append(f"          test_count: {cfg.get('test_count', 3)}")
                 lines.append(f"          max_correct: {cfg.get('max_correct', 1)}")
                 lines.append(f"        reference: ../{subdirs['guide']}/DIFFICULTY_VALIDATION.md")
@@ -2733,7 +2830,7 @@ class SpecOutputGenerator:
         lines.append("        description: 批量标注")
         lines.append(f"        template: ../{subdirs['templates']}/data_template.json")
         lines.append(f"        spec: ../{subdirs['annotation']}/ANNOTATION_SPEC.md")
-        lines.append("        count: \"{{ target_size }}\"")
+        lines.append('        count: "{{ target_size }}"')
         lines.append("        assignee: human")
         lines.append("")
         lines.append("      - action: incremental_qa")
@@ -2869,7 +2966,7 @@ class SpecOutputGenerator:
         lines.append("```")
         lines.append("AI Agent 文件              人类文档")
         lines.append("─────────────────────────────────────────────")
-        lines.append(f"agent_context.json    →  ../README.md (导航)")
+        lines.append("agent_context.json    →  ../README.md (导航)")
         lines.append(f"workflow_state.json   →  ../{subdirs['project']}/MILESTONE_PLAN.md")
         lines.append(f"reasoning_traces.json →  ../{subdirs['decision']}/EXECUTIVE_SUMMARY.md")
         lines.append(f"pipeline.yaml         →  ../{subdirs['guide']}/PRODUCTION_SOP.md")
@@ -2913,7 +3010,9 @@ class SpecOutputGenerator:
         samples_per_type = max(1, max_samples // max(len(task_types), 1))
 
         for task_type in task_types:
-            type_automation = automation_analysis.get(task_type, automation_analysis.get("default", {}))
+            type_automation = automation_analysis.get(
+                task_type, automation_analysis.get("default", {})
+            )
 
             for i in range(samples_per_type):
                 if len(samples) >= max_samples:
@@ -2970,7 +3069,7 @@ class SpecOutputGenerator:
                 "automation_rate": 0,
                 "manual_steps": [],
                 "reasons": [],
-            }
+            },
         }
 
         # Check for automation blockers
@@ -2979,37 +3078,45 @@ class SpecOutputGenerator:
         # Check forbidden items
         forbidden_lower = [f.lower() for f in analysis.forbidden_items]
         if any("ai" in f or "机器" in f or "自动" in f for f in forbidden_lower):
-            blockers.append({
-                "type": "forbidden_ai",
-                "description": "需求明确禁止使用AI生成",
-                "impact": "所有内容必须人工创作"
-            })
+            blockers.append(
+                {
+                    "type": "forbidden_ai",
+                    "description": "需求明确禁止使用AI生成",
+                    "impact": "所有内容必须人工创作",
+                }
+            )
 
         # Check if needs human creativity
         cognitive_lower = " ".join(analysis.cognitive_requirements).lower()
         if "创意" in cognitive_lower or "创作" in cognitive_lower or "原创" in cognitive_lower:
-            blockers.append({
-                "type": "creativity_required",
-                "description": "任务需要人类创意",
-                "impact": "核心内容必须人工创作，AI可辅助格式化"
-            })
+            blockers.append(
+                {
+                    "type": "creativity_required",
+                    "description": "任务需要人类创意",
+                    "impact": "核心内容必须人工创作，AI可辅助格式化",
+                }
+            )
 
         # Check if needs expert knowledge
         if analysis.estimated_difficulty in ["expert", "hard"]:
             if "专业" in cognitive_lower or "领域" in cognitive_lower:
-                blockers.append({
-                    "type": "expert_knowledge",
-                    "description": "需要专业领域知识",
-                    "impact": "需要领域专家参与内容审核"
-                })
+                blockers.append(
+                    {
+                        "type": "expert_knowledge",
+                        "description": "需要专业领域知识",
+                        "impact": "需要领域专家参与内容审核",
+                    }
+                )
 
         # Check if has difficulty validation
         if analysis.has_difficulty_validation():
-            blockers.append({
-                "type": "difficulty_validation",
-                "description": f"需要使用 {analysis.difficulty_validation.get('model', '指定模型')} 进行难度验证",
-                "impact": "每条数据需要额外的模型测试步骤"
-            })
+            blockers.append(
+                {
+                    "type": "difficulty_validation",
+                    "description": f"需要使用 {analysis.difficulty_validation.get('model', '指定模型')} 进行难度验证",
+                    "impact": "每条数据需要额外的模型测试步骤",
+                }
+            )
 
         result["blockers"] = blockers
 
@@ -3027,7 +3134,7 @@ class SpecOutputGenerator:
             result["default"]["automation_rate"] = 10
             result["default"]["manual_steps"] = [
                 {"step": "content_creation", "reason": "需求禁止AI生成，必须人工创作"},
-                {"step": "quality_review", "reason": "人工质检"}
+                {"step": "quality_review", "reason": "人工质检"},
             ]
             result["default"]["reasons"] = ["需求明确禁止AI参与内容生成"]
         elif any(b["type"] == "creativity_required" for b in blockers):
@@ -3036,7 +3143,7 @@ class SpecOutputGenerator:
             result["default"]["automation_rate"] = 30
             result["default"]["manual_steps"] = [
                 {"step": "content_creation", "reason": "需要人类创意"},
-                {"step": "quality_review", "reason": "创意内容需人工评估"}
+                {"step": "quality_review", "reason": "创意内容需人工评估"},
             ]
             result["default"]["reasons"] = ["任务需要人类创意，AI仅可辅助格式化"]
         else:
@@ -3045,7 +3152,7 @@ class SpecOutputGenerator:
             result["default"]["automation_rate"] = 50
             result["default"]["manual_steps"] = [
                 {"step": "expert_review", "reason": "专业内容需要专家审核"},
-                {"step": "difficulty_validation", "reason": "需要进行难度验证测试"}
+                {"step": "difficulty_validation", "reason": "需要进行难度验证测试"},
             ]
 
         return result
@@ -3105,7 +3212,9 @@ class SpecOutputGenerator:
             elif "svg" in name.lower() or "code" in name.lower():
                 data_fields[name] = self._generate_sample_svg(task_type, sample_index)
             elif "instruction" in name.lower() or "question" in name.lower():
-                data_fields[name] = self._generate_sample_instruction(analysis, task_type, sample_index)
+                data_fields[name] = self._generate_sample_instruction(
+                    analysis, task_type, sample_index
+                )
             else:
                 data_fields[name] = self._sample_placeholder(fd, context)
 
@@ -3134,7 +3243,7 @@ class SpecOutputGenerator:
                 "difficulty": analysis.estimated_difficulty,
                 "domain": analysis.estimated_domain,
                 "generated_at": datetime.now().isoformat(),
-            }
+            },
         }
 
         # Fill in automation details
@@ -3148,7 +3257,7 @@ class SpecOutputGenerator:
                 {
                     "step": "quality_review",
                     "reason": "最终质量需人工确认",
-                    "effort": "低 (抽检即可)"
+                    "effort": "低 (抽检即可)",
                 }
             ]
         else:
@@ -3157,7 +3266,7 @@ class SpecOutputGenerator:
                 {
                     "step": ms.get("step", "unknown"),
                     "reason": ms.get("reason", "需要人工参与"),
-                    "effort": "中" if ms.get("step") != "content_creation" else "高"
+                    "effort": "中" if ms.get("step") != "content_creation" else "高",
                 }
                 for ms in manual_steps
             ]
@@ -3187,7 +3296,9 @@ class SpecOutputGenerator:
   <circle cx="50" cy="50" r="20" fill="white" />
 </svg>'''
 
-    def _generate_sample_instruction(self, analysis: SpecificationAnalysis, task_type: str, index: int) -> str:
+    def _generate_sample_instruction(
+        self, analysis: SpecificationAnalysis, task_type: str, index: int
+    ) -> str:
         """Generate a sample instruction based on task type."""
         # Try to use examples from analysis
         for ex in analysis.examples:
@@ -3213,7 +3324,7 @@ class SpecOutputGenerator:
             ],
             "default": [
                 f"执行任务 {index}",
-            ]
+            ],
         }
 
         task_key = task_type.lower()
@@ -3223,7 +3334,9 @@ class SpecOutputGenerator:
 
         return instructions["default"][0]
 
-    def _generate_production_notes(self, analysis: SpecificationAnalysis, automation_analysis: dict) -> dict:
+    def _generate_production_notes(
+        self, analysis: SpecificationAnalysis, automation_analysis: dict
+    ) -> dict:
         """Generate production notes based on analysis."""
         overall_rate = automation_analysis.get("overall_rate", 0)
         blockers = automation_analysis.get("blockers", [])
@@ -3245,39 +3358,51 @@ class SpecOutputGenerator:
             "recommendation": recommendation,
             "suggested_workflow": workflow,
             "key_blockers": [b["description"] for b in blockers],
-            "optimization_suggestions": self._get_optimization_suggestions(analysis, automation_analysis),
+            "optimization_suggestions": self._get_optimization_suggestions(
+                analysis, automation_analysis
+            ),
         }
 
-    def _get_optimization_suggestions(self, analysis: SpecificationAnalysis, automation_analysis: dict) -> list:
+    def _get_optimization_suggestions(
+        self, analysis: SpecificationAnalysis, automation_analysis: dict
+    ) -> list:
         """Get suggestions for optimizing the production process."""
         suggestions = []
 
         if automation_analysis.get("overall_rate", 0) < 50:
-            suggestions.append({
-                "area": "模板化",
-                "suggestion": "创建标准模板减少重复劳动",
-                "impact": "可提升10-20%效率"
-            })
+            suggestions.append(
+                {
+                    "area": "模板化",
+                    "suggestion": "创建标准模板减少重复劳动",
+                    "impact": "可提升10-20%效率",
+                }
+            )
 
         if analysis.has_difficulty_validation():
-            suggestions.append({
-                "area": "难度验证",
-                "suggestion": "批量运行难度验证而非逐条测试",
-                "impact": "可节省50%验证时间"
-            })
+            suggestions.append(
+                {
+                    "area": "难度验证",
+                    "suggestion": "批量运行难度验证而非逐条测试",
+                    "impact": "可节省50%验证时间",
+                }
+            )
 
         if len(analysis.fields) > 5:
-            suggestions.append({
-                "area": "字段简化",
-                "suggestion": "考虑使用默认值减少必填项",
-                "impact": "可提升标注效率"
-            })
+            suggestions.append(
+                {
+                    "area": "字段简化",
+                    "suggestion": "考虑使用默认值减少必填项",
+                    "impact": "可提升标注效率",
+                }
+            )
 
-        suggestions.append({
-            "area": "质检抽样",
-            "suggestion": "使用分层抽样代替全量检查",
-            "impact": "质检效率提升60%以上"
-        })
+        suggestions.append(
+            {
+                "area": "质检抽样",
+                "suggestion": "使用分层抽样代替全量检查",
+                "impact": "质检效率提升60%以上",
+            }
+        )
 
         return suggestions
 
@@ -3382,6 +3507,7 @@ class SpecOutputGenerator:
             lines.append("```json")
             # Pretty print the data
             import json
+
             lines.append(json.dumps(sample["data"], indent=2, ensure_ascii=False))
             lines.append("```")
             lines.append("")

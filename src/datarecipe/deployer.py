@@ -11,19 +11,19 @@
 
 from typing import Optional
 
+from datarecipe.providers import ProviderNotFoundError, discover_providers
 from datarecipe.schema import (
-    Recipe,
-    DataRecipe,
+    AcceptanceCriterion,
     AnnotatorProfile,
+    DataRecipe,
+    DeploymentProvider,
+    DeploymentResult,
+    Milestone,
     ProductionConfig,
     QualityRule,
-    AcceptanceCriterion,
-    Milestone,
+    Recipe,
     ReviewWorkflow,
-    DeploymentResult,
-    DeploymentProvider,
 )
-from datarecipe.providers import discover_providers, get_provider, ProviderNotFoundError
 
 
 class ProductionDeployer:
@@ -45,17 +45,13 @@ class ProductionDeployer:
 
     def list_providers(self) -> list[dict]:
         """列出可用的 providers"""
-        return [
-            {"name": name, "description": p.description}
-            for name, p in self._providers.items()
-        ]
+        return [{"name": name, "description": p.description} for name, p in self._providers.items()]
 
     def get_provider(self, name: str) -> DeploymentProvider:
         """获取指定 provider"""
         if name not in self._providers:
             raise ProviderNotFoundError(
-                f"Provider '{name}' not found. "
-                f"Available: {list(self._providers.keys())}"
+                f"Provider '{name}' not found. Available: {list(self._providers.keys())}"
             )
         return self._providers[name]
 
@@ -124,6 +120,7 @@ class ProductionDeployer:
         # 自动生成缺失的配置
         if profile is None:
             from datarecipe.profiler import AnnotatorProfiler
+
             profiler = AnnotatorProfiler()
             # 创建临时 Recipe 用于 profiler
             temp_recipe = Recipe(
@@ -360,72 +357,86 @@ class ProductionDeployer:
         rules = []
 
         # 通用规则
-        rules.append(QualityRule(
-            rule_id="QR001",
-            name="非空检查",
-            description="必填字段不能为空",
-            check_type="format",
-            severity="error",
-            auto_check=True,
-        ))
-
-        rules.append(QualityRule(
-            rule_id="QR002",
-            name="长度检查",
-            description="文本长度在合理范围内（50-10000字符）",
-            check_type="format",
-            severity="warning",
-            auto_check=True,
-        ))
-
-        rules.append(QualityRule(
-            rule_id="QR003",
-            name="重复检查",
-            description="不能与已有数据高度重复（相似度<90%）",
-            check_type="consistency",
-            severity="error",
-            auto_check=True,
-        ))
-
-        rules.append(QualityRule(
-            rule_id="QR004",
-            name="格式规范",
-            description="JSON/文本格式必须规范",
-            check_type="format",
-            severity="error",
-            auto_check=True,
-        ))
-
-        # 根据数据集类型添加特定规则
-        if recipe.generation_type.value in ["synthetic", "mixed"]:
-            rules.append(QualityRule(
-                rule_id="QR005",
-                name="事实性检查",
-                description="生成内容不能包含明显的事实错误",
-                check_type="content",
+        rules.append(
+            QualityRule(
+                rule_id="QR001",
+                name="非空检查",
+                description="必填字段不能为空",
+                check_type="format",
                 severity="error",
-                auto_check=False,
-            ))
+                auto_check=True,
+            )
+        )
 
-            rules.append(QualityRule(
-                rule_id="QR006",
-                name="AI痕迹检查",
-                description="检查是否存在明显的AI生成痕迹",
-                check_type="content",
+        rules.append(
+            QualityRule(
+                rule_id="QR002",
+                name="长度检查",
+                description="文本长度在合理范围内（50-10000字符）",
+                check_type="format",
                 severity="warning",
-                auto_check=False,
-            ))
+                auto_check=True,
+            )
+        )
 
-        # 多语言数据集
-        if recipe.languages and len(recipe.languages) > 1:
-            rules.append(QualityRule(
-                rule_id="QR007",
-                name="语言一致性",
-                description="标注语言与数据语言必须一致",
+        rules.append(
+            QualityRule(
+                rule_id="QR003",
+                name="重复检查",
+                description="不能与已有数据高度重复（相似度<90%）",
                 check_type="consistency",
                 severity="error",
                 auto_check=True,
-            ))
+            )
+        )
+
+        rules.append(
+            QualityRule(
+                rule_id="QR004",
+                name="格式规范",
+                description="JSON/文本格式必须规范",
+                check_type="format",
+                severity="error",
+                auto_check=True,
+            )
+        )
+
+        # 根据数据集类型添加特定规则
+        if recipe.generation_type.value in ["synthetic", "mixed"]:
+            rules.append(
+                QualityRule(
+                    rule_id="QR005",
+                    name="事实性检查",
+                    description="生成内容不能包含明显的事实错误",
+                    check_type="content",
+                    severity="error",
+                    auto_check=False,
+                )
+            )
+
+            rules.append(
+                QualityRule(
+                    rule_id="QR006",
+                    name="AI痕迹检查",
+                    description="检查是否存在明显的AI生成痕迹",
+                    check_type="content",
+                    severity="warning",
+                    auto_check=False,
+                )
+            )
+
+        # 多语言数据集
+        if recipe.languages and len(recipe.languages) > 1:
+            rules.append(
+                QualityRule(
+                    rule_id="QR007",
+                    name="语言一致性",
+                    description="标注语言与数据语言必须一致",
+                    check_type="consistency",
+                    severity="error",
+                    auto_check=True,
+                )
+            )
 
         return rules
 
@@ -433,50 +444,60 @@ class ProductionDeployer:
         """生成验收标准"""
         criteria = []
 
-        criteria.append(AcceptanceCriterion(
-            criterion_id="AC001",
-            name="完成率",
-            description="标注任务完成比例",
-            threshold=0.98,
-            metric_type="completeness",
-            priority="required",
-        ))
+        criteria.append(
+            AcceptanceCriterion(
+                criterion_id="AC001",
+                name="完成率",
+                description="标注任务完成比例",
+                threshold=0.98,
+                metric_type="completeness",
+                priority="required",
+            )
+        )
 
-        criteria.append(AcceptanceCriterion(
-            criterion_id="AC002",
-            name="准确率",
-            description="抽检准确率",
-            threshold=0.95,
-            metric_type="accuracy",
-            priority="required",
-        ))
+        criteria.append(
+            AcceptanceCriterion(
+                criterion_id="AC002",
+                name="准确率",
+                description="抽检准确率",
+                threshold=0.95,
+                metric_type="accuracy",
+                priority="required",
+            )
+        )
 
-        criteria.append(AcceptanceCriterion(
-            criterion_id="AC003",
-            name="一致性",
-            description="标注者间一致性（Cohen's Kappa ≥ 0.7）",
-            threshold=0.7,
-            metric_type="agreement",
-            priority="required",
-        ))
+        criteria.append(
+            AcceptanceCriterion(
+                criterion_id="AC003",
+                name="一致性",
+                description="标注者间一致性（Cohen's Kappa ≥ 0.7）",
+                threshold=0.7,
+                metric_type="agreement",
+                priority="required",
+            )
+        )
 
-        criteria.append(AcceptanceCriterion(
-            criterion_id="AC004",
-            name="格式合规",
-            description="数据格式符合规范的比例",
-            threshold=1.0,
-            metric_type="format",
-            priority="required",
-        ))
+        criteria.append(
+            AcceptanceCriterion(
+                criterion_id="AC004",
+                name="格式合规",
+                description="数据格式符合规范的比例",
+                threshold=1.0,
+                metric_type="format",
+                priority="required",
+            )
+        )
 
-        criteria.append(AcceptanceCriterion(
-            criterion_id="AC005",
-            name="时效性",
-            description="按时完成率",
-            threshold=0.9,
-            metric_type="timeliness",
-            priority="recommended",
-        ))
+        criteria.append(
+            AcceptanceCriterion(
+                criterion_id="AC005",
+                name="时效性",
+                description="按时完成率",
+                threshold=0.9,
+                metric_type="timeliness",
+                priority="recommended",
+            )
+        )
 
         return criteria
 
@@ -509,71 +530,81 @@ class ProductionDeployer:
         total_days = self._estimate_timeline(recipe, profile)
 
         # M1: 项目启动
-        milestones.append(Milestone(
-            name="项目启动",
-            description="完成项目设置和团队组建",
-            deliverables=[
-                "标注指南定稿",
-                "团队培训完成",
-                "工具配置完成",
-                "样例数据准备",
-            ],
-            estimated_days=max(2, int(total_days * 0.1)),
-        ))
+        milestones.append(
+            Milestone(
+                name="项目启动",
+                description="完成项目设置和团队组建",
+                deliverables=[
+                    "标注指南定稿",
+                    "团队培训完成",
+                    "工具配置完成",
+                    "样例数据准备",
+                ],
+                estimated_days=max(2, int(total_days * 0.1)),
+            )
+        )
 
         # M2: 试标注
-        milestones.append(Milestone(
-            name="试标注",
-            description="小规模试标注验证流程",
-            deliverables=[
-                "100条试标注完成",
-                "问题清单",
-                "指南修订",
-                "质量基准建立",
-            ],
-            estimated_days=max(3, int(total_days * 0.15)),
-            dependencies=["项目启动"],
-        ))
+        milestones.append(
+            Milestone(
+                name="试标注",
+                description="小规模试标注验证流程",
+                deliverables=[
+                    "100条试标注完成",
+                    "问题清单",
+                    "指南修订",
+                    "质量基准建立",
+                ],
+                estimated_days=max(3, int(total_days * 0.15)),
+                dependencies=["项目启动"],
+            )
+        )
 
         # M3: 正式标注
-        milestones.append(Milestone(
-            name="正式标注",
-            description="大规模标注执行",
-            deliverables=[
-                "全量数据标注完成",
-                "进度日报",
-                "质量周报",
-            ],
-            estimated_days=max(10, int(total_days * 0.5)),
-            dependencies=["试标注"],
-        ))
+        milestones.append(
+            Milestone(
+                name="正式标注",
+                description="大规模标注执行",
+                deliverables=[
+                    "全量数据标注完成",
+                    "进度日报",
+                    "质量周报",
+                ],
+                estimated_days=max(10, int(total_days * 0.5)),
+                dependencies=["试标注"],
+            )
+        )
 
         # M4: 质检验收
-        milestones.append(Milestone(
-            name="质检验收",
-            description="质量检查和验收",
-            deliverables=[
-                "质检报告",
-                "问题数据修正",
-                "最终数据集",
-                "项目总结",
-            ],
-            estimated_days=max(3, int(total_days * 0.15)),
-            dependencies=["正式标注"],
-        ))
+        milestones.append(
+            Milestone(
+                name="质检验收",
+                description="质量检查和验收",
+                deliverables=[
+                    "质检报告",
+                    "问题数据修正",
+                    "最终数据集",
+                    "项目总结",
+                ],
+                estimated_days=max(3, int(total_days * 0.15)),
+                dependencies=["正式标注"],
+            )
+        )
 
         # M5: 交付归档
-        milestones.append(Milestone(
-            name="交付归档",
-            description="数据交付和项目归档",
-            deliverables=[
-                "数据交付",
-                "文档归档",
-                "复盘报告",
-            ],
-            estimated_days=max(2, int(total_days * 0.1)),
-            dependencies=["质检验收"],
-        ))
+        milestones.append(
+            Milestone(
+                name="交付归档",
+                description="数据交付和项目归档",
+                deliverables=[
+                    "数据交付",
+                    "文档归档",
+                    "复盘报告",
+                ],
+                estimated_days=max(2, int(total_days * 0.1)),
+                dependencies=["质检验收"],
+            )
+        )
 
         return milestones
 

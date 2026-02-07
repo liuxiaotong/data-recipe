@@ -5,8 +5,8 @@ Extracts patterns like "The response should [verb] [object] [condition]"
 from dataset evaluation criteria.
 """
 
-import re
 import hashlib
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Optional
@@ -16,17 +16,17 @@ from typing import Optional
 class RubricPattern:
     """A single rubric pattern extracted from the dataset."""
 
-    pattern: str                    # Original pattern text
-    verb: str                       # Core verb (e.g., "include", "not", "explain")
-    verb_phrase: str                # Full verb phrase (e.g., "should include")
-    frequency: int = 1              # How many times this pattern appears
+    pattern: str  # Original pattern text
+    verb: str  # Core verb (e.g., "include", "not", "explain")
+    verb_phrase: str  # Full verb phrase (e.g., "should include")
+    frequency: int = 1  # How many times this pattern appears
     examples: list[str] = field(default_factory=list)  # Original examples
-    template: str = ""              # Abstracted template
-    category: str = "general"       # Category (define, list, explain, etc.)
-    action: str = ""                # Canonical action phrase (e.g., "should include")
-    target: str = ""                # Target object / focus of the rubric
-    condition: str = ""             # Additional conditions/constraints
-    hash_id: str = ""               # Unique identifier
+    template: str = ""  # Abstracted template
+    category: str = "general"  # Category (define, list, explain, etc.)
+    action: str = ""  # Canonical action phrase (e.g., "should include")
+    target: str = ""  # Target object / focus of the rubric
+    condition: str = ""  # Additional conditions/constraints
+    hash_id: str = ""  # Unique identifier
 
     def __post_init__(self):
         if not self.hash_id:
@@ -60,15 +60,13 @@ class RubricsAnalysisResult:
             "",
             "Top Verbs:",
         ]
-        for verb, count in sorted(self.verb_distribution.items(),
-                                   key=lambda x: -x[1])[:10]:
+        for verb, count in sorted(self.verb_distribution.items(), key=lambda x: -x[1])[:10]:
             pct = count / self.total_rubrics * 100 if self.total_rubrics else 0
             lines.append(f"  - {verb}: {count} ({pct:.1f}%)")
 
         lines.append("")
         lines.append("Top Categories:")
-        for cat, count in sorted(self.category_distribution.items(),
-                                  key=lambda x: -x[1])[:5]:
+        for cat, count in sorted(self.category_distribution.items(), key=lambda x: -x[1])[:5]:
             pct = count / self.total_rubrics * 100 if self.total_rubrics else 0
             lines.append(f"  - {cat}: {count} ({pct:.1f}%)")
 
@@ -109,20 +107,12 @@ class RubricsAnalyzer:
 
     def __init__(self):
         # Build starter regex pattern
-        self.starter_pattern = re.compile(
-            r"(" + "|".join(self.STARTERS) + r")\s+",
-            re.IGNORECASE
-        )
+        self.starter_pattern = re.compile(r"(" + "|".join(self.STARTERS) + r")\s+", re.IGNORECASE)
         # Build verb extraction pattern
-        self.verb_pattern = re.compile(
-            r"should\s+(not\s+)?(\w+)",
-            re.IGNORECASE
-        )
+        self.verb_pattern = re.compile(r"should\s+(not\s+)?(\w+)", re.IGNORECASE)
 
     def analyze(
-        self,
-        rubrics: list[str],
-        task_count: Optional[int] = None
+        self, rubrics: list[str], task_count: Optional[int] = None
     ) -> RubricsAnalysisResult:
         """
         Analyze a list of rubrics to extract patterns.
@@ -195,19 +185,14 @@ class RubricsAnalyzer:
                 )
 
         # Compile results
-        result.patterns = sorted(
-            pattern_map.values(),
-            key=lambda p: -p.frequency
-        )
+        result.patterns = sorted(pattern_map.values(), key=lambda p: -p.frequency)
         result.unique_patterns = len(pattern_map)
         result.verb_distribution = dict(verb_counter)
         result.category_distribution = dict(category_counter)
         result.sentence_starters = dict(starter_counter)
 
         # Extract top templates
-        result.top_templates = [
-            p.template for p in result.patterns[:20]
-        ]
+        result.top_templates = [p.template for p in result.patterns[:20]]
 
         # Extract common phrases
         result.common_phrases = self._extract_common_phrases(rubrics)
@@ -264,18 +249,15 @@ class RubricsAnalyzer:
         template = rubric
 
         # Replace quoted strings
-        template = re.sub(r'"[^"]*"', '[QUOTED]', template)
-        template = re.sub(r"'[^']*'", '[QUOTED]', template)
+        template = re.sub(r'"[^"]*"', "[QUOTED]", template)
+        template = re.sub(r"'[^']*'", "[QUOTED]", template)
 
         # Replace numbers
-        template = re.sub(r'\b\d+\b', '[NUM]', template)
+        template = re.sub(r"\b\d+\b", "[NUM]", template)
 
         # Replace specific lists
         template = re.sub(
-            r'\b(all|each|every|any)\s+\d*\s*\w+s?\b',
-            r'\1 [ITEMS]',
-            template,
-            flags=re.IGNORECASE
+            r"\b(all|each|every|any)\s+\d*\s*\w+s?\b", r"\1 [ITEMS]", template, flags=re.IGNORECASE
         )
 
         return template
@@ -294,7 +276,7 @@ class RubricsAnalyzer:
             lower = text.lower()
             idx = lower.find(action.lower())
             if idx != -1:
-                remainder = text[idx + len(action):]
+                remainder = text[idx + len(action) :]
 
         remainder = remainder.strip(" .:;-\n")
 
@@ -360,10 +342,7 @@ class RubricsAnalyzer:
         return summaries
 
     def _extract_common_phrases(
-        self,
-        rubrics: list[str],
-        min_freq: int = 5,
-        max_phrases: int = 20
+        self, rubrics: list[str], min_freq: int = 5, max_phrases: int = 20
     ) -> list[tuple[str, int]]:
         """Extract commonly occurring phrases."""
         phrase_counter = Counter()
@@ -373,24 +352,17 @@ class RubricsAnalyzer:
             words = rubric.lower().split()
             for n in range(3, 6):
                 for i in range(len(words) - n + 1):
-                    phrase = " ".join(words[i:i+n])
+                    phrase = " ".join(words[i : i + n])
                     if phrase.startswith(("the response", "should")):
                         phrase_counter[phrase] += 1
 
         # Filter and return top phrases
-        common = [
-            (phrase, count)
-            for phrase, count in phrase_counter.items()
-            if count >= min_freq
-        ]
+        common = [(phrase, count) for phrase, count in phrase_counter.items() if count >= min_freq]
         common.sort(key=lambda x: -x[1])
         return common[:max_phrases]
 
     def generate_rubrics(
-        self,
-        analysis: RubricsAnalysisResult,
-        context: str,
-        count: int = 10
+        self, analysis: RubricsAnalysisResult, context: str, count: int = 10
     ) -> list[str]:
         """
         Generate new rubrics based on discovered patterns.

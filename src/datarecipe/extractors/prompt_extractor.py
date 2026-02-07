@@ -4,11 +4,11 @@ System Prompt Template Extractor
 Extracts, deduplicates, and categorizes prompt templates from datasets.
 """
 
-import re
 import hashlib
+import re
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Optional
+
 # from difflib import SequenceMatcher  # Kept for potential fuzzy deduplication
 
 
@@ -16,14 +16,14 @@ from typing import Optional
 class PromptTemplate:
     """A single prompt template extracted from the dataset."""
 
-    content: str                    # Full prompt content
-    category: str                   # system/task/example/constraint/format
-    domain: str = "general"         # Domain where used
-    frequency: int = 1              # Usage count
-    char_count: int = 0             # Character length
-    word_count: int = 0             # Word count
+    content: str  # Full prompt content
+    category: str  # system/task/example/constraint/format
+    domain: str = "general"  # Domain where used
+    frequency: int = 1  # Usage count
+    char_count: int = 0  # Character length
+    word_count: int = 0  # Word count
     variables: list[str] = field(default_factory=list)  # Detected variables
-    hash_id: str = ""               # Unique identifier
+    hash_id: str = ""  # Unique identifier
 
     def __post_init__(self):
         if not self.hash_id:
@@ -129,11 +129,11 @@ class PromptExtractor:
 
     # Variable detection patterns
     VARIABLE_PATTERNS = [
-        r"\{(\w+)\}",           # {variable}
-        r"\[(\w+)\]",           # [variable]
-        r"<(\w+)>",             # <variable>
-        r"\$\{(\w+)\}",         # ${variable}
-        r"__(\w+)__",           # __variable__
+        r"\{(\w+)\}",  # {variable}
+        r"\[(\w+)\]",  # [variable]
+        r"<(\w+)>",  # <variable>
+        r"\$\{(\w+)\}",  # ${variable}
+        r"__(\w+)__",  # __variable__
     ]
 
     def __init__(self, similarity_threshold: float = 0.85, max_unique: int = 1000):
@@ -154,15 +154,9 @@ class PromptExtractor:
         }
 
         # Compile variable patterns
-        self.variable_regexes = [
-            re.compile(p) for p in self.VARIABLE_PATTERNS
-        ]
+        self.variable_regexes = [re.compile(p) for p in self.VARIABLE_PATTERNS]
 
-    def extract(
-        self,
-        messages: list[dict],
-        deduplicate: bool = True
-    ) -> PromptLibrary:
+    def extract(self, messages: list[dict], deduplicate: bool = True) -> PromptLibrary:
         """
         Extract prompt templates from a list of message dictionaries.
 
@@ -211,9 +205,7 @@ class PromptExtractor:
         library.unique_count = len(unique_templates)
 
         if library.total_extracted > 0:
-            library.deduplication_ratio = 1 - (
-                library.unique_count / library.total_extracted
-            )
+            library.deduplication_ratio = 1 - (library.unique_count / library.total_extracted)
 
         # Calculate statistics
         self._calculate_stats(library)
@@ -221,9 +213,7 @@ class PromptExtractor:
         return library
 
     def extract_from_conversations(
-        self,
-        conversations: list[list[dict]],
-        deduplicate: bool = True
+        self, conversations: list[list[dict]], deduplicate: bool = True
     ) -> PromptLibrary:
         """
         Extract from multiple conversations.
@@ -276,9 +266,7 @@ class PromptExtractor:
 
         scores = {}
         for category, regexes in self.category_regexes.items():
-            score = sum(
-                1 for regex in regexes if regex.search(content_lower)
-            )
+            score = sum(1 for regex in regexes if regex.search(content_lower))
             scores[category] = score
 
         if not scores or max(scores.values()) == 0:
@@ -319,10 +307,7 @@ class PromptExtractor:
 
         return max(scores, key=scores.get)
 
-    def _deduplicate(
-        self,
-        templates: list[PromptTemplate]
-    ) -> list[PromptTemplate]:
+    def _deduplicate(self, templates: list[PromptTemplate]) -> list[PromptTemplate]:
         """Remove duplicate templates using hash-based deduplication.
 
         This is O(n) complexity - fast and efficient for large datasets.
@@ -353,7 +338,7 @@ class PromptExtractor:
 
         # Limit to max_unique for performance
         if len(unique) > self.max_unique:
-            unique = unique[:self.max_unique]
+            unique = unique[: self.max_unique]
 
         return unique
 
@@ -410,11 +395,7 @@ class PromptExtractor:
             ],
         }
 
-    def export_templates(
-        self,
-        library: PromptLibrary,
-        format: str = "json"
-    ) -> str:
+    def export_templates(self, library: PromptLibrary, format: str = "json") -> str:
         """
         Export templates in specified format.
 

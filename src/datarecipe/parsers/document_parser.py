@@ -4,7 +4,7 @@ import base64
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import List
 
 
 @dataclass
@@ -108,12 +108,14 @@ class DocumentParser:
                         image_ext = base_image["ext"]
                         mime_type = f"image/{image_ext}"
 
-                        doc.images.append({
-                            "data": base64.b64encode(image_bytes).decode("utf-8"),
-                            "type": mime_type,
-                            "page": page_num + 1,
-                            "index": img_index,
-                        })
+                        doc.images.append(
+                            {
+                                "data": base64.b64encode(image_bytes).decode("utf-8"),
+                                "type": mime_type,
+                                "page": page_num + 1,
+                                "index": img_index,
+                            }
+                        )
                     except Exception:
                         pass
 
@@ -206,19 +208,19 @@ class DocumentParser:
                         image_bytes = image_part.blob
                         content_type = image_part.content_type
 
-                        doc.images.append({
-                            "data": base64.b64encode(image_bytes).decode("utf-8"),
-                            "type": content_type,
-                        })
+                        doc.images.append(
+                            {
+                                "data": base64.b64encode(image_bytes).decode("utf-8"),
+                                "type": content_type,
+                            }
+                        )
                     except Exception:
                         pass
 
             return doc
 
         except ImportError:
-            raise ImportError(
-                "python-docx not installed. Run: pip install python-docx"
-            )
+            raise ImportError("python-docx not installed. Run: pip install python-docx")
 
     def _parse_image(self, file_path: str) -> ParsedDocument:
         """Parse image file."""
@@ -243,17 +245,19 @@ class DocumentParser:
         with open(file_path, "rb") as f:
             image_bytes = f.read()
 
-        doc.images.append({
-            "data": base64.b64encode(image_bytes).decode("utf-8"),
-            "type": mime_type,
-        })
+        doc.images.append(
+            {
+                "data": base64.b64encode(image_bytes).decode("utf-8"),
+                "type": mime_type,
+            }
+        )
 
         doc.text_content = f"[图片文件: {os.path.basename(file_path)}]"
         return doc
 
     def _parse_text(self, file_path: str) -> ParsedDocument:
         """Parse text file."""
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         return ParsedDocument(

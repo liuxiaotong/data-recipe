@@ -1,15 +1,14 @@
 """Tests for Composable Pipeline (Upgrade 5)."""
 
-import pytest
 from datarecipe.pipeline import (
+    _PHASE_REGISTRY,
+    DEFAULT_PHASE_SEQUENCE,
     PhaseDefinition,
+    _evaluate_condition,
     assemble_pipeline,
     get_phase,
     list_phases,
     register_phase,
-    _PHASE_REGISTRY,
-    DEFAULT_PHASE_SEQUENCE,
-    _evaluate_condition,
 )
 
 
@@ -98,7 +97,12 @@ class TestPhaseRegistry:
 class TestDefaultPhaseSequence:
     def test_sequence_content(self):
         assert DEFAULT_PHASE_SEQUENCE == [
-            "setup", "pilot", "model_test", "human_review", "production", "final_qa"
+            "setup",
+            "pilot",
+            "model_test",
+            "human_review",
+            "production",
+            "final_qa",
         ]
 
 

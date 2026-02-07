@@ -7,12 +7,13 @@ This catalog provides:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class DatasetCategory(Enum):
     """Dataset categories."""
+
     PREFERENCE = "preference"
     EVALUATION = "evaluation"
     SFT = "sft"
@@ -138,7 +139,6 @@ KNOWN_DATASETS: Dict[str, DatasetInfo] = {
         similar_to=["Anthropic/hh-rlhf", "openbmb/UltraFeedback"],
         tags=["rlhf", "dpo", "preference"],
     ),
-
     # ----- EVALUATION / BENCHMARK -----
     "cais/mmlu": DatasetInfo(
         dataset_id="cais/mmlu",
@@ -197,7 +197,6 @@ KNOWN_DATASETS: Dict[str, DatasetInfo] = {
         similar_to=["lmsys/chatbot_arena_conversations"],
         tags=["evaluation", "chat", "multi-turn"],
     ),
-
     # ----- SFT / INSTRUCTION -----
     "tatsu-lab/alpaca": DatasetInfo(
         dataset_id="tatsu-lab/alpaca",
@@ -249,7 +248,6 @@ KNOWN_DATASETS: Dict[str, DatasetInfo] = {
         similar_to=["stingning/ultrachat", "OpenAssistant/oasst1"],
         tags=["sft", "chat", "synthetic"],
     ),
-
     # ----- CODE / SWE -----
     "princeton-nlp/SWE-bench": DatasetInfo(
         dataset_id="princeton-nlp/SWE-bench",
@@ -287,7 +285,6 @@ KNOWN_DATASETS: Dict[str, DatasetInfo] = {
         tags=["code", "evaluation", "python"],
         citation_count=1500,
     ),
-
     # ----- REASONING -----
     "allenai/ai2_arc": DatasetInfo(
         dataset_id="allenai/ai2_arc",
@@ -310,7 +307,6 @@ KNOWN_DATASETS: Dict[str, DatasetInfo] = {
         similar_to=["gsm8k", "MATH"],
         tags=["math", "reasoning", "synthetic"],
     ),
-
     # ----- SAFETY -----
     "PKU-Alignment/PKU-SafeRLHF": DatasetInfo(
         dataset_id="PKU-Alignment/PKU-SafeRLHF",
@@ -505,10 +501,7 @@ class DatasetCatalog:
                         results.append(info)
 
         # Sort by citation count and download count
-        results.sort(
-            key=lambda x: (x.citation_count + x.download_count // 1000),
-            reverse=True
-        )
+        results.sort(key=lambda x: x.citation_count + x.download_count // 1000, reverse=True)
 
         return results[:limit]
 
@@ -519,10 +512,7 @@ class DatasetCatalog:
         except ValueError:
             return []
 
-        results = [
-            info for info in self.datasets.values()
-            if info.category == category_enum
-        ]
+        results = [info for info in self.datasets.values() if info.category == category_enum]
 
         results.sort(key=lambda x: x.citation_count, reverse=True)
         return results[:limit]
@@ -619,7 +609,9 @@ class DatasetCatalog:
             "comparison": {
                 "cost_rating": cost_rating,
                 "cost_explanation": cost_explanation,
-                "cost_vs_avg": f"{((cost_per_sample / benchmark.avg_cost_per_sample) - 1) * 100:+.0f}%" if benchmark.avg_cost_per_sample > 0 else "N/A",
+                "cost_vs_avg": f"{((cost_per_sample / benchmark.avg_cost_per_sample) - 1) * 100:+.0f}%"
+                if benchmark.avg_cost_per_sample > 0
+                else "N/A",
                 "human_rating": human_rating,
                 "human_explanation": human_explanation,
             },

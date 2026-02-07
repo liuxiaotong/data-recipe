@@ -6,23 +6,34 @@ from typing import Any, Dict, List, Optional
 
 from datarecipe.parsers import DocumentParser, ParsedDocument
 
-
 # --- Type mapping utility ---
+
 
 def _map_type(type_str: str) -> str:
     """Map common type names to JSON Schema types."""
     mapping = {
-        "string": "string", "text": "string", "code": "string", "image": "string",
-        "number": "number", "float": "number", "double": "number",
-        "integer": "integer", "int": "integer",
-        "boolean": "boolean", "bool": "boolean",
-        "array": "array", "list": "array",
-        "object": "object", "dict": "object", "map": "object",
+        "string": "string",
+        "text": "string",
+        "code": "string",
+        "image": "string",
+        "number": "number",
+        "float": "number",
+        "double": "number",
+        "integer": "integer",
+        "int": "integer",
+        "boolean": "boolean",
+        "bool": "boolean",
+        "array": "array",
+        "list": "array",
+        "object": "object",
+        "dict": "object",
+        "map": "object",
     }
     return mapping.get(type_str.lower().strip(), "string")
 
 
 # --- FieldDefinition: nested schema modeling ---
+
 
 @dataclass
 class FieldDefinition:
@@ -159,6 +170,7 @@ class FieldDefinition:
 
 # --- FieldConstraint: structured constraints ---
 
+
 @dataclass
 class FieldConstraint:
     """Structured constraint for a field."""
@@ -190,6 +202,7 @@ class FieldConstraint:
 
 
 # --- ValidationStrategy ---
+
 
 @dataclass
 class ValidationStrategy:
@@ -236,6 +249,7 @@ class ValidationStrategy:
 
 
 # --- SpecificationAnalysis ---
+
 
 @dataclass
 class SpecificationAnalysis:
@@ -313,23 +327,27 @@ class SpecificationAnalysis:
         # Legacy field_requirements
         for fname, rule_text in self.field_requirements.items():
             if not any(c.field_name == fname and c.rule == rule_text for c in constraints):
-                constraints.append(FieldConstraint(
-                    field_name=fname,
-                    constraint_type="general",
-                    rule=rule_text,
-                    severity="error",
-                    auto_checkable=False,
-                ))
+                constraints.append(
+                    FieldConstraint(
+                        field_name=fname,
+                        constraint_type="general",
+                        rule=rule_text,
+                        severity="error",
+                        auto_checkable=False,
+                    )
+                )
         # Legacy quality_constraints (global, not per-field)
         for qc in self.quality_constraints:
             if not any(c.field_name == "_global" and c.rule == qc for c in constraints):
-                constraints.append(FieldConstraint(
-                    field_name="_global",
-                    constraint_type="content",
-                    rule=qc,
-                    severity="error",
-                    auto_checkable=False,
-                ))
+                constraints.append(
+                    FieldConstraint(
+                        field_name="_global",
+                        constraint_type="content",
+                        rule=qc,
+                        severity="error",
+                        auto_checkable=False,
+                    )
+                )
         return constraints
 
     def constraints_for_field(self, field_name: str) -> List[FieldConstraint]:
@@ -345,7 +363,9 @@ class SpecificationAnalysis:
         # Legacy difficulty_validation → model_test strategy
         if self.difficulty_validation is not None:
             if not any(s.strategy_type == "model_test" for s in strategies):
-                strategies.append(ValidationStrategy.from_difficulty_validation(self.difficulty_validation))
+                strategies.append(
+                    ValidationStrategy.from_difficulty_validation(self.difficulty_validation)
+                )
         return strategies
 
     def get_strategy(self, strategy_type: str) -> Optional[ValidationStrategy]:
@@ -543,14 +563,10 @@ class SpecAnalyzer:
         if doc is None:
             raise ValueError("No document parsed. Call parse_document first.")
 
-        return self.EXTRACTION_PROMPT.format(
-            document_content=doc.text_content[:15000]
-        )
+        return self.EXTRACTION_PROMPT.format(document_content=doc.text_content[:15000])
 
     def create_analysis_from_json(
-        self,
-        extracted: Dict,
-        doc: Optional[ParsedDocument] = None
+        self, extracted: Dict, doc: Optional[ParsedDocument] = None
     ) -> SpecificationAnalysis:
         """Create SpecificationAnalysis from extracted JSON data.
 
@@ -661,20 +677,24 @@ class SpecAnalyzer:
 
             # Add images if available (for vision)
             for img in images[:5]:  # Limit to 5 images
-                content.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": img["type"],
-                        "data": img["data"],
+                content.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": img["type"],
+                            "data": img["data"],
+                        },
                     }
-                })
+                )
 
             # Add text prompt
-            content.append({
-                "type": "text",
-                "text": prompt,
-            })
+            content.append(
+                {
+                    "type": "text",
+                    "text": prompt,
+                }
+            )
 
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
@@ -689,7 +709,9 @@ class SpecAnalyzer:
         except ImportError:
             raise ImportError("anthropic not installed. Run: pip install anthropic")
         except anthropic.AuthenticationError:
-            print("LLM call failed: ANTHROPIC_API_KEY not set. Run: export ANTHROPIC_API_KEY=your_key")
+            print(
+                "LLM call failed: ANTHROPIC_API_KEY not set. Run: export ANTHROPIC_API_KEY=your_key"
+            )
             return None
         except Exception as e:
             print(f"LLM call failed: {e}")
@@ -707,18 +729,20 @@ class SpecAnalyzer:
 
             # Add images if available
             for img in images[:5]:
-                content.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{img['type']};base64,{img['data']}"
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{img['type']};base64,{img['data']}"},
                     }
-                })
+                )
 
             # Add text prompt
-            content.append({
-                "type": "text",
-                "text": prompt,
-            })
+            content.append(
+                {
+                    "type": "text",
+                    "text": prompt,
+                }
+            )
 
             response = client.chat.completions.create(
                 model="gpt-4o",

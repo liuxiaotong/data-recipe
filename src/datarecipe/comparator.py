@@ -4,9 +4,9 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from datarecipe.analyzer import DatasetAnalyzer
-from datarecipe.schema import Recipe
-from datarecipe.cost_calculator import CostCalculator, CostBreakdown
+from datarecipe.cost_calculator import CostBreakdown, CostCalculator
 from datarecipe.quality_metrics import QualityAnalyzer, QualityReport
+from datarecipe.schema import Recipe
 
 
 @dataclass
@@ -149,26 +149,38 @@ class ComparisonReport:
 
         # Data rows
         rows_data = [
-            ("Size", [
-                f"{m.recipe.num_examples:,}" if m.recipe.num_examples else "N/A"
-                for m in self.metrics
-            ]),
-            ("Est. Cost", [
-                f"${m.cost.total.expected:,.0f}" if m.cost else "N/A"
-                for m in self.metrics
-            ]),
-            ("Quality", [
-                f"{m.quality.overall_score:.0f}/100" if m.quality else "N/A"
-                for m in self.metrics
-            ]),
-            ("Reproducibility", [
-                f"{m.recipe.reproducibility.score}/10" if m.recipe.reproducibility else "N/A"
-                for m in self.metrics
-            ]),
-            ("Synthetic %", [
-                f"{m.recipe.synthetic_ratio * 100:.0f}%" if m.recipe.synthetic_ratio else "N/A"
-                for m in self.metrics
-            ]),
+            (
+                "Size",
+                [
+                    f"{m.recipe.num_examples:,}" if m.recipe.num_examples else "N/A"
+                    for m in self.metrics
+                ],
+            ),
+            (
+                "Est. Cost",
+                [f"${m.cost.total.expected:,.0f}" if m.cost else "N/A" for m in self.metrics],
+            ),
+            (
+                "Quality",
+                [
+                    f"{m.quality.overall_score:.0f}/100" if m.quality else "N/A"
+                    for m in self.metrics
+                ],
+            ),
+            (
+                "Reproducibility",
+                [
+                    f"{m.recipe.reproducibility.score}/10" if m.recipe.reproducibility else "N/A"
+                    for m in self.metrics
+                ],
+            ),
+            (
+                "Synthetic %",
+                [
+                    f"{m.recipe.synthetic_ratio * 100:.0f}%" if m.recipe.synthetic_ratio else "N/A"
+                    for m in self.metrics
+                ],
+            ),
         ]
 
         for row_name, values in rows_data:
@@ -247,12 +259,14 @@ class DatasetComparator:
                 except Exception:
                     pass
 
-            metrics.append(DatasetMetrics(
-                dataset_id=dataset_id,
-                recipe=recipe,
-                cost=cost,
-                quality=quality,
-            ))
+            metrics.append(
+                DatasetMetrics(
+                    dataset_id=dataset_id,
+                    recipe=recipe,
+                    cost=cost,
+                    quality=quality,
+                )
+            )
 
         return self._build_report(metrics)
 
@@ -270,7 +284,7 @@ class DatasetComparator:
             try:
                 recipe = self.analyzer.analyze(dataset_id)
                 recipes.append(recipe)
-            except Exception as e:
+            except Exception:
                 # Create a minimal recipe for failed analyses
                 recipe = Recipe(
                     name=dataset_id,
@@ -511,9 +525,7 @@ class DatasetComparator:
             if m.quality and m.quality.diversity.semantic_diversity > 0.6
         ]
         if diverse:
-            recommendations.append(
-                f"For diverse training data, consider: {', '.join(diverse)}"
-            )
+            recommendations.append(f"For diverse training data, consider: {', '.join(diverse)}")
 
         if not recommendations:
             recommendations.append(

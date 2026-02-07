@@ -1,11 +1,12 @@
 """Tests for Quality Gate mechanism (Upgrade 4)."""
 
 import pytest
+
 from datarecipe.quality_metrics import (
+    DEFAULT_QUALITY_GATES,
     AIDetectionMetrics,
     ComplexityMetrics,
     ConsistencyMetrics,
-    DEFAULT_QUALITY_GATES,
     DiversityMetrics,
     GateResult,
     QualityAnalyzer,

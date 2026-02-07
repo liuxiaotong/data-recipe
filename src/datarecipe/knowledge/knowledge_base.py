@@ -3,10 +3,9 @@
 import json
 import os
 from collections import defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -48,7 +47,7 @@ class PatternStore:
         """Load patterns from disk."""
         if os.path.exists(self.store_path):
             try:
-                with open(self.store_path, "r", encoding="utf-8") as f:
+                with open(self.store_path, encoding="utf-8") as f:
                     data = json.load(f)
                 for key, entry in data.items():
                     self.patterns[key] = PatternEntry(**entry)
@@ -128,8 +127,7 @@ class PatternStore:
 
         top = self.get_top_patterns(limit=10)
         stats["top_patterns"] = [
-            {"key": p.pattern_key, "type": p.pattern_type, "frequency": p.frequency}
-            for p in top
+            {"key": p.pattern_key, "type": p.pattern_type, "frequency": p.frequency} for p in top
         ]
 
         return dict(stats)
@@ -151,14 +149,14 @@ class TrendAnalyzer:
 
         if os.path.exists(self.trends_path):
             try:
-                with open(self.trends_path, "r", encoding="utf-8") as f:
+                with open(self.trends_path, encoding="utf-8") as f:
                     self.trends = json.load(f)
             except Exception:
                 pass
 
         if os.path.exists(self.benchmarks_path):
             try:
-                with open(self.benchmarks_path, "r", encoding="utf-8") as f:
+                with open(self.benchmarks_path, encoding="utf-8") as f:
                     data = json.load(f)
                 for k, v in data.items():
                     self.benchmarks[k] = CostBenchmark(**v)
@@ -210,7 +208,9 @@ class TrendAnalyzer:
             bench.avg_human_cost = (bench.avg_human_cost * n + human_cost) / (n + 1)
             bench.avg_api_cost = (bench.avg_api_cost * n + api_cost) / (n + 1)
             bench.avg_total_cost = (bench.avg_total_cost * n + total_cost) / (n + 1)
-            bench.avg_human_percentage = (bench.avg_human_percentage * n + human_percentage) / (n + 1)
+            bench.avg_human_percentage = (bench.avg_human_percentage * n + human_percentage) / (
+                n + 1
+            )
             bench.min_cost = min(bench.min_cost, total_cost)
             bench.max_cost = max(bench.max_cost, total_cost)
 
@@ -228,7 +228,9 @@ class TrendAnalyzer:
             }
 
         self.trends[date_key]["datasets_analyzed"] += 1
-        self.trends[date_key]["types"][dataset_type] = self.trends[date_key].get("types", {}).get(dataset_type, 0) + 1
+        self.trends[date_key]["types"][dataset_type] = (
+            self.trends[date_key].get("types", {}).get(dataset_type, 0) + 1
+        )
         self.trends[date_key]["total_cost"] += total_cost
 
         self._save()
@@ -263,12 +265,11 @@ class TrendAnalyzer:
             "period": f"last {days} days",
             "datasets_analyzed": total_datasets,
             "total_cost": round(total_cost, 2),
-            "avg_cost_per_dataset": round(total_cost / total_datasets, 2) if total_datasets > 0 else 0,
+            "avg_cost_per_dataset": round(total_cost / total_datasets, 2)
+            if total_datasets > 0
+            else 0,
             "type_distribution": dict(type_counts),
-            "daily_data": [
-                {"date": k, **v}
-                for k, v in sorted(recent_trends.items())
-            ],
+            "daily_data": [{"date": k, **v} for k, v in sorted(recent_trends.items())],
         }
 
 
@@ -426,21 +427,20 @@ class KnowledgeBase:
         for pattern in self.patterns.patterns.values():
             overlap = set(pattern.datasets) & set(type_datasets)
             if len(overlap) > len(type_datasets) * 0.5:  # Pattern in >50% of datasets
-                recommendations["common_patterns"].append({
-                    "pattern": pattern.pattern_key,
-                    "type": pattern.pattern_type,
-                    "frequency": len(overlap),
-                })
+                recommendations["common_patterns"].append(
+                    {
+                        "pattern": pattern.pattern_key,
+                        "type": pattern.pattern_type,
+                        "frequency": len(overlap),
+                    }
+                )
 
         # Suggest common fields
         field_patterns = [
-            p for p in self.patterns.patterns.values()
-            if p.pattern_type == "schema_field"
+            p for p in self.patterns.patterns.values() if p.pattern_type == "schema_field"
         ]
         field_patterns.sort(key=lambda x: x.frequency, reverse=True)
-        recommendations["suggested_fields"] = [
-            p.pattern_key for p in field_patterns[:10]
-        ]
+        recommendations["suggested_fields"] = [p.pattern_key for p in field_patterns[:10]]
 
         return recommendations
 

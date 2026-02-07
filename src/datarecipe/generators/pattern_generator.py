@@ -4,15 +4,14 @@ Pattern-Based Data Generator
 Generates new data based on discovered patterns from reverse engineering.
 """
 
-import re
-import json
 import hashlib
+import json
 from dataclasses import dataclass, field
-from typing import Optional, Callable
 from datetime import datetime
+from typing import Callable, Optional
 
-from ..extractors.rubrics_analyzer import RubricsAnalysisResult, RubricPattern
 from ..extractors.prompt_extractor import PromptLibrary, PromptTemplate
+from ..extractors.rubrics_analyzer import RubricsAnalysisResult
 
 
 @dataclass
@@ -21,7 +20,7 @@ class GeneratedDataItem:
 
     id: str
     content: str
-    data_type: str              # "rubric", "prompt", "context", etc.
+    data_type: str  # "rubric", "prompt", "context", etc.
     template_used: str
     parameters: dict = field(default_factory=dict)
     quality_score: float = 0.0
@@ -250,9 +249,7 @@ class PatternGenerator:
 
         # Calculate metrics
         if generated:
-            result.avg_quality_score = sum(
-                i.quality_score for i in generated
-            ) / len(generated)
+            result.avg_quality_score = sum(i.quality_score for i in generated) / len(generated)
             result.unique_ratio = len(generated) / max(count, len(generated))
 
         return result
@@ -290,7 +287,8 @@ class PatternGenerator:
         else:
             # Filter by category and domain
             source_templates = [
-                t for t in prompt_library.templates
+                t
+                for t in prompt_library.templates
                 if t.category == category and (t.domain == domain or t.domain == "general")
             ]
 
@@ -327,9 +325,7 @@ class PatternGenerator:
         result.templates_used = len(templates_used)
 
         if generated:
-            result.avg_quality_score = sum(
-                i.quality_score for i in generated
-            ) / len(generated)
+            result.avg_quality_score = sum(i.quality_score for i in generated) / len(generated)
 
         return result
 
@@ -387,18 +383,11 @@ class PatternGenerator:
         result.templates_used = 1
 
         if generated:
-            result.avg_quality_score = sum(
-                i.quality_score for i in generated
-            ) / len(generated)
+            result.avg_quality_score = sum(i.quality_score for i in generated) / len(generated)
 
         return result
 
-    def _fill_rubric_template(
-        self,
-        template: str,
-        context: str,
-        category: str
-    ) -> str:
+    def _fill_rubric_template(self, template: str, context: str, category: str) -> str:
         """Fill a rubric template with context."""
         result = template
 
@@ -424,11 +413,7 @@ class PatternGenerator:
 
         return result
 
-    def _get_default_prompt_templates(
-        self,
-        domain: str,
-        category: str
-    ) -> list[str]:
+    def _get_default_prompt_templates(self, domain: str, category: str) -> list[str]:
         """Get default prompt templates."""
         templates = {
             "system": [
@@ -449,12 +434,7 @@ class PatternGenerator:
         }
         return templates.get(category, templates["system"])
 
-    def _generate_context_params(
-        self,
-        template_type: str,
-        provided: dict,
-        index: int
-    ) -> dict:
+    def _generate_context_params(self, template_type: str, provided: dict, index: int) -> dict:
         """Generate parameters for context template."""
         defaults = {
             "game_rules": {
@@ -549,15 +529,18 @@ class PatternGenerator:
         """Export generated items to JSONL file."""
         with open(filepath, "w", encoding="utf-8") as f:
             for item in result.items:
-                line = json.dumps({
-                    "id": item.id,
-                    "content": item.content,
-                    "type": item.data_type,
-                    "template": item.template_used,
-                    "parameters": item.parameters,
-                    "quality_score": item.quality_score,
-                    "metadata": item.metadata,
-                }, ensure_ascii=False)
+                line = json.dumps(
+                    {
+                        "id": item.id,
+                        "content": item.content,
+                        "type": item.data_type,
+                        "template": item.template_used,
+                        "parameters": item.parameters,
+                        "quality_score": item.quality_score,
+                        "metadata": item.metadata,
+                    },
+                    ensure_ascii=False,
+                )
                 f.write(line + "\n")
 
     def to_dict(self, result: GenerationResult) -> dict:

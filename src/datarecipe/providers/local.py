@@ -3,20 +3,21 @@
 将投产配置输出到本地文件系统，生成完整的项目结构。
 """
 
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
+
 import yaml
 
 from datarecipe.schema import (
-    DataRecipe,
-    ProductionConfig,
-    AnnotatorProfile,
-    ValidationResult,
     AnnotatorMatch,
-    ProjectHandle,
+    AnnotatorProfile,
+    DataRecipe,
     DeploymentResult,
+    ProductionConfig,
+    ProjectHandle,
     ProjectStatus,
+    ValidationResult,
 )
 
 
@@ -84,7 +85,7 @@ class LocalFilesProvider:
         recipe_path = output_path / "recipe.yaml"
         recipe_path.write_text(
             yaml.dump(recipe.to_dict(), default_flow_style=False, allow_unicode=True),
-            encoding="utf-8"
+            encoding="utf-8",
         )
         files_created.append(str(recipe_path))
 
@@ -98,8 +99,10 @@ class LocalFilesProvider:
         if recipe.enhanced_cost:
             cost_path = output_path / "cost_estimate.yaml"
             cost_path.write_text(
-                yaml.dump(recipe.enhanced_cost.to_dict(), default_flow_style=False, allow_unicode=True),
-                encoding="utf-8"
+                yaml.dump(
+                    recipe.enhanced_cost.to_dict(), default_flow_style=False, allow_unicode=True
+                ),
+                encoding="utf-8",
             )
             files_created.append(str(cost_path))
 
@@ -115,7 +118,7 @@ class LocalFilesProvider:
             rules_data = [r.to_dict() for r in config.quality_rules]
             rules_path.write_text(
                 yaml.dump(rules_data, default_flow_style=False, allow_unicode=True),
-                encoding="utf-8"
+                encoding="utf-8",
             )
             files_created.append(str(rules_path))
 
@@ -131,7 +134,7 @@ class LocalFilesProvider:
             criteria_data = [c.to_dict() for c in config.acceptance_criteria]
             criteria_path.write_text(
                 yaml.dump(criteria_data, default_flow_style=False, allow_unicode=True),
-                encoding="utf-8"
+                encoding="utf-8",
             )
             files_created.append(str(criteria_path))
 
@@ -227,7 +230,9 @@ class LocalFilesProvider:
             lines.append(f"- **API 成本**: ${recipe.enhanced_cost.api_cost:,.2f}")
             lines.append(f"- **人力成本**: ${recipe.enhanced_cost.human_cost:,.2f}")
             lines.append(f"- **总成本**: ${recipe.enhanced_cost.total_cost:,.2f}")
-            lines.append(f"- **成本区间**: ${recipe.enhanced_cost.total_range['low']:,.2f} - ${recipe.enhanced_cost.total_range['high']:,.2f}")
+            lines.append(
+                f"- **成本区间**: ${recipe.enhanced_cost.total_range['low']:,.2f} - ${recipe.enhanced_cost.total_range['high']:,.2f}"
+            )
             lines.append("")
 
         # 项目结构
@@ -352,15 +357,15 @@ class LocalFilesProvider:
         # 按类型分组
         rules_by_type = {}
         for r in rules:
-            check_type = r.check_type if hasattr(r, 'check_type') else r.get('type', 'other')
+            check_type = r.check_type if hasattr(r, "check_type") else r.get("type", "other")
             if check_type not in rules_by_type:
                 rules_by_type[check_type] = []
             rules_by_type[check_type].append(r)
 
         type_names = {
-            'format': '📋 格式检查规则',
-            'content': '📝 内容检查规则',
-            'consistency': '🔗 一致性检查规则',
+            "format": "📋 格式检查规则",
+            "content": "📝 内容检查规则",
+            "consistency": "🔗 一致性检查规则",
         }
 
         for check_type, type_rules in rules_by_type.items():
@@ -368,14 +373,14 @@ class LocalFilesProvider:
             lines.append("")
 
             for r in type_rules:
-                rule_id = r.rule_id if hasattr(r, 'rule_id') else r.get('id', '')
-                name = r.name if hasattr(r, 'name') else r.get('name', '')
-                desc = r.description if hasattr(r, 'description') else r.get('description', '')
-                severity = r.severity if hasattr(r, 'severity') else r.get('severity', 'warning')
-                auto = r.auto_check if hasattr(r, 'auto_check') else r.get('auto_check', False)
+                rule_id = r.rule_id if hasattr(r, "rule_id") else r.get("id", "")
+                name = r.name if hasattr(r, "name") else r.get("name", "")
+                desc = r.description if hasattr(r, "description") else r.get("description", "")
+                severity = r.severity if hasattr(r, "severity") else r.get("severity", "warning")
+                auto = r.auto_check if hasattr(r, "auto_check") else r.get("auto_check", False)
 
                 # 严重程度图标
-                severity_icon = {'error': '🔴', 'warning': '🟡', 'info': '🔵'}.get(severity, '⚪')
+                severity_icon = {"error": "🔴", "warning": "🟡", "info": "🔵"}.get(severity, "⚪")
                 auto_label = "✅ 自动检查" if auto else "👤 人工检查"
 
                 lines.append(f"#### {severity_icon} {rule_id}: {name}")
@@ -427,13 +432,13 @@ class LocalFilesProvider:
         lines.append("|------|------|--------|------|")
 
         for c in criteria:
-            name = c.name if hasattr(c, 'name') else c.get('name', '')
-            threshold = c.threshold if hasattr(c, 'threshold') else c.get('threshold', 0)
-            priority = c.priority if hasattr(c, 'priority') else c.get('priority', 'required')
-            desc = c.description if hasattr(c, 'description') else c.get('description', '')
+            name = c.name if hasattr(c, "name") else c.get("name", "")
+            threshold = c.threshold if hasattr(c, "threshold") else c.get("threshold", 0)
+            priority = c.priority if hasattr(c, "priority") else c.get("priority", "required")
+            desc = c.description if hasattr(c, "description") else c.get("description", "")
 
             # 优先级图标
-            priority_icon = "🔴 必须" if priority == 'required' else "🟢 建议"
+            priority_icon = "🔴 必须" if priority == "required" else "🟢 建议"
             threshold_str = f"{threshold * 100:.0f}%" if threshold <= 1 else str(threshold)
 
             lines.append(f"| **{name}** | ≥ {threshold_str} | {priority_icon} | {desc} |")
@@ -445,66 +450,66 @@ class LocalFilesProvider:
         lines.append("")
 
         metric_explanations = {
-            'completeness': {
-                'title': '📊 完成率',
-                'what': '衡量标注任务的完成程度',
-                'how': '完成率 = 已完成条数 / 总任务条数 × 100%',
-                'tips': [
-                    '确保所有分配的任务都已处理',
-                    '「无法标注」的数据也计入已完成',
-                    '每日同步进度，及时发现落后情况',
+            "completeness": {
+                "title": "📊 完成率",
+                "what": "衡量标注任务的完成程度",
+                "how": "完成率 = 已完成条数 / 总任务条数 × 100%",
+                "tips": [
+                    "确保所有分配的任务都已处理",
+                    "「无法标注」的数据也计入已完成",
+                    "每日同步进度，及时发现落后情况",
                 ],
             },
-            'accuracy': {
-                'title': '🎯 准确率',
-                'what': '衡量标注结果的正确程度',
-                'how': '准确率 = 抽检正确数 / 抽检总数 × 100%',
-                'tips': [
-                    '由质检员随机抽样检查',
-                    '与标准答案或专家判断对比',
-                    '低于阈值需要返工修正',
+            "accuracy": {
+                "title": "🎯 准确率",
+                "what": "衡量标注结果的正确程度",
+                "how": "准确率 = 抽检正确数 / 抽检总数 × 100%",
+                "tips": [
+                    "由质检员随机抽样检查",
+                    "与标准答案或专家判断对比",
+                    "低于阈值需要返工修正",
                 ],
             },
-            'agreement': {
-                'title': '🤝 一致性',
-                'what': '衡量不同标注者之间的标注一致程度',
-                'how': '使用 Cohen\'s Kappa 系数衡量，值域 [-1, 1]',
-                'tips': [
-                    'Kappa ≥ 0.8: 几乎完全一致（优秀）',
-                    'Kappa ≥ 0.6: 基本一致（良好）',
-                    'Kappa < 0.4: 一致性差（需改进）',
+            "agreement": {
+                "title": "🤝 一致性",
+                "what": "衡量不同标注者之间的标注一致程度",
+                "how": "使用 Cohen's Kappa 系数衡量，值域 [-1, 1]",
+                "tips": [
+                    "Kappa ≥ 0.8: 几乎完全一致（优秀）",
+                    "Kappa ≥ 0.6: 基本一致（良好）",
+                    "Kappa < 0.4: 一致性差（需改进）",
                 ],
             },
-            'format': {
-                'title': '📋 格式合规',
-                'what': '衡量数据格式的规范程度',
-                'how': '格式合规率 = 格式正确条数 / 总条数 × 100%',
-                'tips': [
-                    '使用自动化脚本检查',
-                    'JSON 格式、字段完整性、编码规范',
-                    '格式错误必须 100% 修复',
+            "format": {
+                "title": "📋 格式合规",
+                "what": "衡量数据格式的规范程度",
+                "how": "格式合规率 = 格式正确条数 / 总条数 × 100%",
+                "tips": [
+                    "使用自动化脚本检查",
+                    "JSON 格式、字段完整性、编码规范",
+                    "格式错误必须 100% 修复",
                 ],
             },
-            'timeliness': {
-                'title': '⏰ 时效性',
-                'what': '衡量按时完成的情况',
-                'how': '时效性 = 按时完成的里程碑数 / 总里程碑数 × 100%',
-                'tips': [
-                    '每个里程碑有预定完成日期',
-                    '提前预警风险，及时调整',
-                    '合理延期需提前申请',
+            "timeliness": {
+                "title": "⏰ 时效性",
+                "what": "衡量按时完成的情况",
+                "how": "时效性 = 按时完成的里程碑数 / 总里程碑数 × 100%",
+                "tips": [
+                    "每个里程碑有预定完成日期",
+                    "提前预警风险，及时调整",
+                    "合理延期需提前申请",
                 ],
             },
         }
 
         for c in criteria:
-            metric_type = c.metric_type if hasattr(c, 'metric_type') else c.get('type', '')
-            name = c.name if hasattr(c, 'name') else c.get('name', '')
-            threshold = c.threshold if hasattr(c, 'threshold') else c.get('threshold', 0)
-            desc = c.description if hasattr(c, 'description') else c.get('description', '')
+            metric_type = c.metric_type if hasattr(c, "metric_type") else c.get("type", "")
+            name = c.name if hasattr(c, "name") else c.get("name", "")
+            threshold = c.threshold if hasattr(c, "threshold") else c.get("threshold", 0)
+            desc = c.description if hasattr(c, "description") else c.get("description", "")
 
             exp = metric_explanations.get(metric_type, {})
-            title = exp.get('title', f"📌 {name}")
+            title = exp.get("title", f"📌 {name}")
 
             lines.append(f"### {title}")
             lines.append("")
@@ -515,17 +520,17 @@ class LocalFilesProvider:
             lines.append(f"**验收阈值**: ≥ **{threshold_str}**")
             lines.append("")
 
-            if 'what' in exp:
+            if "what" in exp:
                 lines.append(f"**含义**: {exp['what']}")
                 lines.append("")
 
-            if 'how' in exp:
+            if "how" in exp:
                 lines.append(f"**计算方式**: {exp['how']}")
                 lines.append("")
 
-            if 'tips' in exp:
+            if "tips" in exp:
                 lines.append("**实践建议**:")
-                for tip in exp['tips']:
+                for tip in exp["tips"]:
                     lines.append(f"- {tip}")
                 lines.append("")
 
@@ -563,7 +568,8 @@ class LocalFilesProvider:
 
         # 01_prepare_data.py
         prepare_script = scripts_dir / "01_prepare_data.py"
-        prepare_script.write_text(f'''#!/usr/bin/env python3
+        prepare_script.write_text(
+            f'''#!/usr/bin/env python3
 """
 步骤 1: 准备数据
 
@@ -597,13 +603,16 @@ def main():
 
 if __name__ == "__main__":
     main()
-''', encoding="utf-8")
+''',
+            encoding="utf-8",
+        )
         files.append(str(prepare_script))
 
         # 02_generate.py
         generate_script = scripts_dir / "02_generate.py"
         model = recipe.teacher_models[0] if recipe.teacher_models else "gpt-4o"
-        generate_script.write_text(f'''#!/usr/bin/env python3
+        generate_script.write_text(
+            f'''#!/usr/bin/env python3
 """
 步骤 2: 数据生成
 
@@ -683,12 +692,15 @@ def main():
 
 if __name__ == "__main__":
     main()
-''', encoding="utf-8")
+''',
+            encoding="utf-8",
+        )
         files.append(str(generate_script))
 
         # 03_validate.py
         validate_script = scripts_dir / "03_validate.py"
-        validate_script.write_text('''#!/usr/bin/env python3
+        validate_script.write_text(
+            '''#!/usr/bin/env python3
 """
 步骤 3: 数据验证
 
@@ -782,7 +794,9 @@ def main():
 
 if __name__ == "__main__":
     main()
-''', encoding="utf-8")
+''',
+            encoding="utf-8",
+        )
         files.append(str(validate_script))
 
         return files

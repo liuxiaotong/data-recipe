@@ -1,6 +1,6 @@
 """Integrations with external tools and services."""
 
-from .radar import RadarIntegration, RadarDataset, RecipeSummary
+from .radar import RadarDataset, RadarIntegration, RecipeSummary
 
 __all__ = [
     "RadarIntegration",

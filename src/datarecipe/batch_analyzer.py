@@ -4,7 +4,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 from datarecipe.analyzer import DatasetAnalyzer
 from datarecipe.schema import Recipe
@@ -173,7 +173,7 @@ class BatchAnalyzer:
 
         if path.suffix == ".json":
             # JSON file: expect a list of IDs or a dict with "datasets" key
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, list):
                     dataset_ids = data
@@ -186,7 +186,7 @@ class BatchAnalyzer:
             # CSV file: first column is dataset ID
             import csv
 
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 reader = csv.reader(f)
                 header = next(reader, None)  # Skip header if present
 
@@ -194,8 +194,7 @@ class BatchAnalyzer:
                 if header and not header[0].startswith(("http", "/")):
                     # Check if it's a valid HuggingFace ID
                     if "/" not in header[0] or any(
-                        keyword in header[0].lower()
-                        for keyword in ["dataset", "id", "name", "url"]
+                        keyword in header[0].lower() for keyword in ["dataset", "id", "name", "url"]
                     ):
                         pass  # Skip header
                     else:
@@ -207,7 +206,7 @@ class BatchAnalyzer:
 
         else:
             # Plain text file: one ID per line
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("#"):

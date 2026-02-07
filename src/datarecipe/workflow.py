@@ -1,12 +1,11 @@
 """Production workflow generation for dataset reproduction."""
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from datarecipe.schema import Recipe
 from datarecipe.cost_calculator import CostCalculator
+from datarecipe.schema import Recipe
 
 
 @dataclass
@@ -82,9 +81,9 @@ Step {i}: {step.name}
 
 {step.description}
 
-Dependencies: {', '.join(step.dependencies) if step.dependencies else 'None'}
-Inputs: {', '.join(step.inputs) if step.inputs else 'None'}
-Outputs: {', '.join(step.outputs) if step.outputs else 'None'}
+Dependencies: {", ".join(step.dependencies) if step.dependencies else "None"}
+Inputs: {", ".join(step.inputs) if step.inputs else "None"}
+Outputs: {", ".join(step.outputs) if step.outputs else "None"}
 """
 
 import os
@@ -319,7 +318,9 @@ OUTPUT_DIR.mkdir(exist_ok=True)
         # Data
         lines.append("## Data Storage")
         lines.append("")
-        lines.append(f"- [ ] Ensure ~{max(1, self.target_size // 10000)}GB disk space for intermediate files")
+        lines.append(
+            f"- [ ] Ensure ~{max(1, self.target_size // 10000)}GB disk space for intermediate files"
+        )
         lines.append("- [ ] Create `./data` directory")
         lines.append("")
 
@@ -665,7 +666,7 @@ if __name__ == "__main__":
                 dependencies=["datasets", "pandas"],
                 inputs=["data/deduped.jsonl"],
                 outputs=["data/final_dataset/"],
-                script_content=f'''
+                script_content='''
 # Final validation and formatting
 from datasets import Dataset
 
@@ -685,12 +686,12 @@ if __name__ == "__main__":
             item = json.loads(line)
             if validate_item(item):
                 # Restructure for final format
-                valid_items.append({{
+                valid_items.append({
                     "text": item["generated"],
-                    "metadata": item.get("seed", {{}}),
-                }})
+                    "metadata": item.get("seed", {}),
+                })
 
-    print(f"Validated: {{len(valid_items)}} items")
+    print(f"Validated: {len(valid_items)} items")
 
     # Convert to HuggingFace dataset
     dataset = Dataset.from_list(valid_items)
@@ -704,8 +705,8 @@ if __name__ == "__main__":
         for item in valid_items:
             f.write(json.dumps(item) + "\\n")
 
-    print(f"Dataset saved to {{output_path}}")
-    print(f"Total examples: {{len(dataset)}}")
+    print(f"Dataset saved to {output_path}")
+    print(f"Total examples: {len(dataset)}")
 ''',
             ),
         ]
@@ -713,9 +714,13 @@ if __name__ == "__main__":
         # Create resource checklist
         api_keys = []
         if "gpt" in model or "openai" in model.lower():
-            api_keys.append(("OpenAI API", "https://platform.openai.com/api-keys", "OPENAI_API_KEY"))
+            api_keys.append(
+                ("OpenAI API", "https://platform.openai.com/api-keys", "OPENAI_API_KEY")
+            )
         if "claude" in model.lower() or "anthropic" in model.lower():
-            api_keys.append(("Anthropic API", "https://console.anthropic.com/", "ANTHROPIC_API_KEY"))
+            api_keys.append(
+                ("Anthropic API", "https://console.anthropic.com/", "ANTHROPIC_API_KEY")
+            )
 
         resource_checklist = ResourceChecklist(
             api_keys=api_keys,
@@ -732,7 +737,11 @@ if __name__ == "__main__":
             Milestone(
                 name="Setup Complete",
                 description="Environment configured and ready",
-                deliverables=["API keys configured", "Dependencies installed", "Seed data prepared"],
+                deliverables=[
+                    "API keys configured",
+                    "Dependencies installed",
+                    "Seed data prepared",
+                ],
             ),
             Milestone(
                 name="Generation Complete",
@@ -742,12 +751,20 @@ if __name__ == "__main__":
             Milestone(
                 name="Quality Assured",
                 description="Data filtered and deduplicated",
-                deliverables=["Quality filtering complete", "Duplicates removed", "Validation passed"],
+                deliverables=[
+                    "Quality filtering complete",
+                    "Duplicates removed",
+                    "Validation passed",
+                ],
             ),
             Milestone(
                 name="Dataset Published",
                 description="Final dataset ready for use",
-                deliverables=["Dataset formatted", "Documentation complete", "Optional: Published to HuggingFace"],
+                deliverables=[
+                    "Dataset formatted",
+                    "Documentation complete",
+                    "Optional: Published to HuggingFace",
+                ],
             ),
         ]
 
@@ -928,7 +945,7 @@ if __name__ == "__main__":
                 dependencies=["datasets"],
                 inputs=["data/final_annotations.jsonl"],
                 outputs=["data/final_dataset/"],
-                script_content='''
+                script_content="""
 from datasets import Dataset
 
 if __name__ == "__main__":
@@ -941,7 +958,7 @@ if __name__ == "__main__":
     dataset.save_to_disk(str(OUTPUT_DIR / "final_dataset"))
 
     print(f"Dataset saved: {len(dataset)} examples")
-''',
+""",
             ),
         ]
 
@@ -1008,7 +1025,9 @@ if __name__ == "__main__":
             dependencies=["pandas", "label-studio"],
             inputs=["data/deduped.jsonl"],
             outputs=["data/verified.jsonl"],
-            estimated_cost=self.cost_calculator.ANNOTATION_COSTS["quality_check"] * target_size * (recipe.human_ratio or 0.3),
+            estimated_cost=self.cost_calculator.ANNOTATION_COSTS["quality_check"]
+            * target_size
+            * (recipe.human_ratio or 0.3),
             script_content='''
 # Human verification of LLM-generated content
 

@@ -7,16 +7,15 @@ Separates costs into three phases:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 from enum import Enum
 
 
 class ProjectScale(Enum):
     """Project scale categories."""
 
-    SMALL = "small"        # < 1,000 examples
-    MEDIUM = "medium"      # 1,000 - 10,000 examples
-    LARGE = "large"        # 10,000 - 100,000 examples
+    SMALL = "small"  # < 1,000 examples
+    MEDIUM = "medium"  # 1,000 - 10,000 examples
+    LARGE = "large"  # 10,000 - 100,000 examples
     ENTERPRISE = "enterprise"  # > 100,000 examples
 
 
@@ -24,10 +23,10 @@ class ProjectScale(Enum):
 class DesignPhaseCost:
     """Design phase costs (mostly fixed)."""
 
-    schema_design: float = 0.0      # Schema and data model design
+    schema_design: float = 0.0  # Schema and data model design
     guideline_writing: float = 0.0  # Annotation guidelines
-    pilot_testing: float = 0.0      # Initial pilot with small sample
-    tool_setup: float = 0.0         # Tooling and infrastructure
+    pilot_testing: float = 0.0  # Initial pilot with small sample
+    tool_setup: float = 0.0  # Tooling and infrastructure
 
     @property
     def total(self) -> float:
@@ -47,10 +46,10 @@ class DesignPhaseCost:
 class ProductionPhaseCost:
     """Production phase costs (variable, per-sample)."""
 
-    annotation_cost: float = 0.0     # Human annotation
-    generation_cost: float = 0.0     # LLM generation (API)
-    review_cost: float = 0.0         # Initial review
-    infrastructure: float = 0.0      # Compute/storage
+    annotation_cost: float = 0.0  # Human annotation
+    generation_cost: float = 0.0  # LLM generation (API)
+    review_cost: float = 0.0  # Initial review
+    infrastructure: float = 0.0  # Compute/storage
 
     # Per-sample metrics
     cost_per_sample: float = 0.0
@@ -76,13 +75,13 @@ class ProductionPhaseCost:
 class QualityPhaseCost:
     """Quality phase costs (proportional to production)."""
 
-    qa_sampling: float = 0.0         # Quality assurance sampling
-    rework: float = 0.0              # Rework/corrections
-    expert_review: float = 0.0       # Expert spot checks
-    final_validation: float = 0.0    # Final validation pass
+    qa_sampling: float = 0.0  # Quality assurance sampling
+    rework: float = 0.0  # Rework/corrections
+    expert_review: float = 0.0  # Expert spot checks
+    final_validation: float = 0.0  # Final validation pass
 
     # Rates
-    qa_rate: float = 0.2             # % of samples QA'd
+    qa_rate: float = 0.2  # % of samples QA'd
     expected_rework_rate: float = 0.1  # % needing rework
 
     @property
@@ -111,8 +110,8 @@ class PhasedCostBreakdown:
     quality: QualityPhaseCost = field(default_factory=QualityPhaseCost)
 
     # Summary
-    total_fixed: float = 0.0       # Design phase
-    total_variable: float = 0.0    # Production phase
+    total_fixed: float = 0.0  # Design phase
+    total_variable: float = 0.0  # Production phase
     total_proportional: float = 0.0  # Quality phase
     grand_total: float = 0.0
 
@@ -136,7 +135,9 @@ class PhasedCostBreakdown:
                 "fixed_costs": round(self.total_fixed, 2),
                 "variable_costs": round(self.total_variable, 2),
                 "proportional_costs": round(self.total_proportional, 2),
-                "subtotal": round(self.total_fixed + self.total_variable + self.total_proportional, 2),
+                "subtotal": round(
+                    self.total_fixed + self.total_variable + self.total_proportional, 2
+                ),
                 "contingency": {
                     "rate": self.contingency_rate,
                     "amount": round(self.contingency_amount, 2),
@@ -245,14 +246,12 @@ class PhasedCostModel:
 
         # 2. Production Phase (variable costs)
         self._calculate_production_phase(
-            breakdown, target_size, human_percentage,
-            api_cost_per_sample, complexity_multiplier
+            breakdown, target_size, human_percentage, api_cost_per_sample, complexity_multiplier
         )
 
         # 3. Quality Phase (proportional costs)
         self._calculate_quality_phase(
-            breakdown, target_size, quality_requirement,
-            human_percentage, complexity_multiplier
+            breakdown, target_size, quality_requirement, human_percentage, complexity_multiplier
         )
 
         # Calculate totals
@@ -287,7 +286,9 @@ class PhasedCostModel:
         base = DESIGN_PHASE_BASE_COSTS[scale]
 
         breakdown.design.schema_design = base["schema_design"] * self.labor_mult * complexity_mult
-        breakdown.design.guideline_writing = base["guideline_writing"] * self.labor_mult * complexity_mult
+        breakdown.design.guideline_writing = (
+            base["guideline_writing"] * self.labor_mult * complexity_mult
+        )
         breakdown.design.pilot_testing = base["pilot_testing"] * self.labor_mult
         breakdown.design.tool_setup = base["tool_setup"]  # Tool costs are region-independent
 
@@ -311,9 +312,7 @@ class PhasedCostModel:
         )
 
         # Generation cost (API)
-        breakdown.production.generation_cost = (
-            target_size * api_cost_per_sample * (1 - human_ratio)
-        )
+        breakdown.production.generation_cost = target_size * api_cost_per_sample * (1 - human_ratio)
 
         # Review cost (10% of annotation)
         breakdown.production.review_cost = breakdown.production.annotation_cost * 0.1
@@ -352,7 +351,9 @@ class PhasedCostModel:
         # Rework cost (re-annotation of failed samples)
         rework_samples = int(target_size * rates["rework_rate"])
         base_annotation_per_sample = 0.50 * self.labor_mult * complexity_mult
-        breakdown.quality.rework = rework_samples * base_annotation_per_sample * 1.5  # Rework is 1.5x
+        breakdown.quality.rework = (
+            rework_samples * base_annotation_per_sample * 1.5
+        )  # Rework is 1.5x
 
         # Expert review (for high/expert quality)
         if quality_requirement in ["high", "expert"]:
@@ -394,7 +395,9 @@ class PhasedCostModel:
         lines.append(f"| API 生成 | ${breakdown.production.generation_cost:,.0f} | - |")
         lines.append(f"| 初审 | ${breakdown.production.review_cost:,.0f} | - |")
         lines.append(f"| 基础设施 | ${breakdown.production.infrastructure:,.0f} | - |")
-        lines.append(f"| **小计** | **${breakdown.production.total:,.0f}** | ${breakdown.production.cost_per_sample:.4f}/条 |")
+        lines.append(
+            f"| **小计** | **${breakdown.production.total:,.0f}** | ${breakdown.production.cost_per_sample:.4f}/条 |"
+        )
         lines.append("")
 
         # Quality Phase
@@ -402,8 +405,12 @@ class PhasedCostModel:
         lines.append("")
         lines.append("| 项目 | 成本 | 说明 |")
         lines.append("|------|------|------|")
-        lines.append(f"| QA 抽检 | ${breakdown.quality.qa_sampling:,.0f} | {breakdown.quality.qa_rate*100:.0f}% 抽检率 |")
-        lines.append(f"| 返工修正 | ${breakdown.quality.rework:,.0f} | {breakdown.quality.expected_rework_rate*100:.0f}% 预期返工 |")
+        lines.append(
+            f"| QA 抽检 | ${breakdown.quality.qa_sampling:,.0f} | {breakdown.quality.qa_rate * 100:.0f}% 抽检率 |"
+        )
+        lines.append(
+            f"| 返工修正 | ${breakdown.quality.rework:,.0f} | {breakdown.quality.expected_rework_rate * 100:.0f}% 预期返工 |"
+        )
         lines.append(f"| 专家复核 | ${breakdown.quality.expert_review:,.0f} | - |")
         lines.append(f"| 终验 | ${breakdown.quality.final_validation:,.0f} | - |")
         lines.append(f"| **小计** | **${breakdown.quality.total:,.0f}** | - |")
@@ -415,11 +422,19 @@ class PhasedCostModel:
         lines.append("| 阶段 | 成本 | 占比 |")
         lines.append("|------|------|------|")
         subtotal = breakdown.total_fixed + breakdown.total_variable + breakdown.total_proportional
-        lines.append(f"| 设计阶段 | ${breakdown.total_fixed:,.0f} | {breakdown.total_fixed/subtotal*100:.1f}% |")
-        lines.append(f"| 生产阶段 | ${breakdown.total_variable:,.0f} | {breakdown.total_variable/subtotal*100:.1f}% |")
-        lines.append(f"| 质量阶段 | ${breakdown.total_proportional:,.0f} | {breakdown.total_proportional/subtotal*100:.1f}% |")
+        lines.append(
+            f"| 设计阶段 | ${breakdown.total_fixed:,.0f} | {breakdown.total_fixed / subtotal * 100:.1f}% |"
+        )
+        lines.append(
+            f"| 生产阶段 | ${breakdown.total_variable:,.0f} | {breakdown.total_variable / subtotal * 100:.1f}% |"
+        )
+        lines.append(
+            f"| 质量阶段 | ${breakdown.total_proportional:,.0f} | {breakdown.total_proportional / subtotal * 100:.1f}% |"
+        )
         lines.append(f"| 小计 | ${subtotal:,.0f} | 100% |")
-        lines.append(f"| 风险预留 ({breakdown.contingency_rate*100:.0f}%) | ${breakdown.contingency_amount:,.0f} | - |")
+        lines.append(
+            f"| 风险预留 ({breakdown.contingency_rate * 100:.0f}%) | ${breakdown.contingency_amount:,.0f} | - |"
+        )
         lines.append(f"| **总计** | **${breakdown.grand_total:,.0f}** | - |")
         lines.append("")
 

@@ -10,12 +10,13 @@ Generates a phased project plan with:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class MilestoneStatus(Enum):
     """Milestone status."""
+
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -25,6 +26,7 @@ class MilestoneStatus(Enum):
 @dataclass
 class Milestone:
     """A project milestone."""
+
     id: str
     name: str
     description: str
@@ -39,6 +41,7 @@ class Milestone:
 @dataclass
 class RiskItem:
     """A project risk with mitigation."""
+
     id: str
     category: str  # technical, resource, quality, schedule
     description: str
@@ -52,6 +55,7 @@ class RiskItem:
 @dataclass
 class AcceptanceCriteria:
     """Acceptance criteria for quality gate."""
+
     category: str
     criterion: str
     metric: str
@@ -62,6 +66,7 @@ class AcceptanceCriteria:
 @dataclass
 class MilestonePlan:
     """Complete milestone plan."""
+
     dataset_id: str
     dataset_type: str
     target_size: int
@@ -511,22 +516,20 @@ class MilestonePlanGenerator:
 
         # Get risks - prefer LLM-enhanced
         ec = enhanced_context
-        if ec and getattr(ec, 'generated', False) and ec.phase_specific_risks:
+        if ec and getattr(ec, "generated", False) and ec.phase_specific_risks:
             plan.risks = ec.phase_specific_risks
         else:
             plan.risks = self._get_risks(dataset_type, complexity_metrics)
 
         # Store team recommendations from LLM
-        if ec and getattr(ec, 'generated', False) and ec.team_recommendations:
+        if ec and getattr(ec, "generated", False) and ec.team_recommendations:
             plan._team_recommendations = ec.team_recommendations
 
         # Get acceptance criteria
         plan.acceptance_criteria = self._get_acceptance_criteria(dataset_type)
 
         # Calculate team composition
-        plan.team_composition = self._calculate_team(
-            dataset_type, target_size, human_percentage
-        )
+        plan.team_composition = self._calculate_team(dataset_type, target_size, human_percentage)
 
         # Estimate duration
         plan.estimated_days = self._estimate_duration(
@@ -537,9 +540,7 @@ class MilestonePlanGenerator:
 
     def _get_milestones(self, dataset_type: str, target_size: int) -> List[Milestone]:
         """Get milestones for dataset type."""
-        templates = MILESTONE_TEMPLATES.get(
-            dataset_type, MILESTONE_TEMPLATES.get("preference", [])
-        )
+        templates = MILESTONE_TEMPLATES.get(dataset_type, MILESTONE_TEMPLATES.get("preference", []))
 
         # Deep copy and customize
         milestones = []
@@ -570,9 +571,7 @@ class MilestonePlanGenerator:
 
         return milestones
 
-    def _get_risks(
-        self, dataset_type: str, complexity_metrics: Optional[Any]
-    ) -> List[RiskItem]:
+    def _get_risks(self, dataset_type: str, complexity_metrics: Optional[Any]) -> List[RiskItem]:
         """Get risks for project."""
         risks = []
 
@@ -582,13 +581,13 @@ class MilestonePlanGenerator:
 
         # Add based on complexity
         if complexity_metrics:
-            domain = getattr(complexity_metrics, 'primary_domain', None)
+            domain = getattr(complexity_metrics, "primary_domain", None)
             if domain:
-                domain_value = domain.value if hasattr(domain, 'value') else str(domain)
-                if domain_value in ['medical', 'legal', 'finance', 'code']:
+                domain_value = domain.value if hasattr(domain, "value") else str(domain)
+                if domain_value in ["medical", "legal", "finance", "code"]:
                     risks.append(RISK_TEMPLATES["resource_shortage"])
 
-            difficulty = getattr(complexity_metrics, 'difficulty_score', 2.0)
+            difficulty = getattr(complexity_metrics, "difficulty_score", 2.0)
             if difficulty > 3.0:
                 risks.append(RISK_TEMPLATES["requirement_change"])
 
@@ -649,7 +648,7 @@ class MilestonePlanGenerator:
 
         # Add buffer for complexity
         if complexity_metrics:
-            multiplier = getattr(complexity_metrics, 'time_multiplier', 1.0)
+            multiplier = getattr(complexity_metrics, "time_multiplier", 1.0)
             base_days *= multiplier
 
         # Add 20% buffer
@@ -685,7 +684,9 @@ class MilestonePlanGenerator:
             bar = "█" * bar_len
             spaces = " " * (20 - bar_len)
             cumulative += m.effort_percentage
-            lines.append(f"{m.id} {m.name[:12]:<12} {bar}{spaces} {m.effort_percentage}% (累计 {cumulative}%)")
+            lines.append(
+                f"{m.id} {m.name[:12]:<12} {bar}{spaces} {m.effort_percentage}% (累计 {cumulative}%)"
+            )
         lines.append("```")
         lines.append("")
 
@@ -735,7 +736,9 @@ class MilestonePlanGenerator:
         lines.append("| 类别 | 标准 | 指标 | 阈值 | 验证方法 |")
         lines.append("|------|------|------|------|----------|")
         for ac in plan.acceptance_criteria:
-            lines.append(f"| {ac.category} | {ac.criterion} | {ac.metric} | {ac.threshold} | {ac.verification_method} |")
+            lines.append(
+                f"| {ac.category} | {ac.criterion} | {ac.metric} | {ac.threshold} | {ac.verification_method} |"
+            )
         lines.append("")
 
         # Risk management
@@ -757,8 +760,16 @@ class MilestonePlanGenerator:
                 lines.append("")
             else:
                 # Original structured Risk object
-                prob_icon = "🔴" if risk.probability == "high" else "🟡" if risk.probability == "medium" else "🟢"
-                impact_icon = "🔴" if risk.impact == "high" else "🟡" if risk.impact == "medium" else "🟢"
+                prob_icon = (
+                    "🔴"
+                    if risk.probability == "high"
+                    else "🟡"
+                    if risk.probability == "medium"
+                    else "🟢"
+                )
+                impact_icon = (
+                    "🔴" if risk.impact == "high" else "🟡" if risk.impact == "medium" else "🟢"
+                )
 
                 lines.append(f"### {risk.id}: {risk.description}")
                 lines.append("")
@@ -770,7 +781,7 @@ class MilestonePlanGenerator:
                 lines.append("")
 
         # LLM-enhanced team recommendations
-        team_recs = getattr(plan, '_team_recommendations', None)
+        team_recs = getattr(plan, "_team_recommendations", None)
         if team_recs:
             lines.append("### 团队建议")
             lines.append("")

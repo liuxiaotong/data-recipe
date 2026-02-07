@@ -1,13 +1,13 @@
 """Production guide and data generators."""
 
+from .enhanced_guide import EnhancedGuideGenerator, EnhancedProductionGuide
 from .human_machine_split import (
+    HumanMachineAllocation,
     HumanMachineSplitter,
     TaskAllocation,
-    HumanMachineAllocation,
     TaskType,
 )
-from .enhanced_guide import EnhancedGuideGenerator, EnhancedProductionGuide
-from .pattern_generator import PatternGenerator, GeneratedDataItem
+from .pattern_generator import GeneratedDataItem, PatternGenerator
 from .spec_output import SpecOutputGenerator, SpecOutputResult
 
 __all__ = [

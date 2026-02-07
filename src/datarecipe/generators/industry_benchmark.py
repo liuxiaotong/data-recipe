@@ -6,7 +6,7 @@ to industry standards and similar well-known datasets.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -82,6 +82,7 @@ class IndustryBenchmarkGenerator:
         # Get benchmark data from catalog
         try:
             from datarecipe.knowledge import DatasetCatalog
+
             catalog = DatasetCatalog()
             benchmark_result = catalog.compare_with_benchmark(
                 category=dataset_type,
@@ -209,9 +210,9 @@ class IndustryBenchmarkGenerator:
             lines.append("")
 
             # Cost comparison bar
-            min_cost = cost_range.get('min', 0)
-            avg_cost = cost_range.get('avg', 1)
-            max_cost = cost_range.get('max', avg_cost * 2)
+            min_cost = cost_range.get("min", 0)
+            avg_cost = cost_range.get("avg", 1)
+            max_cost = cost_range.get("max", avg_cost * 2)
 
             lines.append("### 成本定位")
             lines.append("")
@@ -232,7 +233,9 @@ class IndustryBenchmarkGenerator:
                 bar[your_marker] = "◆"
 
             lines.append(f"低 │{''.join(bar)}│ 高")
-            lines.append(f"   ${min_cost:.1f}         ◆ 您的项目: ${comparison.cost_per_sample:.2f}         ${max_cost:.1f}")
+            lines.append(
+                f"   ${min_cost:.1f}         ◆ 您的项目: ${comparison.cost_per_sample:.2f}         ${max_cost:.1f}"
+            )
             lines.append("```")
             lines.append("")
 

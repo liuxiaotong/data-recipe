@@ -4,7 +4,6 @@ Uses accumulated cost benchmarks to calibrate and improve
 the accuracy of cost estimates for new datasets.
 """
 
-import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -81,6 +80,7 @@ class CostCalibrator:
         if self.kb is None:
             try:
                 from datarecipe.knowledge import KnowledgeBase
+
                 self.kb = KnowledgeBase()
             except Exception:
                 self.kb = None
@@ -128,19 +128,13 @@ class CostCalibrator:
 
         if benchmark and len(benchmark.datasets) >= 3:
             # We have enough data to calibrate
-            result = self._calibrate_with_benchmark(
-                result, benchmark, human_cost, api_cost
-            )
+            result = self._calibrate_with_benchmark(result, benchmark, human_cost, api_cost)
         elif benchmark and len(benchmark.datasets) >= 1:
             # Limited data, partial calibration
-            result = self._calibrate_limited(
-                result, benchmark, human_cost, api_cost
-            )
+            result = self._calibrate_limited(result, benchmark, human_cost, api_cost)
         else:
             # No data for this type, try to find similar types
-            result = self._calibrate_from_similar(
-                result, dataset_type, human_cost, api_cost
-            )
+            result = self._calibrate_from_similar(result, dataset_type, human_cost, api_cost)
 
         return result
 

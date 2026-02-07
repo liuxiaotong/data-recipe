@@ -6,11 +6,11 @@ from typing import Optional
 import requests
 
 from datarecipe.schema import (
-    Recipe,
     Cost,
-    Reproducibility,
     GenerationMethod,
     GenerationType,
+    Recipe,
+    Reproducibility,
     SourceType,
 )
 
@@ -72,9 +72,7 @@ class WebExtractor:
     def _fetch_page(self, url: str) -> Optional[str]:
         """Fetch and parse web page content."""
         try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (compatible; DataRecipe/1.0)"
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (compatible; DataRecipe/1.0)"}
             response = requests.get(url, headers=headers, timeout=15)
             if response.status_code == 200:
                 return response.text
@@ -91,7 +89,7 @@ class WebExtractor:
             # Clean up common suffixes
             for suffix in [" - GitHub", " | Hugging Face", " - Papers With Code"]:
                 if title.endswith(suffix):
-                    title = title[:-len(suffix)]
+                    title = title[: -len(suffix)]
             return title
 
         # Try <h1> tag
@@ -107,7 +105,7 @@ class WebExtractor:
         match = re.search(
             r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']',
             content,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
         if match:
             return match.group(1).strip()
@@ -116,7 +114,7 @@ class WebExtractor:
         match = re.search(
             r'<meta\s+property=["\']og:description["\']\s+content=["\']([^"\']+)["\']',
             content,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
         if match:
             return match.group(1).strip()
@@ -154,12 +152,25 @@ class WebExtractor:
         content_lower = content.lower()
 
         synthetic_keywords = [
-            "synthetic", "generated", "distill", "teacher", "api",
-            "llm-generated", "machine-generated", "ai-generated"
+            "synthetic",
+            "generated",
+            "distill",
+            "teacher",
+            "api",
+            "llm-generated",
+            "machine-generated",
+            "ai-generated",
         ]
         human_keywords = [
-            "human", "annotated", "crowdsource", "manual", "expert",
-            "mturk", "mechanical turk", "scale ai", "labelbox"
+            "human",
+            "annotated",
+            "crowdsource",
+            "manual",
+            "expert",
+            "mturk",
+            "mechanical turk",
+            "scale ai",
+            "labelbox",
         ]
 
         synthetic_score = sum(1 for kw in synthetic_keywords if kw in content_lower)
@@ -183,20 +194,26 @@ class WebExtractor:
 
         if teacher_models:
             for model in teacher_models:
-                methods.append(GenerationMethod(
-                    method_type="distillation",
-                    teacher_model=model,
-                ))
+                methods.append(
+                    GenerationMethod(
+                        method_type="distillation",
+                        teacher_model=model,
+                    )
+                )
 
         if generation_type in [GenerationType.HUMAN, GenerationType.MIXED]:
-            methods.append(GenerationMethod(
-                method_type="human_annotation",
-            ))
+            methods.append(
+                GenerationMethod(
+                    method_type="human_annotation",
+                )
+            )
 
         if not methods and generation_type == GenerationType.UNKNOWN:
-            methods.append(GenerationMethod(
-                method_type="unknown",
-            ))
+            methods.append(
+                GenerationMethod(
+                    method_type="unknown",
+                )
+            )
 
         return methods
 
@@ -214,9 +231,9 @@ class WebExtractor:
             if match:
                 num_str = match.group(1)
                 # Handle k/m suffixes
-                if 'k' in content[match.start():match.end()].lower():
+                if "k" in content[match.start() : match.end()].lower():
                     return int(float(num_str.replace(",", "")) * 1000)
-                elif 'm' in content[match.start():match.end()].lower():
+                elif "m" in content[match.start() : match.end()].lower():
                     return int(float(num_str.replace(",", "")) * 1000000)
                 else:
                     return int(num_str.replace(",", ""))

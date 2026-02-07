@@ -2,12 +2,12 @@
 
 import json
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Any
-import threading
+from typing import Callable, Dict, List, Optional
 
 
 @dataclass
@@ -40,7 +40,8 @@ class TriggerConfig:
         """Load config from YAML file."""
         try:
             import yaml
-            with open(path, "r", encoding="utf-8") as f:
+
+            with open(path, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
             return cls.from_dict(data.get("triggers", data))
         except ImportError:
@@ -81,7 +82,7 @@ class RadarWatcher:
         """Load processed files state."""
         if self.state_file.exists():
             try:
-                with open(self.state_file, "r") as f:
+                with open(self.state_file) as f:
                     self.processed_files = json.load(f)
             except Exception:
                 self.processed_files = {}
@@ -148,7 +149,6 @@ class RadarWatcher:
                 return result
 
             # Analyze each dataset
-            from datarecipe.integrations.radar import RadarIntegration as RI
             from datarecipe.cache import AnalysisCache
 
             cache = AnalysisCache()
@@ -158,11 +158,13 @@ class RadarWatcher:
                     # Check cache first
                     cached = cache.get(ds.id, check_freshness=True)
                     if cached:
-                        result["summaries"].append({
-                            "dataset_id": ds.id,
-                            "status": "cached",
-                            "type": cached.dataset_type,
-                        })
+                        result["summaries"].append(
+                            {
+                                "dataset_id": ds.id,
+                                "status": "cached",
+                                "type": cached.dataset_type,
+                            }
+                        )
                         result["datasets_analyzed"] += 1
                         continue
 
@@ -171,31 +173,37 @@ class RadarWatcher:
 
                     if analysis_result.get("success"):
                         result["datasets_analyzed"] += 1
-                        result["summaries"].append({
-                            "dataset_id": ds.id,
-                            "status": "analyzed",
-                            "type": analysis_result.get("type", "unknown"),
-                            "cost": analysis_result.get("cost", 0),
-                        })
+                        result["summaries"].append(
+                            {
+                                "dataset_id": ds.id,
+                                "status": "analyzed",
+                                "type": analysis_result.get("type", "unknown"),
+                                "cost": analysis_result.get("cost", 0),
+                            }
+                        )
 
                         # Callback
                         if self.callback:
                             self.callback(ds.id, analysis_result)
                     else:
                         result["datasets_failed"] += 1
-                        result["summaries"].append({
-                            "dataset_id": ds.id,
-                            "status": "failed",
-                            "error": analysis_result.get("error", "Unknown error"),
-                        })
+                        result["summaries"].append(
+                            {
+                                "dataset_id": ds.id,
+                                "status": "failed",
+                                "error": analysis_result.get("error", "Unknown error"),
+                            }
+                        )
 
                 except Exception as e:
                     result["datasets_failed"] += 1
-                    result["summaries"].append({
-                        "dataset_id": ds.id,
-                        "status": "failed",
-                        "error": str(e),
-                    })
+                    result["summaries"].append(
+                        {
+                            "dataset_id": ds.id,
+                            "status": "failed",
+                            "error": str(e),
+                        }
+                    )
 
             # Mark as processed
             self.processed_files[str(report_path)] = str(report_path.stat().st_mtime)
@@ -215,14 +223,13 @@ class RadarWatcher:
         Returns:
             Analysis result dict
         """
-        import os
 
         try:
             from datasets import load_dataset
-            from datarecipe.extractors import RubricsAnalyzer, PromptExtractor
+
+            from datarecipe.cache import AnalysisCache
             from datarecipe.generators import HumanMachineSplitter, TaskType
             from datarecipe.integrations.radar import RadarIntegration
-            from datarecipe.cache import AnalysisCache
 
             # Setup
             safe_name = dataset_id.replace("/", "_").replace("\\", "_")
@@ -286,7 +293,7 @@ class RadarWatcher:
                     TaskType.RUBRICS_WRITING,
                     TaskType.DATA_GENERATION,
                     TaskType.QUALITY_REVIEW,
-                ]
+                ],
             )
 
             # Create summary

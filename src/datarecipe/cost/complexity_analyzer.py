@@ -6,23 +6,23 @@ affect human annotation time and quality requirements.
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class DomainType(Enum):
     """Domain categories with difficulty levels."""
 
-    GENERAL = "general"              # General conversation, Q&A
-    CREATIVE = "creative"            # Creative writing, stories
-    TECHNICAL = "technical"          # Technical documentation
-    CODE = "code"                    # Programming, software
-    MATH = "math"                    # Mathematics, calculations
-    SCIENCE = "science"              # Scientific content
-    MEDICAL = "medical"              # Medical, healthcare
-    LEGAL = "legal"                  # Legal documents
-    FINANCE = "finance"              # Financial, trading
-    ACADEMIC = "academic"            # Research, papers
+    GENERAL = "general"  # General conversation, Q&A
+    CREATIVE = "creative"  # Creative writing, stories
+    TECHNICAL = "technical"  # Technical documentation
+    CODE = "code"  # Programming, software
+    MATH = "math"  # Mathematics, calculations
+    SCIENCE = "science"  # Scientific content
+    MEDICAL = "medical"  # Medical, healthcare
+    LEGAL = "legal"  # Legal documents
+    FINANCE = "finance"  # Financial, trading
+    ACADEMIC = "academic"  # Research, papers
 
 
 # Domain difficulty multipliers for human annotation time
@@ -135,60 +135,185 @@ class ComplexityAnalyzer:
     # Domain detection keywords
     DOMAIN_KEYWORDS = {
         DomainType.CODE: [
-            "function", "class", "def ", "import ", "return", "if ", "for ",
-            "while", "try:", "except", "async", "await", "const ", "let ",
-            "var ", "public", "private", "void", "int ", "string",
-            "```python", "```java", "```javascript", "```cpp",
+            "function",
+            "class",
+            "def ",
+            "import ",
+            "return",
+            "if ",
+            "for ",
+            "while",
+            "try:",
+            "except",
+            "async",
+            "await",
+            "const ",
+            "let ",
+            "var ",
+            "public",
+            "private",
+            "void",
+            "int ",
+            "string",
+            "```python",
+            "```java",
+            "```javascript",
+            "```cpp",
         ],
         DomainType.MATH: [
-            "equation", "formula", "calculate", "derivative", "integral",
-            "theorem", "proof", "∫", "∑", "√", "π", "∞", "≤", "≥",
-            "matrix", "vector", "polynomial", "logarithm", "exponential",
+            "equation",
+            "formula",
+            "calculate",
+            "derivative",
+            "integral",
+            "theorem",
+            "proof",
+            "∫",
+            "∑",
+            "√",
+            "π",
+            "∞",
+            "≤",
+            "≥",
+            "matrix",
+            "vector",
+            "polynomial",
+            "logarithm",
+            "exponential",
         ],
         DomainType.MEDICAL: [
-            "patient", "diagnosis", "treatment", "symptom", "disease",
-            "medication", "clinical", "hospital", "surgery", "therapy",
-            "prescription", "dosage", "medical history", "pathology",
+            "patient",
+            "diagnosis",
+            "treatment",
+            "symptom",
+            "disease",
+            "medication",
+            "clinical",
+            "hospital",
+            "surgery",
+            "therapy",
+            "prescription",
+            "dosage",
+            "medical history",
+            "pathology",
         ],
         DomainType.LEGAL: [
-            "contract", "clause", "liability", "plaintiff", "defendant",
-            "court", "judgment", "statute", "regulation", "compliance",
-            "attorney", "litigation", "jurisdiction", "precedent",
+            "contract",
+            "clause",
+            "liability",
+            "plaintiff",
+            "defendant",
+            "court",
+            "judgment",
+            "statute",
+            "regulation",
+            "compliance",
+            "attorney",
+            "litigation",
+            "jurisdiction",
+            "precedent",
         ],
         DomainType.FINANCE: [
-            "investment", "portfolio", "stock", "bond", "dividend",
-            "market", "trading", "asset", "liability", "equity",
-            "revenue", "profit", "loss", "balance sheet", "cash flow",
+            "investment",
+            "portfolio",
+            "stock",
+            "bond",
+            "dividend",
+            "market",
+            "trading",
+            "asset",
+            "liability",
+            "equity",
+            "revenue",
+            "profit",
+            "loss",
+            "balance sheet",
+            "cash flow",
         ],
         DomainType.SCIENCE: [
-            "hypothesis", "experiment", "observation", "theory",
-            "research", "study", "analysis", "data", "methodology",
-            "conclusion", "findings", "sample", "variable", "control",
+            "hypothesis",
+            "experiment",
+            "observation",
+            "theory",
+            "research",
+            "study",
+            "analysis",
+            "data",
+            "methodology",
+            "conclusion",
+            "findings",
+            "sample",
+            "variable",
+            "control",
         ],
         DomainType.ACADEMIC: [
-            "abstract", "introduction", "methodology", "results",
-            "discussion", "conclusion", "references", "citation",
-            "literature review", "hypothesis", "findings",
+            "abstract",
+            "introduction",
+            "methodology",
+            "results",
+            "discussion",
+            "conclusion",
+            "references",
+            "citation",
+            "literature review",
+            "hypothesis",
+            "findings",
         ],
         DomainType.TECHNICAL: [
-            "configuration", "installation", "setup", "documentation",
-            "api", "endpoint", "request", "response", "server", "client",
-            "database", "query", "protocol", "specification",
+            "configuration",
+            "installation",
+            "setup",
+            "documentation",
+            "api",
+            "endpoint",
+            "request",
+            "response",
+            "server",
+            "client",
+            "database",
+            "query",
+            "protocol",
+            "specification",
         ],
         DomainType.CREATIVE: [
-            "story", "character", "plot", "narrative", "dialogue",
-            "scene", "chapter", "protagonist", "setting", "theme",
-            "poem", "verse", "metaphor", "imagery",
+            "story",
+            "character",
+            "plot",
+            "narrative",
+            "dialogue",
+            "scene",
+            "chapter",
+            "protagonist",
+            "setting",
+            "theme",
+            "poem",
+            "verse",
+            "metaphor",
+            "imagery",
         ],
     }
 
     # Technical terms for density calculation
-    TECHNICAL_TERMS = set([
-        "algorithm", "parameter", "configuration", "implementation",
-        "optimization", "architecture", "framework", "interface",
-        "protocol", "specification", "methodology", "infrastructure",
-        "deployment", "scalability", "performance", "latency",
-    ])
+    TECHNICAL_TERMS = set(
+        [
+            "algorithm",
+            "parameter",
+            "configuration",
+            "implementation",
+            "optimization",
+            "architecture",
+            "framework",
+            "interface",
+            "protocol",
+            "specification",
+            "methodology",
+            "infrastructure",
+            "deployment",
+            "scalability",
+            "performance",
+            "latency",
+        ]
+    )
 
     def analyze(
         self,
@@ -287,9 +412,7 @@ class ComplexityAnalyzer:
                 metrics.primary_domain = DomainType.GENERAL
                 metrics.domain_confidence = 0.5
 
-    def _analyze_text_length(
-        self, metrics: ComplexityMetrics, lengths: List[int]
-    ) -> None:
+    def _analyze_text_length(self, metrics: ComplexityMetrics, lengths: List[int]) -> None:
         """Analyze text length distribution."""
         if not lengths:
             return
@@ -351,15 +474,11 @@ class ComplexityAnalyzer:
         if isinstance(obj, dict):
             if not obj:
                 return current_depth
-            return max(
-                self._get_max_depth(v, current_depth + 1) for v in obj.values()
-            )
+            return max(self._get_max_depth(v, current_depth + 1) for v in obj.values())
         elif isinstance(obj, list):
             if not obj:
                 return current_depth
-            return max(
-                self._get_max_depth(item, current_depth + 1) for item in obj[:5]
-            )
+            return max(self._get_max_depth(item, current_depth + 1) for item in obj[:5])
         return current_depth
 
     def _analyze_content(
@@ -373,16 +492,16 @@ class ComplexityAnalyzer:
             return
 
         # Vocabulary richness (type-token ratio)
-        words = re.findall(r'\b\w+\b', combined_text.lower())
+        words = re.findall(r"\b\w+\b", combined_text.lower())
         if words:
             unique_words = set(words)
             metrics.vocabulary_richness = len(unique_words) / len(words)
 
         # Average sentence length
-        sentences = re.split(r'[.!?]+', combined_text)
+        sentences = re.split(r"[.!?]+", combined_text)
         sentences = [s.strip() for s in sentences if s.strip()]
         if sentences:
-            word_counts = [len(re.findall(r'\b\w+\b', s)) for s in sentences]
+            word_counts = [len(re.findall(r"\b\w+\b", s)) for s in sentences]
             metrics.avg_sentence_length = sum(word_counts) / len(word_counts)
 
         # Technical term density
@@ -392,15 +511,13 @@ class ComplexityAnalyzer:
 
         # Code density
         code_patterns = [
-            r'```[\s\S]*?```',
-            r'def\s+\w+\s*\(',
-            r'function\s+\w+\s*\(',
-            r'class\s+\w+',
+            r"```[\s\S]*?```",
+            r"def\s+\w+\s*\(",
+            r"function\s+\w+\s*\(",
+            r"class\s+\w+",
             r'\{\s*\n\s*"',
         ]
-        code_matches = sum(
-            len(re.findall(p, combined_text)) for p in code_patterns
-        )
+        code_matches = sum(len(re.findall(p, combined_text)) for p in code_patterns)
         metrics.code_density = min(code_matches / max(len(all_texts), 1), 1.0)
 
     def _analyze_quality(
@@ -473,9 +590,7 @@ class ComplexityAnalyzer:
         metrics.time_multiplier = (
             domain_mult * length_mult * structure_mult * quality_mult * content_mult
         )
-        metrics.cost_multiplier = (
-            expert_mult * length_mult * quality_mult * content_mult
-        )
+        metrics.cost_multiplier = expert_mult * length_mult * quality_mult * content_mult
 
         # Difficulty score (1-5 scale)
         raw_difficulty = (domain_mult + length_mult + structure_mult + quality_mult) / 4

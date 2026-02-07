@@ -4,8 +4,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -84,7 +83,7 @@ class IntegratedReportGenerator:
         Returns:
             Report data dict
         """
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             return json.load(f)
 
     def load_recipe_summary(self, dataset_id: str) -> Optional[Dict[str, Any]]:
@@ -100,7 +99,7 @@ class IntegratedReportGenerator:
         summary_path = os.path.join(self.recipe_output_dir, safe_name, "recipe_summary.json")
 
         if os.path.exists(summary_path):
-            with open(summary_path, "r", encoding="utf-8") as f:
+            with open(summary_path, encoding="utf-8") as f:
                 return json.load(f)
         return None
 
@@ -156,7 +155,9 @@ class IntegratedReportGenerator:
                 if recipe_summary:
                     entry.analyzed = True
                     entry.dataset_type = recipe_summary.get("dataset_type", "")
-                    entry.reproduction_cost = recipe_summary.get("reproduction_cost", {}).get("total", 0)
+                    entry.reproduction_cost = recipe_summary.get("reproduction_cost", {}).get(
+                        "total", 0
+                    )
                     entry.human_percentage = recipe_summary.get("human_percentage", 0)
                     entry.difficulty = recipe_summary.get("difficulty", "")
                     entry.sample_count = recipe_summary.get("sample_count", 0)
@@ -169,15 +170,17 @@ class IntegratedReportGenerator:
                 report.total_discovered += 1
                 report.discoveries_by_org[org] = report.discoveries_by_org.get(org, 0) + 1
                 if entry.category:
-                    report.discoveries_by_category[entry.category] = \
+                    report.discoveries_by_category[entry.category] = (
                         report.discoveries_by_category.get(entry.category, 0) + 1
+                    )
 
                 if entry.analyzed:
                     report.total_analyzed += 1
                     report.total_reproduction_cost += entry.reproduction_cost
                     if entry.dataset_type:
-                        report.analysis_by_type[entry.dataset_type] = \
+                        report.analysis_by_type[entry.dataset_type] = (
                             report.analysis_by_type.get(entry.dataset_type, 0) + 1
+                        )
 
         # Also scan recipe output directory for additional analyses
         if os.path.exists(self.recipe_output_dir):
@@ -187,7 +190,7 @@ class IntegratedReportGenerator:
                 summary_path = os.path.join(self.recipe_output_dir, name, "recipe_summary.json")
                 if os.path.exists(summary_path):
                     try:
-                        with open(summary_path, "r", encoding="utf-8") as f:
+                        with open(summary_path, encoding="utf-8") as f:
                             summary = json.load(f)
                         dataset_id = summary.get("dataset_id", name.replace("_", "/", 1))
 
@@ -198,7 +201,9 @@ class IntegratedReportGenerator:
                                 org=org,
                                 analyzed=True,
                                 dataset_type=summary.get("dataset_type", ""),
-                                reproduction_cost=summary.get("reproduction_cost", {}).get("total", 0),
+                                reproduction_cost=summary.get("reproduction_cost", {}).get(
+                                    "total", 0
+                                ),
                                 human_percentage=summary.get("human_percentage", 0),
                                 difficulty=summary.get("difficulty", ""),
                                 sample_count=summary.get("sample_count", 0),
@@ -210,8 +215,9 @@ class IntegratedReportGenerator:
                             report.total_analyzed += 1
                             report.total_reproduction_cost += entry.reproduction_cost
                             if entry.dataset_type:
-                                report.analysis_by_type[entry.dataset_type] = \
+                                report.analysis_by_type[entry.dataset_type] = (
                                     report.analysis_by_type.get(entry.dataset_type, 0) + 1
+                                )
 
                     except Exception:
                         continue
@@ -219,7 +225,9 @@ class IntegratedReportGenerator:
         # Calculate averages
         analyzed_entries = [d for d in datasets if d.analyzed]
         if analyzed_entries:
-            report.avg_human_percentage = sum(d.human_percentage for d in analyzed_entries) / len(analyzed_entries)
+            report.avg_human_percentage = sum(d.human_percentage for d in analyzed_entries) / len(
+                analyzed_entries
+            )
 
         # Sort datasets by downloads (descending)
         datasets.sort(key=lambda x: x.downloads, reverse=True)
@@ -248,7 +256,9 @@ class IntegratedReportGenerator:
         # Analysis coverage
         if report.total_discovered > 0:
             coverage = report.total_analyzed / report.total_discovered * 100
-            insights.append(f"分析覆盖率: {coverage:.0f}% ({report.total_analyzed}/{report.total_discovered})")
+            insights.append(
+                f"分析覆盖率: {coverage:.0f}% ({report.total_analyzed}/{report.total_discovered})"
+            )
 
         # Cost insights
         if report.total_analyzed > 0:
@@ -286,13 +296,13 @@ class IntegratedReportGenerator:
         lines = []
 
         # Header
-        lines.append(f"# AI 数据集周报")
+        lines.append("# AI 数据集周报")
         lines.append("")
         lines.append(f"> **周期**: {report.period_start} ~ {report.period_end}")
-        lines.append(f">")
+        lines.append(">")
         lines.append(f"> **生成时间**: {report.generated_at[:16].replace('T', ' ')}")
-        lines.append(f">")
-        lines.append(f"> 由 DataRecipe + ai-dataset-radar 联合生成")
+        lines.append(">")
+        lines.append("> 由 DataRecipe + ai-dataset-radar 联合生成")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -373,7 +383,9 @@ class IntegratedReportGenerator:
             lines.append("| 数据集 | 组织 | 类别 | 下载量 |")
             lines.append("|--------|------|------|--------|")
             for d in not_analyzed[:10]:
-                lines.append(f"| {d.dataset_id} | {d.org} | {d.category or '-'} | {d.downloads:,} |")
+                lines.append(
+                    f"| {d.dataset_id} | {d.org} | {d.category or '-'} | {d.downloads:,} |"
+                )
             if len(not_analyzed) > 10:
                 lines.append(f"| ... | | | 还有 {len(not_analyzed) - 10} 个 |")
             lines.append("")

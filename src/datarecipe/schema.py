@@ -1,9 +1,9 @@
 """Data classes for representing dataset recipes."""
 
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Protocol, runtime_checkable
-import json
 
 
 class GenerationType(Enum):
@@ -203,10 +203,7 @@ class Recipe:
         import yaml
 
         return yaml.dump(
-            self.to_dict(),
-            default_flow_style=False,
-            sort_keys=False,
-            allow_unicode=True
+            self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True
         )
 
 
@@ -217,14 +214,16 @@ class Recipe:
 
 class ExperienceLevel(Enum):
     """Annotator experience level."""
-    JUNIOR = "junior"          # 初级：0-1年
-    MID = "mid"                # 中级：1-3年
-    SENIOR = "senior"          # 高级：3-5年
-    EXPERT = "expert"          # 专家：5年+
+
+    JUNIOR = "junior"  # 初级：0-1年
+    MID = "mid"  # 中级：1-3年
+    SENIOR = "senior"  # 高级：3-5年
+    EXPERT = "expert"  # 专家：5年+
 
 
 class EducationLevel(Enum):
     """学历要求"""
+
     HIGH_SCHOOL = "high_school"
     BACHELOR = "bachelor"
     MASTER = "master"
@@ -234,18 +233,20 @@ class EducationLevel(Enum):
 
 class ReviewWorkflow(Enum):
     """审核流程"""
-    SINGLE = "single"          # 单人标注
-    DOUBLE = "double"          # 双人交叉验证
-    EXPERT = "expert"          # 专家审核
+
+    SINGLE = "single"  # 单人标注
+    DOUBLE = "double"  # 双人交叉验证
+    EXPERT = "expert"  # 专家审核
 
 
 @dataclass
 class SkillRequirement:
     """技能要求"""
-    skill_type: str            # programming, domain, language, tool, certification
-    name: str                  # Python, 医疗, 英语, Excel
-    level: str                 # basic, intermediate, advanced, native, required
-    required: bool = True      # 必须 vs 加分项
+
+    skill_type: str  # programming, domain, language, tool, certification
+    name: str  # Python, 医疗, 英语, Excel
+    level: str  # basic, intermediate, advanced, native, required
+    required: bool = True  # 必须 vs 加分项
     details: Optional[str] = None
 
     def to_dict(self) -> dict:
@@ -287,9 +288,9 @@ class AnnotatorProfile:
     estimated_hours_per_example: float = 0.0
 
     # 费率参考
-    hourly_rate_range: dict = field(default_factory=lambda: {
-        "min": 15, "max": 45, "currency": "USD"
-    })
+    hourly_rate_range: dict = field(
+        default_factory=lambda: {"min": 15, "max": 45, "currency": "USD"}
+    )
 
     # 筛选标准
     screening_criteria: list[str] = field(default_factory=list)
@@ -324,6 +325,7 @@ class AnnotatorProfile:
     def to_yaml(self) -> str:
         """Export as YAML string."""
         import yaml
+
         return yaml.dump(self.to_dict(), default_flow_style=False, allow_unicode=True)
 
     def to_json(self) -> str:
@@ -334,12 +336,13 @@ class AnnotatorProfile:
 @dataclass
 class QualityRule:
     """Quality check rule."""
+
     rule_id: str
     name: str
     description: str
-    check_type: str            # format, content, consistency, semantic
-    severity: str              # error, warning, info
-    auto_check: bool = True    # 是否可自动检查
+    check_type: str  # format, content, consistency, semantic
+    severity: str  # error, warning, info
+    auto_check: bool = True  # 是否可自动检查
     check_code: Optional[str] = None  # 检查代码/正则
 
     def to_dict(self) -> dict:
@@ -356,12 +359,13 @@ class QualityRule:
 @dataclass
 class AcceptanceCriterion:
     """验收标准"""
+
     criterion_id: str
     name: str
     description: str
-    threshold: float           # 达标阈值
-    metric_type: str           # accuracy, agreement, completeness, etc.
-    priority: str = "required" # required, recommended, optional
+    threshold: float  # 达标阈值
+    metric_type: str  # accuracy, agreement, completeness, etc.
+    priority: str = "required"  # required, recommended, optional
 
     def to_dict(self) -> dict:
         return {
@@ -377,6 +381,7 @@ class AcceptanceCriterion:
 @dataclass
 class Milestone:
     """项目里程碑"""
+
     name: str
     description: str
     deliverables: list[str]
@@ -421,7 +426,9 @@ class ProductionConfig:
     def to_dict(self) -> dict:
         """转换为字典"""
         return {
-            "annotation_guide": self.annotation_guide[:500] + "..." if len(self.annotation_guide) > 500 else self.annotation_guide,
+            "annotation_guide": self.annotation_guide[:500] + "..."
+            if len(self.annotation_guide) > 500
+            else self.annotation_guide,
             "annotation_guide_url": self.annotation_guide_url,
             "quality_rules": [r.to_dict() for r in self.quality_rules],
             "acceptance_criteria": [c.to_dict() for c in self.acceptance_criteria],
@@ -446,12 +453,14 @@ class EnhancedCost:
 
     # 新增人力成本细分
     human_cost: float = 0.0
-    human_cost_breakdown: dict = field(default_factory=lambda: {
-        "annotation": 0.0,
-        "review": 0.0,
-        "expert_consultation": 0.0,
-        "project_management": 0.0,
-    })
+    human_cost_breakdown: dict = field(
+        default_factory=lambda: {
+            "annotation": 0.0,
+            "review": 0.0,
+            "expert_consultation": 0.0,
+            "project_management": 0.0,
+        }
+    )
 
     # 地区系数
     region: str = "us"
@@ -537,7 +546,9 @@ class DataRecipe:
             generation_type=recipe.generation_type,
             synthetic_ratio=recipe.synthetic_ratio,
             human_ratio=recipe.human_ratio,
-            generation_methods=recipe.generation_methods.copy() if recipe.generation_methods else [],
+            generation_methods=recipe.generation_methods.copy()
+            if recipe.generation_methods
+            else [],
             teacher_models=recipe.teacher_models.copy() if recipe.teacher_models else [],
             cost=recipe.cost,
             reproducibility=recipe.reproducibility,
@@ -619,7 +630,10 @@ class DataRecipe:
     def to_yaml(self) -> str:
         """Export as YAML string."""
         import yaml
-        return yaml.dump(self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+        return yaml.dump(
+            self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True
+        )
 
 
 # =============================================================================
@@ -630,6 +644,7 @@ class DataRecipe:
 @dataclass
 class ValidationResult:
     """Configuration validation result."""
+
     valid: bool
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -638,9 +653,10 @@ class ValidationResult:
 @dataclass
 class AnnotatorMatch:
     """Annotator matching result."""
+
     annotator_id: str
     name: str
-    match_score: float         # 0-1 match score
+    match_score: float  # 0-1 match score
     skills_matched: list[str] = field(default_factory=list)
     skills_missing: list[str] = field(default_factory=list)
     hourly_rate: float = 0.0
@@ -650,6 +666,7 @@ class AnnotatorMatch:
 @dataclass
 class ProjectHandle:
     """项目句柄"""
+
     project_id: str
     provider: str
     created_at: str
@@ -661,6 +678,7 @@ class ProjectHandle:
 @dataclass
 class DeploymentResult:
     """部署结果"""
+
     success: bool
     project_handle: Optional[ProjectHandle] = None
     error: Optional[str] = None
@@ -670,8 +688,9 @@ class DeploymentResult:
 @dataclass
 class ProjectStatus:
     """项目状态"""
-    status: str                # pending, in_progress, completed, failed
-    progress: float = 0.0      # 0-100
+
+    status: str  # pending, in_progress, completed, failed
+    progress: float = 0.0  # 0-100
     completed_count: int = 0
     total_count: int = 0
     quality_score: Optional[float] = None

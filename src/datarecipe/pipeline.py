@@ -1,12 +1,13 @@
 """Pipeline extraction and production guide generation."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class PipelineStepType(Enum):
     """Types of pipeline steps."""
+
     DATA_COLLECTION = "data_collection"
     SEED_DATA = "seed_data"
     PROMPT_DESIGN = "prompt_design"
@@ -22,6 +23,7 @@ class PipelineStepType(Enum):
 @dataclass
 class PipelineStep:
     """A single step in the data production pipeline."""
+
     step_number: int
     step_type: PipelineStepType
     name: str
@@ -38,6 +40,7 @@ class PipelineStep:
 @dataclass
 class ProductionPipeline:
     """Complete data production pipeline."""
+
     name: str
     description: str
     target_size: Optional[int] = None
@@ -108,7 +111,7 @@ PIPELINE_TEMPLATES = {
                 outputs=["raw_generated.jsonl"],
                 tools=["OpenAI API", "Anthropic API", "本地模型"],
                 estimated_cost=0.01,  # per 1k tokens
-                code_snippet='''import openai
+                code_snippet="""import openai
 from tqdm import tqdm
 
 def generate_batch(prompts, model="gpt-4"):
@@ -120,7 +123,7 @@ def generate_batch(prompts, model="gpt-4"):
             temperature=0.7,
         )
         results.append(response.choices[0].message.content)
-    return results''',
+    return results""",
                 tips=[
                     "使用批量 API 降低成本",
                     "设置合理的 temperature",
@@ -135,7 +138,7 @@ def generate_batch(prompts, model="gpt-4"):
                 description="过滤低质量或不符合要求的生成结果",
                 inputs=["raw_generated.jsonl"],
                 outputs=["filtered_data.jsonl"],
-                code_snippet='''def quality_filter(data):
+                code_snippet="""def quality_filter(data):
     filtered = []
     for item in data:
         # 长度检查
@@ -148,7 +151,7 @@ def generate_batch(prompts, model="gpt-4"):
         if is_duplicate(item, filtered):
             continue
         filtered.append(item)
-    return filtered''',
+    return filtered""",
                 tips=[
                     "定义明确的质量标准",
                     "保留过滤日志用于分析",
@@ -176,10 +179,10 @@ def generate_batch(prompts, model="gpt-4"):
                 inputs=["validated_data.jsonl"],
                 outputs=["final_dataset/"],
                 tools=["HuggingFace datasets", "pandas"],
-                code_snippet='''from datasets import Dataset
+                code_snippet="""from datasets import Dataset
 
 dataset = Dataset.from_json("validated_data.jsonl")
-dataset.push_to_hub("your-org/dataset-name")''',
+dataset.push_to_hub("your-org/dataset-name")""",
             ),
         ],
         quality_criteria=[
@@ -197,7 +200,6 @@ dataset.push_to_hub("your-org/dataset-name")''',
             "未记录生成参数导致无法复现",
         ],
     ),
-
     "human_annotation": ProductionPipeline(
         name="人工标注数据集生产流程",
         description="通过众包或专家标注创建高质量数据",
@@ -286,7 +288,6 @@ dataset.push_to_hub("your-org/dataset-name")''',
             "标注者疲劳导致质量下降",
         ],
     ),
-
     "hybrid": ProductionPipeline(
         name="混合数据集生产流程（LLM + 人工）",
         description="结合 LLM 生成和人工验证/修正",
@@ -353,7 +354,6 @@ dataset.push_to_hub("your-org/dataset-name")''',
             "未利用修正反馈改进 LLM 提示词",
         ],
     ),
-
     "programmatic": ProductionPipeline(
         name="程序化数据集生产流程",
         description="通过程序化/组合式方法生成可验证的多样化任务数据",
@@ -371,7 +371,7 @@ dataset.push_to_hub("your-org/dataset-name")''',
                 description="定义可交互的共享世界：实体、属性、状态",
                 inputs=["领域知识", "需求文档"],
                 outputs=["environment_spec.yaml"],
-                code_snippet='''# environment_spec.yaml 示例
+                code_snippet="""# environment_spec.yaml 示例
 domain: telecom
 entities:
   - user_account:
@@ -384,7 +384,7 @@ entities:
 world_state:
   observable_by_user: [account_balance, current_plan, device_status]
   observable_by_agent: [full_account_history, internal_notes, system_status]
-  shared: [conversation_history, action_results]''',
+  shared: [conversation_history, action_results]""",
                 tips=[
                     "区分用户可见状态和代理可见状态",
                     "定义共享的可观测信息",
@@ -398,7 +398,7 @@ world_state:
                 description="定义用户和代理可执行的基本操作及其前置条件和效果",
                 inputs=["environment_spec.yaml"],
                 outputs=["actions.yaml"],
-                code_snippet='''# actions.yaml 示例
+                code_snippet="""# actions.yaml 示例
 user_actions:
   - check_balance:
       preconditions: [logged_in]
@@ -420,7 +420,7 @@ agent_actions:
       effects: [update_balance]
   - guide_user:
       params: [action_to_take, instructions]
-      effects: [user_receives_guidance]''',
+      effects: [user_receives_guidance]""",
                 tips=[
                     "用户操作应该对解决问题有实际影响",
                     "代理需要能够指导用户执行操作",
@@ -434,7 +434,7 @@ agent_actions:
                 description="程序化生成多样、可验证的任务",
                 inputs=["environment_spec.yaml", "actions.yaml"],
                 outputs=["tasks.jsonl"],
-                code_snippet='''class TaskGenerator:
+                code_snippet="""class TaskGenerator:
     def __init__(self, env_spec, actions):
         self.env = env_spec
         self.actions = actions
@@ -459,7 +459,7 @@ agent_actions:
             "optimal_solution": optimal_solution,
             "requires_user_action": self.check_user_action_needed(optimal_solution),
             "complexity": complexity_level,
-        }''',
+        }""",
                 tips=[
                     "确保每个任务都有明确的解决方案",
                     "平衡需要/不需要用户操作的任务",
@@ -473,7 +473,7 @@ agent_actions:
                 description="创建与环境耦合的用户/代理模拟器",
                 inputs=["tasks.jsonl", "environment_spec.yaml"],
                 outputs=["user_simulator.py", "env_simulator.py"],
-                code_snippet='''class UserSimulator:
+                code_snippet="""class UserSimulator:
     def __init__(self, task, behavior_params):
         self.task = task
         self.observable_state = task["initial_state"]["user_visible"]
@@ -498,7 +498,7 @@ agent_actions:
             else:
                 return self.generate_confused_response(action)
 
-        return self.generate_response(parsed)''',
+        return self.generate_response(parsed)""",
                 tips=[
                     "定义用户行为参数：配合度、理解能力、耐心",
                     "模拟真实用户的错误和误解",
@@ -512,7 +512,7 @@ agent_actions:
                 description="确保生成的任务对人类可解",
                 inputs=["tasks.jsonl"],
                 outputs=["human_baseline.json", "validated_tasks.jsonl"],
-                code_snippet='''# human_baseline.json 示例
+                code_snippet="""# human_baseline.json 示例
 {
   "task_id": "task_001",
   "human_solvers": 2,
@@ -520,7 +520,7 @@ agent_actions:
   "success": true,
   "time_taken_seconds": [120, 180],
   "notes": "需要指导用户重启路由器"
-}''',
+}""",
                 tips=[
                     "每个任务至少 2 名人类测试者",
                     "在 2 次尝试内解决",
@@ -556,7 +556,6 @@ agent_actions:
             "忽略效率指标 → 只看完成率会鼓励低效的暴力尝试",
         ],
     ),
-
     "simulation": ProductionPipeline(
         name="模拟器驱动的数据集生产流程",
         description="基于环境模拟器生成交互式评估数据",
@@ -700,7 +699,6 @@ class DualControlEnv:
             "测试集泄露",
         ],
     ),
-
     "benchmark": ProductionPipeline(
         name="评估基准数据集生产流程",
         description="创建标准化的模型评估基准",
@@ -793,7 +791,9 @@ class DualControlEnv:
 }
 
 
-def get_pipeline_template(generation_type: str, synthetic_ratio: float = None, category: str = None) -> ProductionPipeline:
+def get_pipeline_template(
+    generation_type: str, synthetic_ratio: float = None, category: str = None
+) -> ProductionPipeline:
     """Get appropriate pipeline template based on generation type or category.
 
     Args:
@@ -949,6 +949,7 @@ def pipeline_to_markdown(pipeline: ProductionPipeline, dataset_name: str = None)
 # Composable Pipeline (Upgrade 5)
 # =============================================================================
 
+
 @dataclass
 class PhaseDefinition:
     """A reusable pipeline phase definition."""
@@ -995,80 +996,121 @@ def list_phases() -> List[PhaseDefinition]:
 
 # ---- Built-in phases ----
 
-register_phase(PhaseDefinition(
-    phase_id="setup",
-    name="环境准备",
-    description="验证数据格式、准备模板、审核培训手册",
-    default_steps=[
-        {"action": "validate_schema", "description": "验证数据格式定义", "assignee": "agent"},
-        {"action": "prepare_template", "description": "准备数据模板", "assignee": "agent"},
-        {"action": "review_training_guide", "description": "审核培训手册", "assignee": "human", "required": True},
-    ],
-    depends_on=[],
-    assignee="mixed",
-))
+register_phase(
+    PhaseDefinition(
+        phase_id="setup",
+        name="环境准备",
+        description="验证数据格式、准备模板、审核培训手册",
+        default_steps=[
+            {"action": "validate_schema", "description": "验证数据格式定义", "assignee": "agent"},
+            {"action": "prepare_template", "description": "准备数据模板", "assignee": "agent"},
+            {
+                "action": "review_training_guide",
+                "description": "审核培训手册",
+                "assignee": "human",
+                "required": True,
+            },
+        ],
+        depends_on=[],
+        assignee="mixed",
+    )
+)
 
-register_phase(PhaseDefinition(
-    phase_id="pilot",
-    name="试点标注",
-    description="创建试点样本并进行质量审核",
-    default_steps=[
-        {"action": "create_pilot_samples", "description": "创建试点样本 (5-10 条)", "count": 10, "assignee": "human"},
-        {"action": "quality_review_pilot", "description": "试点质量审核", "assignee": "human"},
-    ],
-    depends_on=["setup"],
-    assignee="human",
-))
+register_phase(
+    PhaseDefinition(
+        phase_id="pilot",
+        name="试点标注",
+        description="创建试点样本并进行质量审核",
+        default_steps=[
+            {
+                "action": "create_pilot_samples",
+                "description": "创建试点样本 (5-10 条)",
+                "count": 10,
+                "assignee": "human",
+            },
+            {"action": "quality_review_pilot", "description": "试点质量审核", "assignee": "human"},
+        ],
+        depends_on=["setup"],
+        assignee="human",
+    )
+)
 
-register_phase(PhaseDefinition(
-    phase_id="model_test",
-    name="难度验证",
-    description="使用模型进行难度验证测试",
-    default_steps=[
-        {"action": "run_model_test", "description": "执行模型测试", "assignee": "human"},
-        {"action": "validate_difficulty_result", "description": "验证难度测试结果", "assignee": "agent"},
-    ],
-    depends_on=["pilot"],
-    condition="has_difficulty_validation",
-    assignee="mixed",
-))
+register_phase(
+    PhaseDefinition(
+        phase_id="model_test",
+        name="难度验证",
+        description="使用模型进行难度验证测试",
+        default_steps=[
+            {"action": "run_model_test", "description": "执行模型测试", "assignee": "human"},
+            {
+                "action": "validate_difficulty_result",
+                "description": "验证难度测试结果",
+                "assignee": "agent",
+            },
+        ],
+        depends_on=["pilot"],
+        condition="has_difficulty_validation",
+        assignee="mixed",
+    )
+)
 
-register_phase(PhaseDefinition(
-    phase_id="human_review",
-    name="人工审核",
-    description="人工审核抽检数据质量",
-    default_steps=[
-        {"action": "human_review", "description": "人工抽检审核", "sample_rate": 0.2, "assignee": "human"},
-    ],
-    depends_on=["pilot"],
-    condition="has_strategy:human_review",
-    assignee="human",
-))
+register_phase(
+    PhaseDefinition(
+        phase_id="human_review",
+        name="人工审核",
+        description="人工审核抽检数据质量",
+        default_steps=[
+            {
+                "action": "human_review",
+                "description": "人工抽检审核",
+                "sample_rate": 0.2,
+                "assignee": "human",
+            },
+        ],
+        depends_on=["pilot"],
+        condition="has_strategy:human_review",
+        assignee="human",
+    )
+)
 
-register_phase(PhaseDefinition(
-    phase_id="production",
-    name="主体标注",
-    description="批量标注和增量质检",
-    default_steps=[
-        {"action": "batch_annotation", "description": "批量标注", "assignee": "human"},
-        {"action": "incremental_qa", "description": "增量质检", "sample_rate": 0.2, "assignee": "human"},
-    ],
-    depends_on=["pilot"],  # will be dynamically updated
-    assignee="human",
-))
+register_phase(
+    PhaseDefinition(
+        phase_id="production",
+        name="主体标注",
+        description="批量标注和增量质检",
+        default_steps=[
+            {"action": "batch_annotation", "description": "批量标注", "assignee": "human"},
+            {
+                "action": "incremental_qa",
+                "description": "增量质检",
+                "sample_rate": 0.2,
+                "assignee": "human",
+            },
+        ],
+        depends_on=["pilot"],  # will be dynamically updated
+        assignee="human",
+    )
+)
 
-register_phase(PhaseDefinition(
-    phase_id="final_qa",
-    name="最终质量审核",
-    description="全量质检、生成报告、最终审批",
-    default_steps=[
-        {"action": "full_qa_review", "description": "全量质检", "assignee": "human"},
-        {"action": "generate_qa_report", "description": "生成质检报告", "assignee": "agent"},
-        {"action": "final_approval", "description": "最终审批", "assignee": "human", "required": True},
-    ],
-    depends_on=["production"],
-    assignee="mixed",
-))
+register_phase(
+    PhaseDefinition(
+        phase_id="final_qa",
+        name="最终质量审核",
+        description="全量质检、生成报告、最终审批",
+        default_steps=[
+            {"action": "full_qa_review", "description": "全量质检", "assignee": "human"},
+            {"action": "generate_qa_report", "description": "生成质检报告", "assignee": "agent"},
+            {
+                "action": "final_approval",
+                "description": "最终审批",
+                "assignee": "human",
+                "required": True,
+            },
+        ],
+        depends_on=["production"],
+        assignee="mixed",
+    )
+)
 
 
 DEFAULT_PHASE_SEQUENCE = ["setup", "pilot", "model_test", "human_review", "production", "final_qa"]
@@ -1111,6 +1153,7 @@ def assemble_pipeline(
     for phase in phases:
         # Create a copy with resolved depends_on
         from copy import copy
+
         p = copy(phase)
         p.depends_on = [d for d in phase.depends_on if d in present_ids]
 
@@ -1118,7 +1161,8 @@ def assemble_pipeline(
         if p.phase_id == "production":
             # Find the latest phase that comes before production (i.e. any validation)
             validation_phases = [
-                pp.phase_id for pp in resolved
+                pp.phase_id
+                for pp in resolved
                 if pp.phase_id not in ("setup", "production", "final_qa")
             ]
             if validation_phases:

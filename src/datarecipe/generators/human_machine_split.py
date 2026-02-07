@@ -30,7 +30,7 @@ class AllocationDecision(Enum):
 
     HUMAN_ONLY = "human_only"
     MACHINE_ONLY = "machine_only"
-    HUMAN_PRIMARY = "human_primary"      # Human does most, machine assists
+    HUMAN_PRIMARY = "human_primary"  # Human does most, machine assists
     MACHINE_PRIMARY = "machine_primary"  # Machine does most, human reviews
 
 
@@ -45,17 +45,17 @@ class TaskAllocation:
 
     # Allocation
     decision: AllocationDecision = AllocationDecision.HUMAN_ONLY
-    human_percentage: float = 100.0      # % of work done by humans
-    machine_percentage: float = 0.0      # % of work done by machines
+    human_percentage: float = 100.0  # % of work done by humans
+    machine_percentage: float = 0.0  # % of work done by machines
 
     # Human effort
-    human_role: str = ""                 # e.g., "domain expert"
+    human_role: str = ""  # e.g., "domain expert"
     human_hours: float = 0.0
     human_hourly_rate: float = 25.0
     human_cost: float = 0.0
 
     # Machine effort
-    machine_method: str = ""             # e.g., "LLM generation"
+    machine_method: str = ""  # e.g., "LLM generation"
     machine_cost: float = 0.0
     automation_confidence: float = 0.0
 
@@ -117,10 +117,12 @@ class HumanMachineAllocation:
         ]
 
         if self.estimated_savings_vs_all_human > 0:
-            lines.extend([
-                f"Estimated Savings: ${self.estimated_savings_vs_all_human:,.0f}",
-                f"Timeline Reduction: {self.timeline_reduction_percentage:.0f}%",
-            ])
+            lines.extend(
+                [
+                    f"Estimated Savings: ${self.estimated_savings_vs_all_human:,.0f}",
+                    f"Timeline Reduction: {self.timeline_reduction_percentage:.0f}%",
+                ]
+            )
 
         return "\n".join(lines)
 
@@ -158,30 +160,30 @@ class HumanMachineSplitter:
 
     # Default automation feasibility by task type
     AUTOMATION_FEASIBILITY = {
-        TaskType.CONTEXT_CREATION: 0.2,      # Low - requires creativity
-        TaskType.TASK_DESIGN: 0.3,           # Low - requires pedagogical skill
-        TaskType.RUBRICS_WRITING: 0.4,       # Medium - templates help
-        TaskType.DATA_COLLECTION: 0.7,       # High - scraping is easy
-        TaskType.DATA_GENERATION: 0.9,       # High - LLMs excel here
-        TaskType.DATA_FILTERING: 0.8,        # High - rule-based
-        TaskType.LABELING: 0.5,              # Medium - depends on complexity
-        TaskType.QUALITY_REVIEW: 0.3,        # Low - needs human judgment
-        TaskType.FORMAT_CONVERSION: 1.0,     # Full automation
-        TaskType.EDGE_CASE_HANDLING: 0.1,    # Very low - needs expertise
+        TaskType.CONTEXT_CREATION: 0.2,  # Low - requires creativity
+        TaskType.TASK_DESIGN: 0.3,  # Low - requires pedagogical skill
+        TaskType.RUBRICS_WRITING: 0.4,  # Medium - templates help
+        TaskType.DATA_COLLECTION: 0.7,  # High - scraping is easy
+        TaskType.DATA_GENERATION: 0.9,  # High - LLMs excel here
+        TaskType.DATA_FILTERING: 0.8,  # High - rule-based
+        TaskType.LABELING: 0.5,  # Medium - depends on complexity
+        TaskType.QUALITY_REVIEW: 0.3,  # Low - needs human judgment
+        TaskType.FORMAT_CONVERSION: 1.0,  # Full automation
+        TaskType.EDGE_CASE_HANDLING: 0.1,  # Very low - needs expertise
     }
 
     # Hours per unit by task type (for 1000 examples)
     HOURS_PER_1K = {
-        TaskType.CONTEXT_CREATION: 200.0,    # ~12 min per context
-        TaskType.TASK_DESIGN: 80.0,          # ~5 min per task
-        TaskType.RUBRICS_WRITING: 100.0,     # ~6 min per rubric set
-        TaskType.DATA_COLLECTION: 20.0,      # Mostly automated
-        TaskType.DATA_GENERATION: 5.0,       # API calls
-        TaskType.DATA_FILTERING: 10.0,       # Semi-automated
-        TaskType.LABELING: 50.0,             # ~3 min per label
-        TaskType.QUALITY_REVIEW: 30.0,       # ~2 min per review
-        TaskType.FORMAT_CONVERSION: 2.0,     # Fully automated
-        TaskType.EDGE_CASE_HANDLING: 40.0,   # Requires expertise
+        TaskType.CONTEXT_CREATION: 200.0,  # ~12 min per context
+        TaskType.TASK_DESIGN: 80.0,  # ~5 min per task
+        TaskType.RUBRICS_WRITING: 100.0,  # ~6 min per rubric set
+        TaskType.DATA_COLLECTION: 20.0,  # Mostly automated
+        TaskType.DATA_GENERATION: 5.0,  # API calls
+        TaskType.DATA_FILTERING: 10.0,  # Semi-automated
+        TaskType.LABELING: 50.0,  # ~3 min per label
+        TaskType.QUALITY_REVIEW: 30.0,  # ~2 min per review
+        TaskType.FORMAT_CONVERSION: 2.0,  # Fully automated
+        TaskType.EDGE_CASE_HANDLING: 40.0,  # Requires expertise
     }
 
     # Regional hourly rates
@@ -264,7 +266,7 @@ class HumanMachineSplitter:
 
         for i, task_type in enumerate(task_types):
             task = self._create_task_allocation(
-                task_id=f"T{i+1:02d}",
+                task_id=f"T{i + 1:02d}",
                 task_type=task_type,
                 scale_factor=scale_factor,
                 context_count=context_count,
@@ -317,7 +319,7 @@ class HumanMachineSplitter:
         # Determine allocation decision
         if automation >= 0.9:
             decision = AllocationDecision.MACHINE_ONLY
-            human_pct = 5.0   # Minimal oversight
+            human_pct = 5.0  # Minimal oversight
             machine_pct = 95.0
         elif automation >= 0.7:
             decision = AllocationDecision.MACHINE_PRIMARY
@@ -340,9 +342,7 @@ class HumanMachineSplitter:
         human_cost = human_hours * hourly_rate
 
         # Machine cost (estimate based on API calls)
-        machine_cost = self._estimate_machine_cost(
-            task_type, scale_factor, machine_pct
-        )
+        machine_cost = self._estimate_machine_cost(task_type, scale_factor, machine_pct)
 
         # Build task name and description
         task_name = task_type.value.replace("_", " ").title()
@@ -370,18 +370,15 @@ class HumanMachineSplitter:
         )
 
     def _estimate_machine_cost(
-        self,
-        task_type: TaskType,
-        scale_factor: float,
-        machine_pct: float
+        self, task_type: TaskType, scale_factor: float, machine_pct: float
     ) -> float:
         """Estimate machine/API costs."""
         # Base costs per 1K examples
         base_costs = {
-            TaskType.DATA_GENERATION: 50.0,      # LLM API calls
-            TaskType.DATA_FILTERING: 10.0,       # Compute
-            TaskType.FORMAT_CONVERSION: 5.0,     # Compute
-            TaskType.LABELING: 30.0,             # Classification API
+            TaskType.DATA_GENERATION: 50.0,  # LLM API calls
+            TaskType.DATA_FILTERING: 10.0,  # Compute
+            TaskType.FORMAT_CONVERSION: 5.0,  # Compute
+            TaskType.LABELING: 30.0,  # Classification API
         }
 
         base = base_costs.get(task_type, 5.0)
@@ -421,15 +418,13 @@ class HumanMachineSplitter:
         elif automation < 0.6:
             return f"Benefits from human oversight (automation feasibility: {automation:.0%})"
         elif automation < 0.9:
-            return f"Mostly automatable with human review (automation feasibility: {automation:.0%})"
+            return (
+                f"Mostly automatable with human review (automation feasibility: {automation:.0%})"
+            )
         else:
             return f"Fully automatable (automation feasibility: {automation:.0%})"
 
-    def _get_risk_factors(
-        self,
-        task_type: TaskType,
-        decision: AllocationDecision
-    ) -> list[str]:
+    def _get_risk_factors(self, task_type: TaskType, decision: AllocationDecision) -> list[str]:
         """Get risk factors for allocation."""
         risks = []
 
@@ -464,7 +459,8 @@ class HumanMachineSplitter:
         # Estimate savings (vs all-human)
         all_human_cost = sum(
             t.human_hours / (t.human_percentage / 100) * t.human_hourly_rate
-            if t.human_percentage > 0 else t.human_cost
+            if t.human_percentage > 0
+            else t.human_cost
             for t in result.tasks
         )
         result.estimated_savings_vs_all_human = max(0, all_human_cost - result.total_cost)

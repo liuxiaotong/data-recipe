@@ -7,8 +7,8 @@ from typing import Optional, Union
 import yaml
 
 from datarecipe.schema import Recipe, SourceType
-from datarecipe.sources.huggingface import HuggingFaceExtractor
 from datarecipe.sources.github import GitHubExtractor
+from datarecipe.sources.huggingface import HuggingFaceExtractor
 from datarecipe.sources.web import WebExtractor
 
 
@@ -103,7 +103,7 @@ class DatasetAnalyzer:
         if not path.exists():
             raise FileNotFoundError(f"Recipe file not found: {yaml_path}")
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         return self._recipe_from_dict(data)
@@ -138,9 +138,9 @@ class DatasetAnalyzer:
         """Convert a dictionary to a Recipe object."""
         from datarecipe.schema import (
             Cost,
-            Reproducibility,
             GenerationMethod,
             GenerationType,
+            Reproducibility,
         )
 
         recipe = Recipe(

@@ -2,14 +2,15 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
 import requests
 
 
 class DatasetCategory(Enum):
     """Categories of datasets based on their construction method."""
+
     LLM_DISTILLATION = "llm_distillation"
     HUMAN_ANNOTATION = "human_annotation"
     PROGRAMMATIC = "programmatic"
@@ -23,6 +24,7 @@ class DatasetCategory(Enum):
 @dataclass
 class DeepAnalysisResult:
     """Result of deep analysis."""
+
     name: str
     category: DatasetCategory
     description: str
@@ -74,23 +76,46 @@ class DeepAnalyzer:
     # Patterns for detecting dataset categories
     CATEGORY_PATTERNS = {
         DatasetCategory.LLM_DISTILLATION: [
-            r"distill", r"teacher.?model", r"gpt-?\d", r"claude", r"llama",
-            r"synthetic.?data", r"generated.?by", r"api.?call",
+            r"distill",
+            r"teacher.?model",
+            r"gpt-?\d",
+            r"claude",
+            r"llama",
+            r"synthetic.?data",
+            r"generated.?by",
+            r"api.?call",
         ],
         DatasetCategory.HUMAN_ANNOTATION: [
-            r"human.?annotat", r"crowdsourc", r"mturk", r"mechanical.?turk",
-            r"expert.?label", r"manual.?annotation", r"annotator",
+            r"human.?annotat",
+            r"crowdsourc",
+            r"mturk",
+            r"mechanical.?turk",
+            r"expert.?label",
+            r"manual.?annotation",
+            r"annotator",
         ],
         DatasetCategory.PROGRAMMATIC: [
-            r"programmat", r"procedural", r"compositional.?generat",
-            r"rule.?based", r"template", r"automatic.?generat",
+            r"programmat",
+            r"procedural",
+            r"compositional.?generat",
+            r"rule.?based",
+            r"template",
+            r"automatic.?generat",
         ],
         DatasetCategory.SIMULATION: [
-            r"simulat", r"environment", r"agent", r"interact",
-            r"pomdp", r"mdp", r"reinforcement",
+            r"simulat",
+            r"environment",
+            r"agent",
+            r"interact",
+            r"pomdp",
+            r"mdp",
+            r"reinforcement",
         ],
         DatasetCategory.BENCHMARK: [
-            r"benchmark", r"evaluat", r"test.?set", r"leaderboard",
+            r"benchmark",
+            r"evaluat",
+            r"test.?set",
+            r"leaderboard",
         ],
     }
 
@@ -105,9 +130,17 @@ class DeepAnalyzer:
     ]
 
     METRIC_PATTERNS = [
-        r"accuracy", r"f1.?score", r"precision", r"recall",
-        r"bleu", r"rouge", r"perplexity", r"success.?rate",
-        r"completion.?rate", r"efficiency", r"human.?eval",
+        r"accuracy",
+        r"f1.?score",
+        r"precision",
+        r"recall",
+        r"bleu",
+        r"rouge",
+        r"perplexity",
+        r"success.?rate",
+        r"completion.?rate",
+        r"efficiency",
+        r"human.?eval",
     ]
 
     def __init__(self, auto_search_paper: bool = True):
@@ -136,7 +169,7 @@ class DeepAnalyzer:
             search_queries = [
                 f'ti:"{clean_name}"',  # Title search with quotes
                 f'all:"{clean_name}" AND (cat:cs.CL OR cat:cs.AI OR cat:cs.LG)',
-                f'all:{clean_name.replace(" ", "+")}+dataset',  # With dataset keyword
+                f"all:{clean_name.replace(' ', '+')}+dataset",  # With dataset keyword
             ]
 
             arxiv_api = "http://export.arxiv.org/api/query"
@@ -157,11 +190,13 @@ class DeepAnalyzer:
                 content = response.text
 
                 # Extract arXiv IDs from the response (format: 2312.11456v4)
-                arxiv_ids = re.findall(r"<id>http://arxiv.org/abs/(\d+\.\d+(?:v\d+)?)</id>", content)
+                arxiv_ids = re.findall(
+                    r"<id>http://arxiv.org/abs/(\d+\.\d+(?:v\d+)?)</id>", content
+                )
 
                 if arxiv_ids:
                     # Return the first (most relevant) result, strip version
-                    arxiv_id = arxiv_ids[0].split('v')[0]  # Remove version suffix
+                    arxiv_id = arxiv_ids[0].split("v")[0]  # Remove version suffix
                     return f"https://arxiv.org/abs/{arxiv_id}"
 
             return None
@@ -220,10 +255,7 @@ class DeepAnalyzer:
         result.use_cases = self._extract_use_cases(content)
 
         # Check if methodology details are lacking and search for paper if needed
-        methodology_lacking = (
-            result.methodology in ["", "未知"] and
-            not result.generation_steps
-        )
+        methodology_lacking = result.methodology in ["", "未知"] and not result.generation_steps
 
         if methodology_lacking and search_paper_if_needed and name:
             paper_url = self.search_related_paper(name)
@@ -245,7 +277,9 @@ class DeepAnalyzer:
 
                     paper_innovations = self._extract_innovations(paper_content)
                     if paper_innovations:
-                        result.key_innovations = list(set(result.key_innovations + paper_innovations))
+                        result.key_innovations = list(
+                            set(result.key_innovations + paper_innovations)
+                        )
 
                     paper_steps = self._extract_generation_steps(paper_content, result.category)
                     if paper_steps:
@@ -263,13 +297,19 @@ class DeepAnalyzer:
 
                     paper_metrics = self._extract_metrics(paper_content)
                     if paper_metrics:
-                        result.evaluation_metrics = list(set(result.evaluation_metrics + paper_metrics))
+                        result.evaluation_metrics = list(
+                            set(result.evaluation_metrics + paper_metrics)
+                        )
 
                     # Check for code/data in paper
                     if not result.code_available:
-                        result.code_available, result.code_url = self._extract_code_info(paper_content)
+                        result.code_available, result.code_url = self._extract_code_info(
+                            paper_content
+                        )
                     if not result.data_available:
-                        result.data_available, result.data_url = self._extract_data_info(paper_content)
+                        result.data_available, result.data_url = self._extract_data_info(
+                            paper_content
+                        )
 
         return result
 
@@ -305,7 +345,8 @@ class DeepAnalyzer:
         # Try meta description
         match = re.search(
             r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']',
-            content, re.IGNORECASE
+            content,
+            re.IGNORECASE,
         )
         if match:
             return match.group(1).strip()
@@ -661,7 +702,7 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
     lines.append("| 属性 | 值 |")
     lines.append("|------|-----|")
     lines.append(f"| **名称** | {result.name} |")
-    if hasattr(result, 'paper_url') and result.paper_url:
+    if hasattr(result, "paper_url") and result.paper_url:
         lines.append(f"| **论文** | {result.paper_url} |")
     if result.domain:
         lines.append(f"| **领域** | {result.domain} |")
@@ -718,8 +759,11 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
             lines.append("")
 
             # Add category-specific code examples
-            if result.category == DatasetCategory.PROGRAMMATIC or result.category == DatasetCategory.SIMULATION:
-                if step['step'] == 1:
+            if (
+                result.category == DatasetCategory.PROGRAMMATIC
+                or result.category == DatasetCategory.SIMULATION
+            ):
+                if step["step"] == 1:
                     lines.append("**输出**: `environment_spec.yaml`")
                     lines.append("")
                     lines.append("**示例（{}领域）**:".format(result.domain or "通用"))
@@ -736,7 +780,7 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
                     lines.append("  shared: [conversation_history]")
                     lines.append("```")
                     lines.append("")
-                elif step['step'] == 2:
+                elif step["step"] == 2:
                     lines.append("**输出**: `actions.yaml`")
                     lines.append("")
                     lines.append("```yaml")
@@ -757,7 +801,7 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
                     lines.append("      effects: [user_receives_guidance]")
                     lines.append("```")
                     lines.append("")
-                elif step['step'] == 3:
+                elif step["step"] == 3:
                     lines.append("**输出**: `tasks.jsonl`")
                     lines.append("")
                     lines.append("**生成策略**:")
@@ -769,10 +813,14 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
                     lines.append("        initial_state = self.random_initial_state()")
                     lines.append("")
                     lines.append("        # 2. 定义目标状态")
-                    lines.append("        goal_state = self.define_goal(initial_state, complexity_level)")
+                    lines.append(
+                        "        goal_state = self.define_goal(initial_state, complexity_level)"
+                    )
                     lines.append("")
                     lines.append("        # 3. 计算最优解（用于验证）")
-                    lines.append("        optimal_solution = self.compute_solution(initial_state, goal_state)")
+                    lines.append(
+                        "        optimal_solution = self.compute_solution(initial_state, goal_state)"
+                    )
                     lines.append("")
                     lines.append("        return {")
                     lines.append("            'initial_state': initial_state,")
@@ -789,15 +837,19 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
                     lines.append("| 中等 | 需要用户提供信息或执行简单操作 |")
                     lines.append("| 困难 | 多步协作，用户需执行关键操作 |")
                     lines.append("")
-                elif step['step'] == 4:
+                elif step["step"] == 4:
                     lines.append("**输出**: `simulator.py`")
                     lines.append("")
                     lines.append("```python")
                     lines.append("class Simulator:")
                     lines.append("    def __init__(self, task, behavior_params):")
                     lines.append("        self.task = task")
-                    lines.append("        self.cooperation_level = behavior_params.get('cooperation', 0.9)")
-                    lines.append("        self.comprehension_level = behavior_params.get('comprehension', 0.8)")
+                    lines.append(
+                        "        self.cooperation_level = behavior_params.get('cooperation', 0.9)"
+                    )
+                    lines.append(
+                        "        self.comprehension_level = behavior_params.get('comprehension', 0.8)"
+                    )
                     lines.append("")
                     lines.append("    def respond(self, message, available_actions):")
                     lines.append("        # 根据理解能力和配合度生成响应")
@@ -809,7 +861,7 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
                     lines.append("- `comprehension_level`: 理解能力 (0-1)")
                     lines.append("- `patience`: 耐心程度")
                     lines.append("")
-                elif step['step'] == 5:
+                elif step["step"] == 5:
                     lines.append("**方法**: 人工测试验证")
                     lines.append("")
                     lines.append("```")
@@ -843,7 +895,10 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
             lines.append(f"- [ ] {method}")
     else:
         # Default quality criteria based on category
-        if result.category == DatasetCategory.PROGRAMMATIC or result.category == DatasetCategory.SIMULATION:
+        if (
+            result.category == DatasetCategory.PROGRAMMATIC
+            or result.category == DatasetCategory.SIMULATION
+        ):
             lines.append("- [ ] 每个任务有明确的最优解")
             lines.append("- [ ] 需要双方协作的任务占比 > 50%")
             lines.append("- [ ] 人类测试通过率 > 90%")
@@ -874,7 +929,10 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
     lines.append("")
     lines.append("## 常见问题与避坑指南")
     lines.append("")
-    if result.category == DatasetCategory.PROGRAMMATIC or result.category == DatasetCategory.SIMULATION:
+    if (
+        result.category == DatasetCategory.PROGRAMMATIC
+        or result.category == DatasetCategory.SIMULATION
+    ):
         pitfalls = [
             "环境设计过于简单 → 无法产生有意义的交互",
             "模拟器太完美 → 不能反映真实用户的错误和误解",
@@ -902,7 +960,10 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
     lines.append("")
 
     # Domain migration
-    if result.category == DatasetCategory.PROGRAMMATIC or result.category == DatasetCategory.SIMULATION:
+    if (
+        result.category == DatasetCategory.PROGRAMMATIC
+        or result.category == DatasetCategory.SIMULATION
+    ):
         lines.append("---")
         lines.append("")
         lines.append("## 迁移到其他领域")

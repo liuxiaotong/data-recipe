@@ -3,19 +3,19 @@
 import unittest
 from datetime import datetime, timezone
 
+from datarecipe.deployer import ProductionDeployer
 from datarecipe.profiler import AnnotatorProfiler
 from datarecipe.schema import (
+    AnnotatorProfile,
+    DataRecipe,
+    DeploymentResult,
+    ProductionConfig,
+    ProjectHandle,
     Recipe,
     SourceType,
-    DataRecipe,
-    ProductionConfig,
-    AnnotatorProfile,
-    ProjectHandle,
     ValidationResult,
-    DeploymentResult,
 )
 from datarecipe.sources.github import GitHubExtractor
-from datarecipe.deployer import ProductionDeployer
 
 
 class StubProvider:

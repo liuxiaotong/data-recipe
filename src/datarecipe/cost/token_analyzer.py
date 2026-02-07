@@ -93,24 +93,20 @@ MODEL_PRICING = {
     "gpt-3.5-turbo": ModelPricing("openai", "gpt-3.5-turbo", 0.50, 1.50, 16385),
     "o1": ModelPricing("openai", "o1", 15.00, 60.00, 200000),
     "o1-mini": ModelPricing("openai", "o1-mini", 3.00, 12.00, 128000),
-
     # Anthropic
     "claude-3-opus": ModelPricing("anthropic", "claude-3-opus", 15.00, 75.00, 200000),
     "claude-3.5-sonnet": ModelPricing("anthropic", "claude-3.5-sonnet", 3.00, 15.00, 200000),
     "claude-3-sonnet": ModelPricing("anthropic", "claude-3-sonnet", 3.00, 15.00, 200000),
     "claude-3-haiku": ModelPricing("anthropic", "claude-3-haiku", 0.25, 1.25, 200000),
     "claude-3.5-haiku": ModelPricing("anthropic", "claude-3.5-haiku", 0.80, 4.00, 200000),
-
     # Google
     "gemini-1.5-pro": ModelPricing("google", "gemini-1.5-pro", 1.25, 5.00, 2000000),
     "gemini-1.5-flash": ModelPricing("google", "gemini-1.5-flash", 0.075, 0.30, 1000000),
     "gemini-2.0-flash": ModelPricing("google", "gemini-2.0-flash", 0.10, 0.40, 1000000),
-
     # DeepSeek
     "deepseek-v3": ModelPricing("deepseek", "deepseek-v3", 0.27, 1.10, 64000),
     "deepseek-r1": ModelPricing("deepseek", "deepseek-r1", 0.55, 2.19, 64000),
     "deepseek-chat": ModelPricing("deepseek", "deepseek-chat", 0.14, 0.28, 64000),
-
     # Open Source (via Together/Fireworks)
     "llama-3.1-405b": ModelPricing("together", "llama-3.1-405b", 3.50, 3.50, 128000),
     "llama-3.1-70b": ModelPricing("together", "llama-3.1-70b", 0.88, 0.88, 128000),
@@ -125,12 +121,12 @@ class TokenAnalyzer:
 
     # Approximate tokens per character for different languages
     CHARS_PER_TOKEN = {
-        "en": 4.0,      # English: ~4 chars per token
-        "zh": 1.5,      # Chinese: ~1.5 chars per token
-        "ja": 1.5,      # Japanese
-        "ko": 2.0,      # Korean
-        "mixed": 3.0,   # Mixed content
-        "code": 3.5,    # Code
+        "en": 4.0,  # English: ~4 chars per token
+        "zh": 1.5,  # Chinese: ~1.5 chars per token
+        "ja": 1.5,  # Japanese
+        "ko": 2.0,  # Korean
+        "mixed": 3.0,  # Mixed content
+        "code": 3.5,  # Code
     }
 
     def __init__(self, use_tiktoken: bool = False):
@@ -146,6 +142,7 @@ class TokenAnalyzer:
         if use_tiktoken:
             try:
                 import tiktoken
+
                 self._tokenizer = tiktoken.get_encoding("cl100k_base")
             except ImportError:
                 self.use_tiktoken = False
@@ -174,7 +171,7 @@ class TokenAnalyzer:
             chars_per_token = self.CHARS_PER_TOKEN["code"]
         elif self._has_cjk(text):
             # Calculate CJK ratio
-            cjk_chars = len(re.findall(r'[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]', text))
+            cjk_chars = len(re.findall(r"[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]", text))
             cjk_ratio = cjk_chars / len(text) if text else 0
             chars_per_token = 1.5 * cjk_ratio + 4.0 * (1 - cjk_ratio)
 
@@ -183,21 +180,21 @@ class TokenAnalyzer:
     def _is_code(self, text: str) -> bool:
         """Detect if text is likely code."""
         code_patterns = [
-            r'def\s+\w+\s*\(',
-            r'function\s+\w+\s*\(',
-            r'class\s+\w+',
-            r'import\s+\w+',
-            r'from\s+\w+\s+import',
-            r'\{\s*\n',
-            r'if\s*\(.+\)\s*\{',
-            r'return\s+',
+            r"def\s+\w+\s*\(",
+            r"function\s+\w+\s*\(",
+            r"class\s+\w+",
+            r"import\s+\w+",
+            r"from\s+\w+\s+import",
+            r"\{\s*\n",
+            r"if\s*\(.+\)\s*\{",
+            r"return\s+",
         ]
         matches = sum(1 for p in code_patterns if re.search(p, text))
         return matches >= 2
 
     def _has_cjk(self, text: str) -> bool:
         """Check if text contains CJK characters."""
-        return bool(re.search(r'[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]', text))
+        return bool(re.search(r"[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]", text))
 
     def analyze_samples(
         self,
@@ -284,7 +281,15 @@ class TokenAnalyzer:
         output_fields = []
 
         # Common patterns
-        input_patterns = ["input", "prompt", "question", "query", "context", "instruction", "problem"]
+        input_patterns = [
+            "input",
+            "prompt",
+            "question",
+            "query",
+            "context",
+            "instruction",
+            "problem",
+        ]
         output_patterns = ["output", "response", "answer", "completion", "solution", "target"]
 
         for field in sample.keys():
@@ -367,7 +372,7 @@ class PreciseCostEstimate:
     adjusted_cost: float = 0.0
 
     # Ranges
-    cost_low: float = 0.0   # Optimistic (p50 tokens)
+    cost_low: float = 0.0  # Optimistic (p50 tokens)
     cost_high: float = 0.0  # Pessimistic (p99 tokens)
 
     # Assumptions
@@ -427,9 +432,7 @@ class PreciseCostCalculator:
             PreciseCostEstimate with detailed breakdown
         """
         # Analyze tokens
-        token_stats = self.token_analyzer.analyze_samples(
-            samples, input_fields, output_fields
-        )
+        token_stats = self.token_analyzer.analyze_samples(samples, input_fields, output_fields)
 
         # Get pricing
         pricing = MODEL_PRICING.get(model, MODEL_PRICING["gpt-4o"])
@@ -446,15 +449,18 @@ class PreciseCostCalculator:
         adjusted_cost = total_api_cost * iteration_factor
 
         # Calculate ranges using percentiles
-        cost_low = (
-            (token_stats.p50_input * target_size / 1_000_000) * pricing.input_per_1m +
-            (token_stats.p50_output * target_size / 1_000_000) * pricing.output_per_1m
-        )
+        cost_low = (token_stats.p50_input * target_size / 1_000_000) * pricing.input_per_1m + (
+            token_stats.p50_output * target_size / 1_000_000
+        ) * pricing.output_per_1m
 
         cost_high = (
-            (token_stats.p99_input * target_size / 1_000_000) * pricing.input_per_1m +
-            (token_stats.p99_output * target_size / 1_000_000) * pricing.output_per_1m
-        ) * iteration_factor * 1.5  # Extra buffer for edge cases
+            (
+                (token_stats.p99_input * target_size / 1_000_000) * pricing.input_per_1m
+                + (token_stats.p99_output * target_size / 1_000_000) * pricing.output_per_1m
+            )
+            * iteration_factor
+            * 1.5
+        )  # Extra buffer for edge cases
 
         # Build assumptions
         assumptions = [
@@ -499,9 +505,12 @@ class PreciseCostCalculator:
         """
         if models is None:
             models = [
-                "gpt-4o", "gpt-4o-mini",
-                "claude-3.5-sonnet", "claude-3-haiku",
-                "gemini-1.5-pro", "gemini-1.5-flash",
+                "gpt-4o",
+                "gpt-4o-mini",
+                "claude-3.5-sonnet",
+                "claude-3-haiku",
+                "gemini-1.5-pro",
+                "gemini-1.5-flash",
                 "deepseek-v3",
                 "llama-3.1-70b",
             ]
@@ -513,9 +522,7 @@ class PreciseCostCalculator:
 
         return results
 
-    def format_comparison_table(
-        self, comparisons: Dict[str, PreciseCostEstimate]
-    ) -> str:
+    def format_comparison_table(self, comparisons: Dict[str, PreciseCostEstimate]) -> str:
         """Format model comparison as markdown table."""
         lines = [
             "| 模型 | 预期成本 | 范围 | Input $/M | Output $/M |",
@@ -523,10 +530,7 @@ class PreciseCostCalculator:
         ]
 
         # Sort by cost
-        sorted_items = sorted(
-            comparisons.items(),
-            key=lambda x: x[1].adjusted_cost
-        )
+        sorted_items = sorted(comparisons.items(), key=lambda x: x[1].adjusted_cost)
 
         for model, estimate in sorted_items:
             lines.append(

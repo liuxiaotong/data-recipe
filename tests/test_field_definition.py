@@ -1,6 +1,5 @@
 """Tests for FieldDefinition, FieldConstraint, and ValidationStrategy (Upgrades 1, 3, 6)."""
 
-import pytest
 from datarecipe.analyzers.spec_analyzer import (
     FieldConstraint,
     FieldDefinition,
@@ -9,14 +8,16 @@ from datarecipe.analyzers.spec_analyzer import (
     _map_type,
 )
 
-
 # ---- FieldDefinition ----
+
 
 class TestFieldDefinition:
     """Tests for FieldDefinition dataclass."""
 
     def test_from_dict_simple_string(self):
-        fd = FieldDefinition.from_dict({"name": "question", "type": "string", "description": "题目"})
+        fd = FieldDefinition.from_dict(
+            {"name": "question", "type": "string", "description": "题目"}
+        )
         assert fd.name == "question"
         assert fd.type == "string"
         assert fd.description == "题目"
@@ -35,41 +36,53 @@ class TestFieldDefinition:
         assert fd.required is False
 
     def test_from_dict_with_enum(self):
-        fd = FieldDefinition.from_dict({"name": "role", "type": "string", "enum": ["user", "assistant"]})
+        fd = FieldDefinition.from_dict(
+            {"name": "role", "type": "string", "enum": ["user", "assistant"]}
+        )
         assert fd.enum == ["user", "assistant"]
 
     def test_from_dict_with_constraints(self):
-        fd = FieldDefinition.from_dict({
-            "name": "text",
-            "type": "string",
-            "min_length": 10,
-            "max_length": 500,
-            "pattern": "^[A-Z]",
-        })
+        fd = FieldDefinition.from_dict(
+            {
+                "name": "text",
+                "type": "string",
+                "min_length": 10,
+                "max_length": 500,
+                "pattern": "^[A-Z]",
+            }
+        )
         assert fd.min_length == 10
         assert fd.max_length == 500
         assert fd.pattern == "^[A-Z]"
 
     def test_from_dict_with_camelCase_constraints(self):
         """Backwards compat: accept minLength/maxLength."""
-        fd = FieldDefinition.from_dict({
-            "name": "text",
-            "type": "string",
-            "minLength": 10,
-            "maxLength": 500,
-        })
+        fd = FieldDefinition.from_dict(
+            {
+                "name": "text",
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 500,
+            }
+        )
         assert fd.min_length == 10
         assert fd.max_length == 500
 
     def test_from_dict_nested_array(self):
-        fd = FieldDefinition.from_dict({
-            "name": "messages",
-            "type": "array",
-            "items": {"name": "msg", "type": "object", "properties": [
-                {"name": "role", "type": "string", "enum": ["user", "assistant"]},
-                {"name": "content", "type": "string"},
-            ]},
-        })
+        fd = FieldDefinition.from_dict(
+            {
+                "name": "messages",
+                "type": "array",
+                "items": {
+                    "name": "msg",
+                    "type": "object",
+                    "properties": [
+                        {"name": "role", "type": "string", "enum": ["user", "assistant"]},
+                        {"name": "content", "type": "string"},
+                    ],
+                },
+            }
+        )
         assert fd.type == "array"
         assert fd.items is not None
         assert fd.items.type == "object"
@@ -77,14 +90,16 @@ class TestFieldDefinition:
         assert fd.items.properties[0].enum == ["user", "assistant"]
 
     def test_from_dict_any_of(self):
-        fd = FieldDefinition.from_dict({
-            "name": "answer",
-            "type": "string",
-            "any_of": [
-                {"name": "a", "type": "string"},
-                {"name": "a", "type": "integer"},
-            ],
-        })
+        fd = FieldDefinition.from_dict(
+            {
+                "name": "answer",
+                "type": "string",
+                "any_of": [
+                    {"name": "a", "type": "string"},
+                    {"name": "a", "type": "integer"},
+                ],
+            }
+        )
         assert fd.any_of is not None
         assert len(fd.any_of) == 2
 
@@ -197,22 +212,28 @@ class TestMapType:
 
 # ---- FieldConstraint ----
 
+
 class TestFieldConstraint:
     def test_from_dict(self):
-        fc = FieldConstraint.from_dict({
-            "field_name": "answer",
-            "constraint_type": "format",
-            "rule": "必须是有效JSON",
-            "severity": "error",
-            "auto_checkable": True,
-        })
+        fc = FieldConstraint.from_dict(
+            {
+                "field_name": "answer",
+                "constraint_type": "format",
+                "rule": "必须是有效JSON",
+                "severity": "error",
+                "auto_checkable": True,
+            }
+        )
         assert fc.field_name == "answer"
         assert fc.auto_checkable is True
 
     def test_round_trip(self):
         fc = FieldConstraint(
-            field_name="q", constraint_type="range", rule="len > 10",
-            severity="warning", auto_checkable=True,
+            field_name="q",
+            constraint_type="range",
+            rule="len > 10",
+            severity="warning",
+            auto_checkable=True,
         )
         d = fc.to_dict()
         fc2 = FieldConstraint.from_dict(d)
@@ -224,7 +245,12 @@ class TestSpecificationAnalysisParsedConstraints:
     def test_merges_new_and_legacy(self):
         analysis = SpecificationAnalysis(
             field_constraints=[
-                {"field_name": "q", "constraint_type": "format", "rule": "new rule", "severity": "error"}
+                {
+                    "field_name": "q",
+                    "constraint_type": "format",
+                    "rule": "new rule",
+                    "severity": "error",
+                }
             ],
             field_requirements={"q": "legacy requirement"},
             quality_constraints=["global constraint"],
@@ -251,14 +277,17 @@ class TestSpecificationAnalysisParsedConstraints:
 
 # ---- ValidationStrategy ----
 
+
 class TestValidationStrategy:
     def test_from_dict(self):
-        vs = ValidationStrategy.from_dict({
-            "strategy_type": "human_review",
-            "enabled": True,
-            "config": {"sample_rate": 0.2},
-            "description": "人工审核",
-        })
+        vs = ValidationStrategy.from_dict(
+            {
+                "strategy_type": "human_review",
+                "enabled": True,
+                "config": {"sample_rate": 0.2},
+                "description": "人工审核",
+            }
+        )
         assert vs.strategy_type == "human_review"
         assert vs.config["sample_rate"] == 0.2
 
@@ -276,8 +305,10 @@ class TestValidationStrategy:
 
     def test_round_trip(self):
         vs = ValidationStrategy(
-            strategy_type="format_check", enabled=True,
-            config={"strict": True}, description="格式校验",
+            strategy_type="format_check",
+            enabled=True,
+            config={"strict": True},
+            description="格式校验",
         )
         d = vs.to_dict()
         vs2 = ValidationStrategy.from_dict(d)
@@ -289,8 +320,18 @@ class TestSpecificationAnalysisValidationStrategies:
     def test_parsed_validation_strategies_from_new_format(self):
         analysis = SpecificationAnalysis(
             validation_strategies=[
-                {"strategy_type": "human_review", "enabled": True, "config": {}, "description": "审核"},
-                {"strategy_type": "format_check", "enabled": True, "config": {}, "description": "格式"},
+                {
+                    "strategy_type": "human_review",
+                    "enabled": True,
+                    "config": {},
+                    "description": "审核",
+                },
+                {
+                    "strategy_type": "format_check",
+                    "enabled": True,
+                    "config": {},
+                    "description": "格式",
+                },
             ],
         )
         strategies = analysis.parsed_validation_strategies
@@ -360,14 +401,20 @@ class TestFieldDefinitionsProperty:
 
     def test_field_definitions_nested(self):
         analysis = SpecificationAnalysis(
-            fields=[{
-                "name": "messages",
-                "type": "array",
-                "items": {"name": "turn", "type": "object", "properties": [
-                    {"name": "role", "type": "string"},
-                    {"name": "content", "type": "string"},
-                ]},
-            }]
+            fields=[
+                {
+                    "name": "messages",
+                    "type": "array",
+                    "items": {
+                        "name": "turn",
+                        "type": "object",
+                        "properties": [
+                            {"name": "role", "type": "string"},
+                            {"name": "content", "type": "string"},
+                        ],
+                    },
+                }
+            ]
         )
         fds = analysis.field_definitions
         assert len(fds) == 1
@@ -385,7 +432,9 @@ class TestToDict:
             fields=[{"name": "q", "type": "string"}],
             field_constraints=[{"field_name": "q", "rule": "r"}],
             validation_strategies=[{"strategy_type": "human_review", "enabled": True}],
-            quality_gates=[{"gate_id": "g1", "metric": "overall_score", "operator": ">=", "threshold": 60}],
+            quality_gates=[
+                {"gate_id": "g1", "metric": "overall_score", "operator": ">=", "threshold": 60}
+            ],
         )
         d = analysis.to_dict()
         assert "field_constraints" in d
