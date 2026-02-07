@@ -582,6 +582,6 @@ def profile_to_markdown(profile: AnnotatorProfile, dataset_name: str = "") -> st
         lines.append("")
 
     lines.append("---")
-    lines.append("*由 DataRecipe 生成*")
+    lines.append("> 由 DataRecipe 生成")
 
     return "\n".join(lines)

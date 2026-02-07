@@ -270,7 +270,7 @@ class LocalFilesProvider:
             lines.append("")
 
         lines.append("---")
-        lines.append("*由 DataRecipe 生成*")
+        lines.append("> 由 DataRecipe 生成")
         return "\n".join(lines)
 
     def _generate_timeline_md(self, config: ProductionConfig) -> str:
@@ -408,7 +408,7 @@ class LocalFilesProvider:
         lines.append("")
 
         lines.append("---")
-        lines.append("*由 DataRecipe 生成*")
+        lines.append("> 由 DataRecipe 生成")
 
         return "\n".join(lines)
 
@@ -553,7 +553,7 @@ class LocalFilesProvider:
         lines.append("")
 
         lines.append("---")
-        lines.append("*由 DataRecipe 生成*")
+        lines.append("> 由 DataRecipe 生成")
 
         return "\n".join(lines)
 

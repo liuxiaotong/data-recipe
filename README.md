@@ -2,7 +2,8 @@
 
 # DataRecipe
 
-**面向人工智能数据集的逆向工程框架**
+**面向人工智能数据集的逆向工程框架**  
+**Reverse-engineering framework for AI datasets and specs**
 
 [![PyPI](https://img.shields.io/pypi/v/datarecipe?color=blue)](https://pypi.org/project/datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -15,15 +16,23 @@
 
 ---
 
+**GitHub Topics**: `reverse-engineering`, `llm-data`, `annotation-spec`, `mcp`, `productivity`
+
 从数据集样本或需求规格中自动提取构建范式，生成可复用的标注规范与成本模型，支持人机协同的可解释性输出。
 
-## 核心能力
+### TL;DR
+
+- **适合谁 / Who**：需要把现有样本/需求拆解成可复刻 SOP 的数据团队、项目经理、供应链承包商。
+- **输入内容 / Inputs**：一份数据集 (JSON/CSV/HF) 或需求文档 (PDF/Word/Markdown)。
+- **输出内容 / Outputs**：决策摘要、标注规范、成本拆解、AI Agent 上下文 (MCP/Function Calling)。
+
+## 核心能力 / Core Capabilities
 
 ```
 输入源 (数据集样本 / 需求规格) → 逆向工程分析 → 结构化产出 (人类可读 + 机器可解析)
 ```
 
-### 按角色快速导航
+### 按角色快速导航 / Role-based Guide
 
 | 角色 | 目录 | 用途 |
 |------|------|------|
@@ -34,7 +43,18 @@
 | 💰 **财务/预算** | `05_成本分析/` | 分阶段成本、人机分配 |
 | 🧪 **生产启动** | `09_样例数据/` | 样例数据、自动化评估、人工步骤说明 |
 
-### 输出物一览
+```
+output/
+└── 项目名/
+    ├── 01_决策参考/
+    ├── 02_项目管理/
+    ├── ...
+    └── 09_样例数据/
+
+结构速览图: `docs/images/output_tree.png`
+```
+
+### 输出物一览 / Deliverables
 
 | 文件 | 用途 | 消费者 |
 |------|------|--------|
@@ -55,7 +75,7 @@
 | `samples.json` | 样例数据 (最多50条) | Agent + 人类 |
 | `SAMPLE_GUIDE.md` | 样例指南与自动化评估 | 人类 |
 
-## 安装
+## 安装 / Installation
 
 ```bash
 pip install datarecipe
@@ -70,9 +90,9 @@ pip install datarecipe[mcp]      # MCP 服务器
 pip install datarecipe[all]      # 全部功能
 ```
 
-## 快速开始
+## 快速开始 / Quick Start
 
-### 分析 HuggingFace 数据集
+### 分析 HuggingFace 数据集 / Analyze Datasets
 
 ```bash
 datarecipe deep-analyze tencent/CL-bench -o ./output
@@ -109,7 +129,7 @@ datarecipe deep-analyze tencent/CL-bench -o ./output
 
 </details>
 
-### 分析需求文档 (PDF/Word)
+### 分析需求文档 (PDF/Word) / Analyze Specs
 
 ```bash
 # API 模式 (需要 ANTHROPIC_API_KEY)
@@ -150,11 +170,11 @@ datarecipe analyze-spec requirements.pdf --from-json analysis.json
 
 ---
 
-## 深度分析
+## 深度分析 / Deep Analysis
 
 从数据集样本中提取构建范式与质量标准，生成可复用的生产规范。
 
-### 输出目录结构
+### 输出目录结构 / Output Tree
 
 ```
 output/
@@ -395,9 +415,46 @@ datacheck validate ./output/tencent_CL-bench/
 }
 ```
 
+## 扩展与自动化
+
+### 自定义分析器
+
+```python
+# src/datarecipe/analyzers/my_checker.py
+from datarecipe.core import register_analyzer
+
+@register_analyzer(name="sentiment_breakdown")
+def sentiment_breakdown(dataset):
+    ...  # 返回 {"insights": [...], "metrics": {...}}
+```
+
+将文件放入 `src/datarecipe/analyzers/` 并在 `.env` 中设置 `DATARECIPE_ANALYZERS=default,sentiment_breakdown` 即可自动加载。
+
+### 切换 LLM
+
+```bash
+export ANTHROPIC_API_KEY=...
+export DATARECIPE_MODEL=claude-3-5-sonnet
+
+# 或使用 OpenAI
+export OPENAI_API_KEY=...
+export DATARECIPE_PROVIDER=openai
+export DATARECIPE_MODEL=gpt-4o-mini
+```
+
+### 与 Radar / DataSynth / DataCheck 串联
+
+```
+Radar 报告 (json/md)
+   ↓ datarecipe batch-from-radar
+03_标注规范 + 04_复刻指南
+   ↓ datasynth generate --analysis ./output/xxx
+合成数据 → datacheck validate → 发布
+```
+
 ---
 
-## 与 Radar 联动
+## 与 Radar 联动 / Works with Radar
 
 联合 [AI Dataset Radar](https://github.com/liuxiaotong/ai-dataset-radar) 实现完整工作流：
 
@@ -405,7 +462,7 @@ datacheck validate ./output/tencent_CL-bench/
 Radar (发现数据集) → Recipe (逆向分析) → 复刻生产
 ```
 
-### 双 MCP 配置
+### 双 MCP 配置 / Dual MCP
 
 ```json
 {
@@ -422,7 +479,7 @@ Radar (发现数据集) → Recipe (逆向分析) → 复刻生产
 }
 ```
 
-### 工作流示例
+### 工作流示例 / Example Flow
 
 ```
 用户: 扫描这周的数据集，找一个 SFT 类型的深度分析
@@ -434,7 +491,7 @@ Claude 自动执行:
   4. 返回：标注规范、成本估算、复刻指南
 ```
 
-### 批量分析
+### 批量分析 / Batch Mode
 
 ```bash
 # 从 Radar 报告批量分析
@@ -449,7 +506,7 @@ datarecipe batch-from-radar ./report.json \
 
 ---
 
-## 命令参考
+## 命令参考 / Command Reference
 
 | 命令 | 功能 |
 |------|------|
@@ -464,7 +521,7 @@ datarecipe batch-from-radar ./report.json \
 
 ---
 
-## 项目架构
+## 项目架构 / Project Structure
 
 ```
 src/datarecipe/

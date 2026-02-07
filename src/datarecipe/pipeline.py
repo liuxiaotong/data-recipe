@@ -940,7 +940,7 @@ def pipeline_to_markdown(pipeline: ProductionPipeline, dataset_name: str = None)
     # Footer
     lines.append("---")
     lines.append("")
-    lines.append("*由 DataRecipe 生成 - 数据生产指南*")
+    lines.append("> 由 DataRecipe 生成 — 数据生产指南")
 
     return "\n".join(lines)
 

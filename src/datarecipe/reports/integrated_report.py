@@ -292,7 +292,7 @@ class IntegratedReportGenerator:
         lines.append(f">")
         lines.append(f"> **生成时间**: {report.generated_at[:16].replace('T', ' ')}")
         lines.append(f">")
-        lines.append(f"> *由 DataRecipe + ai-dataset-radar 联合生成*")
+        lines.append(f"> 由 DataRecipe + ai-dataset-radar 联合生成")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -405,7 +405,7 @@ class IntegratedReportGenerator:
 
         lines.append("---")
         lines.append("")
-        lines.append("*报告由 DataRecipe 自动生成*")
+        lines.append("> 报告由 DataRecipe 自动生成")
 
         return "\n".join(lines)
 

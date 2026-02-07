@@ -283,7 +283,7 @@ class IndustryBenchmarkGenerator:
         # Footer
         lines.append("---")
         lines.append("")
-        lines.append("*基准数据来源于公开信息和行业调研，仅供参考*")
+        lines.append("> 基准数据来源于公开信息和行业调研，仅供参考")
 
         return "\n".join(lines)
 

@@ -938,6 +938,6 @@ def deep_analysis_to_markdown(result: DeepAnalysisResult) -> str:
     # Footer
     lines.append("---")
     lines.append("")
-    lines.append("*由 DataRecipe 生成 - 专项数据生产指南*")
+    lines.append("> 由 DataRecipe 生成 — 专项数据生产指南")
 
     return "\n".join(lines)

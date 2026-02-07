@@ -351,7 +351,7 @@ class ProductionDeployer:
         lines.append("")
 
         lines.append("---")
-        lines.append("*由 DataRecipe 自动生成，请根据实际情况补充完善*")
+        lines.append("> 由 DataRecipe 自动生成，请根据实际情况补充完善")
 
         return "\n".join(lines)
 

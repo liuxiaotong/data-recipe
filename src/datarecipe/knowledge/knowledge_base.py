@@ -509,7 +509,7 @@ class KnowledgeBase:
         lines.append("")
 
         lines.append("---")
-        lines.append("*由 DataRecipe 知识库自动生成*")
+        lines.append("> 由 DataRecipe 知识库自动生成")
 
         content = "\n".join(lines)
 
