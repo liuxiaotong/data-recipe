@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "datarecipe"
+name = "knowlyr-datarecipe"
 version = "0.2.0"
 description = "AI dataset 'ingredients label' analyzer - reverse-engineer datasets, estimate costs, analyze quality, and generate production workflows"
 readme = "README.md"
@@ -95,8 +95,8 @@ dev = [
 ]
 
 [project.scripts]
-datarecipe = "datarecipe.cli:main"
-datarecipe-mcp = "datarecipe.mcp_server:run"
+knowlyr-datarecipe = "datarecipe.cli:main"
+knowlyr-datarecipe-mcp = "datarecipe.mcp_server:run"
 
 [project.entry-points."datarecipe.providers"]
 local = "datarecipe.providers.local:LocalFilesProvider"

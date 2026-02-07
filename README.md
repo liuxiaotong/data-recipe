@@ -4,7 +4,7 @@
 
 **AI 数据集逆向工程框架**
 
-[![PyPI](https://img.shields.io/pypi/v/datarecipe?color=blue)](https://pypi.org/project/datarecipe/)
+[![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue)](https://pypi.org/project/knowlyr-datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-9_Tools-purple.svg)](#mcp-server)
@@ -35,13 +35,13 @@
 ## 安装
 
 ```bash
-pip install datarecipe
+pip install knowlyr-datarecipe
 
 # 可选依赖
-pip install datarecipe[llm]      # LLM 分析 (Anthropic/OpenAI)
-pip install datarecipe[pdf]      # PDF 解析
-pip install datarecipe[mcp]      # MCP 服务器
-pip install datarecipe[all]      # 全部
+pip install knowlyr-datarecipe[llm]      # LLM 分析 (Anthropic/OpenAI)
+pip install knowlyr-datarecipe[pdf]      # PDF 解析
+pip install knowlyr-datarecipe[mcp]      # MCP 服务器
+pip install knowlyr-datarecipe[all]      # 全部
 ```
 
 ## 快速开始
@@ -50,26 +50,26 @@ pip install datarecipe[all]      # 全部
 
 ```bash
 # 基础分析 (纯本地，无需 API key)
-datarecipe deep-analyze tencent/CL-bench -o ./output
+knowlyr-datarecipe deep-analyze tencent/CL-bench -o ./output
 
 # 启用 LLM 增强 (在 Claude Code/App 中运行，自动利用宿主 LLM)
-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm
+knowlyr-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm
 
 # 独立运行时用 API
-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm --enhance-mode api
+knowlyr-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm --enhance-mode api
 ```
 
 ### 分析需求文档
 
 ```bash
 # API 模式 (需要 ANTHROPIC_API_KEY)
-datarecipe analyze-spec requirements.pdf -o ./output
+knowlyr-datarecipe analyze-spec requirements.pdf -o ./output
 
 # 交互模式 (在 Claude Code 中使用，无需 API key)
-datarecipe analyze-spec requirements.pdf --interactive
+knowlyr-datarecipe analyze-spec requirements.pdf --interactive
 
 # 从预计算 JSON 加载
-datarecipe analyze-spec requirements.pdf --from-json analysis.json
+knowlyr-datarecipe analyze-spec requirements.pdf --from-json analysis.json
 ```
 
 <details>
@@ -211,9 +211,9 @@ output/项目名/
 ```json
 {
   "mcpServers": {
-    "datarecipe": {
+    "knowlyr-datarecipe": {
       "command": "uv",
-      "args": ["--directory", "/path/to/data-recipe", "run", "datarecipe-mcp"]
+      "args": ["--directory", "/path/to/data-recipe", "run", "knowlyr-datarecipe-mcp"]
     }
   }
 }
@@ -250,10 +250,10 @@ DataRecipe (分析) → DataLabel (标注) → DataSynth (合成) → DataCheck 
 
 ```bash
 # 端到端工作流
-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm  # 分析
-datalabel generate ./output/tencent_CL-bench/                    # 标注
-datasynth generate ./output/tencent_CL-bench/ -n 1000            # 合成
-datacheck validate ./output/tencent_CL-bench/                    # 质检
+knowlyr-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm  # 分析
+knowlyr-datalabel generate ./output/tencent_CL-bench/                    # 标注
+knowlyr-datasynth generate ./output/tencent_CL-bench/ -n 1000            # 合成
+knowlyr-datacheck validate ./output/tencent_CL-bench/                    # 质检
 ```
 
 ---
