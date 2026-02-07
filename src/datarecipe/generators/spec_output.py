@@ -1662,7 +1662,153 @@ class SpecOutputGenerator:
         result: SpecOutputResult,
     ):
         """Generate DATA_SCHEMA.json - JSON schema for data format."""
-        schema = {
+        # Check if analysis has actual fields from the dataset
+        if analysis.fields and len(analysis.fields) > 0:
+            # Build schema from actual fields
+            schema = self._build_schema_from_fields(analysis)
+        else:
+            # Fall back to generic template
+            schema = self._build_generic_schema(analysis)
+
+        # Add image field if needed
+        if analysis.has_images:
+            schema["required"].insert(1, "image")
+            schema["properties"]["image"] = {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "图片路径"},
+                    "type": {
+                        "type": "string",
+                        "enum": ["hand_drawn", "software", "photo"],
+                        "description": "图片类型",
+                    },
+                    "description": {"type": "string", "description": "图片描述"},
+                },
+                "required": ["path", "type"],
+            }
+
+        # Add model_test field if difficulty validation is enabled
+        if analysis.has_difficulty_validation():
+            diff_val = analysis.difficulty_validation
+            test_count = diff_val.get("test_count", 3)
+
+            schema["required"].append("model_test")
+            schema["properties"]["model_test"] = {
+                "type": "object",
+                "properties": {
+                    "model": {"type": "string", "description": "测试使用的模型"},
+                    "settings": {"type": "string", "description": "模型配置"},
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "attempt": {"type": "integer"},
+                                "response": {"type": "string"},
+                                "is_correct": {"type": "boolean"},
+                            },
+                            "required": ["attempt", "response", "is_correct"],
+                        },
+                        "minItems": test_count,
+                        "maxItems": test_count,
+                    },
+                    "valid": {"type": "boolean", "description": "是否通过难度验证"},
+                },
+                "required": ["model", "results", "valid"],
+            }
+
+        path = os.path.join(output_dir, subdirs["guide"], "DATA_SCHEMA.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(schema, f, indent=2, ensure_ascii=False)
+        result.files_generated.append(f"{subdirs['guide']}/DATA_SCHEMA.json")
+
+    def _build_schema_from_fields(self, analysis: SpecificationAnalysis) -> dict:
+        """Build JSON schema from analysis.fields."""
+        properties = {}
+        required = []
+
+        # Always add id field
+        properties["id"] = {
+            "type": "string",
+            "description": "唯一标识符",
+        }
+        required.append("id")
+
+        # Convert each field to JSON Schema format
+        for field in analysis.fields:
+            field_name = field.get("name", "")
+            if not field_name or field_name == "id":
+                continue
+
+            field_type = field.get("type", "string")
+            field_desc = field.get("description", "")
+            field_required = field.get("required", False)
+
+            # Map field type to JSON Schema type
+            json_type = self._map_field_type_to_json_schema(field_type)
+
+            prop = {
+                "type": json_type,
+            }
+            if field_desc:
+                prop["description"] = field_desc
+
+            # Add constraints if present
+            if "constraints" in field:
+                constraints = field["constraints"]
+                if "minLength" in constraints:
+                    prop["minLength"] = constraints["minLength"]
+                if "maxLength" in constraints:
+                    prop["maxLength"] = constraints["maxLength"]
+                if "enum" in constraints:
+                    prop["enum"] = constraints["enum"]
+                if "pattern" in constraints:
+                    prop["pattern"] = constraints["pattern"]
+
+            properties[field_name] = prop
+
+            if field_required:
+                required.append(field_name)
+
+        # Add metadata field
+        properties["metadata"] = {
+            "type": "object",
+            "properties": {
+                "difficulty": {"type": "string", "enum": ["easy", "medium", "hard", "expert"]},
+                "domain": {"type": "string"},
+                "created_at": {"type": "string", "format": "date-time"},
+            },
+        }
+
+        return {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "title": f"{analysis.project_name} 数据格式",
+            "type": "object",
+            "required": required,
+            "properties": properties,
+            # Include field definitions for reference
+            "x-field-definitions": analysis.fields,
+        }
+
+    def _map_field_type_to_json_schema(self, field_type: str) -> str:
+        """Map custom field types to JSON Schema types."""
+        type_mapping = {
+            "string": "string",
+            "text": "string",
+            "code": "string",
+            "image": "string",
+            "number": "number",
+            "integer": "integer",
+            "boolean": "boolean",
+            "array": "array",
+            "object": "object",
+            "list": "array",
+        }
+        return type_mapping.get(field_type.lower(), "string")
+
+    def _build_generic_schema(self, analysis: SpecificationAnalysis) -> dict:
+        """Build generic fallback schema when no fields are defined."""
+        return {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "title": f"{analysis.project_name} 数据格式",
             "type": "object",
@@ -1719,58 +1865,6 @@ class SpecOutputGenerator:
                 },
             },
         }
-
-        # Add image field if needed
-        if analysis.has_images:
-            schema["required"].insert(1, "image")
-            schema["properties"]["image"] = {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "description": "图片路径"},
-                    "type": {
-                        "type": "string",
-                        "enum": ["hand_drawn", "software", "photo"],
-                        "description": "图片类型",
-                    },
-                    "description": {"type": "string", "description": "图片描述"},
-                },
-                "required": ["path", "type"],
-            }
-
-        # Add model_test field if difficulty validation is enabled
-        if analysis.has_difficulty_validation():
-            diff_val = analysis.difficulty_validation
-            test_count = diff_val.get("test_count", 3)
-
-            schema["required"].append("model_test")
-            schema["properties"]["model_test"] = {
-                "type": "object",
-                "properties": {
-                    "model": {"type": "string", "description": "测试使用的模型"},
-                    "settings": {"type": "string", "description": "模型配置"},
-                    "results": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "attempt": {"type": "integer"},
-                                "response": {"type": "string"},
-                                "is_correct": {"type": "boolean"},
-                            },
-                            "required": ["attempt", "response", "is_correct"],
-                        },
-                        "minItems": test_count,
-                        "maxItems": test_count,
-                    },
-                    "valid": {"type": "boolean", "description": "是否通过难度验证"},
-                },
-                "required": ["model", "results", "valid"],
-            }
-
-        path = os.path.join(output_dir, subdirs["guide"], "DATA_SCHEMA.json")
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(schema, f, indent=2, ensure_ascii=False)
-        result.files_generated.append(f"{subdirs['guide']}/DATA_SCHEMA.json")
 
     def _estimate_cost_per_item(self, analysis: SpecificationAnalysis, region: str) -> float:
         """Estimate cost per item based on analysis."""
