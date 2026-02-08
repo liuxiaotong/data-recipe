@@ -5,7 +5,9 @@
 **AI 数据集逆向工程框架**
 
 [![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue&v=1)](https://pypi.org/project/knowlyr-datarecipe/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue.svg)](https://www.python.org/downloads/)
+[![Tests](https://img.shields.io/badge/tests-2090_passed-brightgreen.svg)](#开发)
+[![Coverage](https://img.shields.io/badge/coverage-62%25-green.svg)](#开发)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-10_Tools-purple.svg)](#mcp-server)
 
@@ -328,31 +330,74 @@ knowlyr-datacheck validate ./projects/tencent_CL-bench/          # 质检
 ```
 src/datarecipe/
 ├── core/
-│   ├── deep_analyzer.py            # 深度分析引擎
+│   ├── deep_analyzer.py            # 深度分析引擎 (6 阶段流水线)
 │   └── project_layout.py           # 统一输出目录布局
 ├── analyzers/
 │   ├── spec_analyzer.py            # 需求文档分析 (LLM 提取)
+│   ├── context_strategy.py         # 上下文策略检测
 │   └── llm_dataset_analyzer.py     # 数据集智能分析
 ├── generators/
 │   ├── llm_enhancer.py             # LLM 增强层 (EnhancedContext)
 │   ├── spec_output.py              # 需求文档产出 (23+ 文件)
 │   ├── executive_summary.py        # 执行摘要生成器
 │   ├── annotation_spec.py          # 标注规范生成器
-│   └── milestone_plan.py           # 里程碑计划生成器
+│   ├── milestone_plan.py           # 里程碑计划生成器
+│   ├── enhanced_guide.py           # 增强生产指南
+│   ├── human_machine_split.py      # 人机分配分析
+│   ├── industry_benchmark.py       # 行业基准对比
+│   └── pattern_generator.py        # 模式生成器
 ├── parsers/
 │   └── document_parser.py          # PDF / Word / 图片解析
 ├── extractors/
-│   ├── rubric_extractor.py         # 评分标准提取
+│   ├── rubrics_analyzer.py         # 评分标准提取
 │   └── prompt_extractor.py         # Prompt 模板提取
 ├── cost/
-│   ├── token_analyzer.py           # Token 分析
-│   └── phased_model.py             # 分阶段成本模型
+│   ├── token_analyzer.py           # Token 精确分析
+│   ├── phased_model.py             # 分阶段成本模型
+│   ├── calibrator.py               # 成本校准器
+│   └── complexity_analyzer.py      # 复杂度分析
+├── knowledge/
+│   ├── knowledge_base.py           # 知识库 (模式积累)
+│   └── dataset_catalog.py          # 数据集目录
+├── integrations/
+│   └── radar.py                    # AI Dataset Radar 集成
+├── cache/
+│   └── analysis_cache.py           # 分析缓存
+├── constants.py                    # 全局常量
+├── schema.py                       # 数据模型 (Recipe / DataRecipe)
 ├── task_profiles.py                # 任务类型注册表 (5 种内置类型)
-├── pipeline.py                     # 多阶段流水线模板
+├── cost_calculator.py              # 成本计算器
+├── comparator.py                   # 数据集对比
+├── profiler.py                     # 标注员画像
+├── workflow.py                     # 生产工作流生成
 ├── quality_metrics.py              # 质量评估指标
+├── pipeline.py                     # 多阶段流水线模板
 ├── mcp_server.py                   # MCP Server (10 工具)
 └── cli.py                          # CLI 入口
 ```
+
+---
+
+## 开发
+
+```bash
+# 安装开发依赖
+make install
+
+# 运行测试 (2090 个用例)
+make test
+
+# 查看测试覆盖率
+make coverage
+
+# 代码格式化 + lint
+make lint
+make format
+```
+
+**测试覆盖**: 27 个测试文件，2090 个测试用例，62% 语句覆盖率。核心模块覆盖率 92-100%。
+
+**CI**: GitHub Actions，支持 Python 3.10 / 3.11 / 3.12 / 3.13。
 
 ---
 
