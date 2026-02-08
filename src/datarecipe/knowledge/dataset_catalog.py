@@ -8,7 +8,7 @@ This catalog provides:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class DatasetCategory(Enum):
@@ -37,15 +37,15 @@ class DatasetInfo:
     year: int = 2024
 
     # Relationships
-    similar_to: List[str] = field(default_factory=list)  # Dataset IDs
-    derived_from: List[str] = field(default_factory=list)
+    similar_to: list[str] = field(default_factory=list)  # Dataset IDs
+    derived_from: list[str] = field(default_factory=list)
 
     # Cost benchmark (if known)
     estimated_cost: float = 0  # USD to reproduce
     estimated_hours: float = 0  # Human hours
 
     # Tags for search
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     # Quality indicators
     citation_count: int = 0
@@ -81,7 +81,7 @@ class IndustryBenchmark:
 # KNOWN DATASETS CATALOG
 # ============================================================
 
-KNOWN_DATASETS: Dict[str, DatasetInfo] = {
+KNOWN_DATASETS: dict[str, DatasetInfo] = {
     # ----- PREFERENCE / RLHF -----
     "Anthropic/hh-rlhf": DatasetInfo(
         dataset_id="Anthropic/hh-rlhf",
@@ -325,7 +325,7 @@ KNOWN_DATASETS: Dict[str, DatasetInfo] = {
 # INDUSTRY BENCHMARKS
 # ============================================================
 
-INDUSTRY_BENCHMARKS: Dict[str, IndustryBenchmark] = {
+INDUSTRY_BENCHMARKS: dict[str, IndustryBenchmark] = {
     "preference": IndustryBenchmark(
         category="preference",
         description="RLHF/DPO 偏好标注数据",
@@ -452,9 +452,9 @@ class DatasetCatalog:
         self,
         dataset_id: str = None,
         category: str = None,
-        tags: List[str] = None,
+        tags: list[str] = None,
         limit: int = 5,
-    ) -> List[DatasetInfo]:
+    ) -> list[DatasetInfo]:
         """Find similar datasets.
 
         Args:
@@ -493,9 +493,9 @@ class DatasetCatalog:
 
         # Filter by tags
         if tags:
-            tags_lower = set(t.lower() for t in tags)
+            tags_lower = {t.lower() for t in tags}
             for info in self.datasets.values():
-                info_tags = set(t.lower() for t in info.tags)
+                info_tags = {t.lower() for t in info.tags}
                 if tags_lower & info_tags and info not in results:
                     if dataset_id is None or info.dataset_id != dataset_id:
                         results.append(info)
@@ -505,7 +505,7 @@ class DatasetCatalog:
 
         return results[:limit]
 
-    def find_by_category(self, category: str, limit: int = 10) -> List[DatasetInfo]:
+    def find_by_category(self, category: str, limit: int = 10) -> list[DatasetInfo]:
         """Find datasets by category."""
         try:
             category_enum = DatasetCategory(category.lower())
@@ -517,13 +517,13 @@ class DatasetCatalog:
         results.sort(key=lambda x: x.citation_count, reverse=True)
         return results[:limit]
 
-    def find_by_tags(self, tags: List[str], limit: int = 10) -> List[DatasetInfo]:
+    def find_by_tags(self, tags: list[str], limit: int = 10) -> list[DatasetInfo]:
         """Find datasets by tags."""
-        tags_lower = set(t.lower() for t in tags)
+        tags_lower = {t.lower() for t in tags}
 
         results = []
         for info in self.datasets.values():
-            info_tags = set(t.lower() for t in info.tags)
+            info_tags = {t.lower() for t in info.tags}
             overlap = len(tags_lower & info_tags)
             if overlap > 0:
                 results.append((info, overlap))
@@ -535,7 +535,7 @@ class DatasetCatalog:
         """Get industry benchmark for a category."""
         return self.benchmarks.get(category.lower())
 
-    def get_all_benchmarks(self) -> Dict[str, IndustryBenchmark]:
+    def get_all_benchmarks(self) -> dict[str, IndustryBenchmark]:
         """Get all industry benchmarks."""
         return self.benchmarks.copy()
 
@@ -545,7 +545,7 @@ class DatasetCatalog:
         sample_count: int,
         total_cost: float,
         human_percentage: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compare a project with industry benchmarks.
 
         Returns comparison analysis.

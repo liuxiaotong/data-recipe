@@ -6,7 +6,7 @@ and API costs based on real data rather than fixed estimates.
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -29,7 +29,7 @@ class TokenStats:
     max_output_tokens: int = 0
 
     # By field
-    field_token_counts: Dict[str, int] = field(default_factory=dict)
+    field_token_counts: dict[str, int] = field(default_factory=dict)
 
     # Percentiles
     p50_input: int = 0
@@ -198,9 +198,9 @@ class TokenAnalyzer:
 
     def analyze_samples(
         self,
-        samples: List[Dict[str, Any]],
-        input_fields: Optional[List[str]] = None,
-        output_fields: Optional[List[str]] = None,
+        samples: list[dict[str, Any]],
+        input_fields: Optional[list[str]] = None,
+        output_fields: Optional[list[str]] = None,
     ) -> TokenStats:
         """Analyze samples to calculate token statistics.
 
@@ -223,27 +223,27 @@ class TokenAnalyzer:
 
         input_counts = []
         output_counts = []
-        field_totals: Dict[str, int] = {}
+        field_totals: dict[str, int] = {}
 
         for sample in samples:
             # Count input tokens
             input_tokens = 0
-            for field in input_fields:
-                if field in sample:
-                    text = self._extract_text(sample[field])
+            for fld in input_fields:
+                if fld in sample:
+                    text = self._extract_text(sample[fld])
                     tokens = self.count_tokens(text)
                     input_tokens += tokens
-                    field_totals[field] = field_totals.get(field, 0) + tokens
+                    field_totals[fld] = field_totals.get(fld, 0) + tokens
             input_counts.append(input_tokens)
 
             # Count output tokens
             output_tokens = 0
-            for field in output_fields:
-                if field in sample:
-                    text = self._extract_text(sample[field])
+            for fld in output_fields:
+                if fld in sample:
+                    text = self._extract_text(sample[fld])
                     tokens = self.count_tokens(text)
                     output_tokens += tokens
-                    field_totals[field] = field_totals.get(field, 0) + tokens
+                    field_totals[fld] = field_totals.get(fld, 0) + tokens
             output_counts.append(output_tokens)
 
         # Calculate statistics
@@ -275,7 +275,7 @@ class TokenAnalyzer:
 
         return stats
 
-    def _detect_io_fields(self, sample: Dict[str, Any]) -> tuple[List[str], List[str]]:
+    def _detect_io_fields(self, sample: dict[str, Any]) -> tuple[list[str], list[str]]:
         """Auto-detect input and output fields from sample structure."""
         input_fields = []
         output_fields = []
@@ -292,25 +292,25 @@ class TokenAnalyzer:
         ]
         output_patterns = ["output", "response", "answer", "completion", "solution", "target"]
 
-        for field in sample.keys():
-            field_lower = field.lower()
+        for fld in sample.keys():
+            fld_lower = fld.lower()
 
             # Check for messages field (chat format)
-            if field == "messages" and isinstance(sample[field], list):
+            if fld == "messages" and isinstance(sample[fld], list):
                 # Messages format: separate user (input) and assistant (output)
                 input_fields.append("messages")  # Will be handled specially
                 continue
 
             # Check for preference format
-            if field in ["chosen", "rejected"]:
-                output_fields.append(field)
+            if fld in ["chosen", "rejected"]:
+                output_fields.append(fld)
                 continue
 
             # Pattern matching
-            if any(p in field_lower for p in input_patterns):
-                input_fields.append(field)
-            elif any(p in field_lower for p in output_patterns):
-                output_fields.append(field)
+            if any(p in fld_lower for p in input_patterns):
+                input_fields.append(fld)
+            elif any(p in fld_lower for p in output_patterns):
+                output_fields.append(fld)
 
         # Fallback: if no fields detected, use all string fields
         if not input_fields and not output_fields:
@@ -376,7 +376,7 @@ class PreciseCostEstimate:
     cost_high: float = 0.0  # Pessimistic (p99 tokens)
 
     # Assumptions
-    assumptions: List[str] = field(default_factory=list)
+    assumptions: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -411,12 +411,12 @@ class PreciseCostCalculator:
 
     def calculate(
         self,
-        samples: List[Dict[str, Any]],
+        samples: list[dict[str, Any]],
         target_size: int,
         model: str = "gpt-4o",
         iteration_factor: float = 1.2,
-        input_fields: Optional[List[str]] = None,
-        output_fields: Optional[List[str]] = None,
+        input_fields: Optional[list[str]] = None,
+        output_fields: Optional[list[str]] = None,
     ) -> PreciseCostEstimate:
         """Calculate precise API cost based on sample analysis.
 
@@ -489,10 +489,10 @@ class PreciseCostCalculator:
 
     def compare_models(
         self,
-        samples: List[Dict[str, Any]],
+        samples: list[dict[str, Any]],
         target_size: int,
-        models: Optional[List[str]] = None,
-    ) -> Dict[str, PreciseCostEstimate]:
+        models: Optional[list[str]] = None,
+    ) -> dict[str, PreciseCostEstimate]:
         """Compare costs across multiple models.
 
         Args:
@@ -522,7 +522,7 @@ class PreciseCostCalculator:
 
         return results
 
-    def format_comparison_table(self, comparisons: Dict[str, PreciseCostEstimate]) -> str:
+    def format_comparison_table(self, comparisons: dict[str, PreciseCostEstimate]) -> str:
         """Format model comparison as markdown table."""
         lines = [
             "| 模型 | 预期成本 | 范围 | Input $/M | Output $/M |",

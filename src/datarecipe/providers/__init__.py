@@ -4,9 +4,12 @@
 """
 
 import importlib.metadata
+import logging
 from typing import Optional
 
 from datarecipe.schema import DeploymentProvider
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderNotFoundError(Exception):
@@ -30,7 +33,7 @@ def discover_providers() -> dict[str, type]:
                 provider_class = ep.load()
                 providers[ep.name] = provider_class
             except Exception as e:
-                print(f"Warning: Failed to load provider {ep.name}: {e}")
+                logger.warning(f"Failed to load provider {ep.name}: {e}")
     except Exception:
         pass
 

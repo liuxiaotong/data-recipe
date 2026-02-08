@@ -1,11 +1,14 @@
 """Production workflow generation for dataset reproduction."""
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
 from datarecipe.cost_calculator import CostCalculator
 from datarecipe.schema import Recipe
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

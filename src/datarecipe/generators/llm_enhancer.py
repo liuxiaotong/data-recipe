@@ -12,7 +12,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -21,27 +21,27 @@ class EnhancedContext:
 
     # Dataset-specific insights (REPRODUCTION_GUIDE, ANALYSIS_REPORT)
     dataset_purpose_summary: str = ""
-    key_methodology_insights: List[str] = field(default_factory=list)
+    key_methodology_insights: list[str] = field(default_factory=list)
     reproduction_strategy: str = ""
-    domain_specific_tips: List[str] = field(default_factory=list)
+    domain_specific_tips: list[str] = field(default_factory=list)
 
     # EXECUTIVE_SUMMARY
-    tailored_use_cases: List[str] = field(default_factory=list)
-    tailored_roi_scenarios: List[str] = field(default_factory=list)
-    tailored_risks: List[Dict[str, str]] = field(default_factory=list)
+    tailored_use_cases: list[str] = field(default_factory=list)
+    tailored_roi_scenarios: list[str] = field(default_factory=list)
+    tailored_risks: list[dict[str, str]] = field(default_factory=list)
     competitive_positioning: str = ""
 
     # ANNOTATION_SPEC / TRAINING_GUIDE
     domain_specific_guidelines: str = ""
-    quality_pitfalls: List[str] = field(default_factory=list)
-    example_analysis: List[Dict[str, str]] = field(default_factory=list)
+    quality_pitfalls: list[str] = field(default_factory=list)
+    example_analysis: list[dict[str, str]] = field(default_factory=list)
 
     # MILESTONE_PLAN
-    phase_specific_risks: List[Dict[str, str]] = field(default_factory=list)
+    phase_specific_risks: list[dict[str, str]] = field(default_factory=list)
     team_recommendations: str = ""
 
     # Sample generation seeds
-    realistic_sample_seeds: List[Dict[str, Any]] = field(default_factory=list)
+    realistic_sample_seeds: list[dict[str, Any]] = field(default_factory=list)
 
     # Metadata
     llm_provider: str = ""
@@ -168,8 +168,8 @@ class LLMEnhancer:
         self,
         dataset_id: str,
         dataset_type: str = "unknown",
-        schema_info: Optional[Dict] = None,
-        sample_items: Optional[List[Dict]] = None,
+        schema_info: Optional[dict] = None,
+        sample_items: Optional[list[dict]] = None,
         sample_count: int = 0,
         domain: str = "通用",
         difficulty: str = "medium",
@@ -438,7 +438,7 @@ class LLMEnhancer:
                 raw_response=response_text,
             )
 
-    def _dict_to_context(self, data: Dict) -> EnhancedContext:
+    def _dict_to_context(self, data: dict) -> EnhancedContext:
         """Convert a dict to EnhancedContext."""
         return EnhancedContext(
             # Dataset insights

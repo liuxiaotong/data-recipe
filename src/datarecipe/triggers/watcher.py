@@ -1,13 +1,16 @@
 """File system watcher for automated analysis triggers."""
 
 import json
+import logging
 import os
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -15,8 +18,8 @@ class TriggerConfig:
     """Configuration for analysis triggers."""
 
     # Filter settings
-    orgs: List[str] = field(default_factory=list)  # Filter by organizations
-    categories: List[str] = field(default_factory=list)  # Filter by categories
+    orgs: list[str] = field(default_factory=list)  # Filter by organizations
+    categories: list[str] = field(default_factory=list)  # Filter by categories
     min_downloads: int = 0  # Minimum download count
 
     # Analysis settings
@@ -71,7 +74,7 @@ class RadarWatcher:
         self.config = config or TriggerConfig()
         self.callback = callback
 
-        self.processed_files: Dict[str, str] = {}  # file -> last_modified
+        self.processed_files: dict[str, str] = {}  # file -> last_modified
         self.state_file = self.watch_dir / ".datarecipe_watcher_state.json"
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -95,7 +98,7 @@ class RadarWatcher:
         except Exception:
             pass
 
-    def _find_new_reports(self) -> List[Path]:
+    def _find_new_reports(self) -> list[Path]:
         """Find new or updated Radar reports."""
         new_reports = []
 
@@ -330,7 +333,7 @@ class RadarWatcher:
                 "error": str(e),
             }
 
-    def check_once(self) -> List[dict]:
+    def check_once(self) -> list[dict]:
         """Check for new reports once and process them.
 
         Returns:
@@ -355,20 +358,20 @@ class RadarWatcher:
         self._running = True
         iterations = 0
 
-        print(f"Watching {self.watch_dir} for new Radar reports...")
-        print(f"Check interval: {interval}s")
-        print("Press Ctrl+C to stop\n")
+        logger.info(f"Watching {self.watch_dir} for new Radar reports...")
+        logger.info(f"Check interval: {interval}s")
+        logger.info("Press Ctrl+C to stop")
 
         while self._running:
             try:
                 results = self.check_once()
 
                 for r in results:
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Processed: {r['report']}")
-                    print(f"  Analyzed: {r['datasets_analyzed']}, Failed: {r['datasets_failed']}")
+                    logger.info(f"[{datetime.now().strftime('%H:%M:%S')}] Processed: {r['report']}")
+                    logger.info(f"  Analyzed: {r['datasets_analyzed']}, Failed: {r['datasets_failed']}")
 
                 if not results:
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] No new reports")
+                    logger.debug(f"[{datetime.now().strftime('%H:%M:%S')}] No new reports")
 
                 iterations += 1
                 if max_iterations > 0 and iterations >= max_iterations:
@@ -377,7 +380,7 @@ class RadarWatcher:
                 time.sleep(interval)
 
             except KeyboardInterrupt:
-                print("\nStopping watcher...")
+                logger.info("Stopping watcher...")
                 break
 
         self._running = False

@@ -1,5 +1,6 @@
 """LLM-enhanced analyzer for extracting detailed dataset information."""
 
+import logging
 import os
 import re
 import tempfile
@@ -7,6 +8,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 from datarecipe.deep_analyzer import (
     DatasetCategory,
@@ -286,7 +289,7 @@ class LLMAnalyzer(DeepAnalyzer):
             return json.loads(response_text)
 
         except Exception as e:
-            print(f"LLM analysis failed: {e}")
+            logger.error(f"LLM analysis failed: {e}")
             return {}
 
     def analyze(self, url: str, search_paper_if_needed: bool = None) -> DeepAnalysisResult:
@@ -337,7 +340,7 @@ class LLMAnalyzer(DeepAnalyzer):
             try:
                 llm_result = self._analyze_with_llm(name, url, combined_content)
             except Exception as e:
-                print(f"LLM analysis failed: {e}")
+                logger.error(f"LLM analysis failed: {e}")
 
         # Create result with basic extraction using combined content (including PDF)
         category = self._detect_category(combined_content)

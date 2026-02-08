@@ -1,10 +1,13 @@
 """Specification document analyzer using LLM."""
 
 import json
+import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from datarecipe.parsers import DocumentParser, ParsedDocument
+
+logger = logging.getLogger(__name__)
 
 # --- Type mapping utility ---
 
@@ -46,11 +49,11 @@ class FieldDefinition:
 
     # Nested structure (for array items / object properties)
     items: Optional["FieldDefinition"] = None  # array element type
-    properties: Optional[List["FieldDefinition"]] = None  # object sub-fields
+    properties: Optional[list["FieldDefinition"]] = None  # object sub-fields
 
     # Enum / union
-    enum: Optional[List[Any]] = None
-    any_of: Optional[List["FieldDefinition"]] = None
+    enum: Optional[list[Any]] = None
+    any_of: Optional[list["FieldDefinition"]] = None
 
     # Constraints
     min_length: Optional[int] = None
@@ -63,7 +66,7 @@ class FieldDefinition:
 
     def to_dict(self) -> dict:
         """Serialize to plain dict (round-trippable with from_dict)."""
-        d: Dict[str, Any] = {"name": self.name, "type": self.type}
+        d: dict[str, Any] = {"name": self.name, "type": self.type}
         if self.description:
             d["description"] = self.description
         if self.required:
@@ -83,7 +86,7 @@ class FieldDefinition:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "FieldDefinition":
+    def from_dict(cls, data: dict[str, Any]) -> "FieldDefinition":
         """Deserialize from dict. Backwards-compatible with old flat format
         ``{"name": "x", "type": "string", "required": true, "description": "..."}``."""
         items = None
@@ -121,7 +124,7 @@ class FieldDefinition:
     def to_json_schema(self) -> dict:
         """Convert to a JSON Schema property definition."""
         json_type = _map_type(self.type)
-        schema: Dict[str, Any] = {"type": json_type}
+        schema: dict[str, Any] = {"type": json_type}
 
         if self.description:
             schema["description"] = self.description
@@ -191,7 +194,7 @@ class FieldConstraint:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "FieldConstraint":
+    def from_dict(cls, data: dict[str, Any]) -> "FieldConstraint":
         return cls(
             field_name=data.get("field_name", ""),
             constraint_type=data.get("constraint_type", "general"),
@@ -210,7 +213,7 @@ class ValidationStrategy:
 
     strategy_type: str  # model_test, human_review, format_check, cross_validation, auto_scoring
     enabled: bool = True
-    config: Dict[str, Any] = field(default_factory=dict)
+    config: dict[str, Any] = field(default_factory=dict)
     description: str = ""
 
     def to_dict(self) -> dict:
@@ -222,7 +225,7 @@ class ValidationStrategy:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ValidationStrategy":
+    def from_dict(cls, data: dict[str, Any]) -> "ValidationStrategy":
         return cls(
             strategy_type=data.get("strategy_type", ""),
             enabled=data.get("enabled", True),
@@ -231,7 +234,7 @@ class ValidationStrategy:
         )
 
     @classmethod
-    def from_difficulty_validation(cls, diff_val: Dict[str, Any]) -> "ValidationStrategy":
+    def from_difficulty_validation(cls, diff_val: dict[str, Any]) -> "ValidationStrategy":
         """Convert legacy difficulty_validation dict to a ValidationStrategy."""
         return cls(
             strategy_type="model_test",
@@ -263,43 +266,43 @@ class SpecificationAnalysis:
     # Task definition
     task_type: str = ""  # 题目类型
     task_description: str = ""  # 题目类型描述
-    cognitive_requirements: List[str] = field(default_factory=list)  # 认知要求
-    reasoning_chain: List[str] = field(default_factory=list)  # 推理链
+    cognitive_requirements: list[str] = field(default_factory=list)  # 认知要求
+    reasoning_chain: list[str] = field(default_factory=list)  # 推理链
 
     # Data requirements
-    data_requirements: List[str] = field(default_factory=list)  # 数据要求
-    quality_constraints: List[str] = field(default_factory=list)  # 质量约束
-    forbidden_items: List[str] = field(default_factory=list)  # 禁止项
+    data_requirements: list[str] = field(default_factory=list)  # 数据要求
+    quality_constraints: list[str] = field(default_factory=list)  # 质量约束
+    forbidden_items: list[str] = field(default_factory=list)  # 禁止项
     difficulty_criteria: str = ""  # 难度标准
 
     # Difficulty validation config (extracted from spec, None if not specified)
-    difficulty_validation: Optional[Dict[str, Any]] = None  # 难度验证配置
+    difficulty_validation: Optional[dict[str, Any]] = None  # 难度验证配置
     # Example: {"model": "doubao1.8", "settings": "高思考深度", "test_count": 3, "max_correct": 1, "requires_record": True}
 
     # Data structure
-    fields: List[Dict[str, str]] = field(default_factory=list)  # 字段定义
-    field_requirements: Dict[str, str] = field(default_factory=dict)  # 字段要求
+    fields: list[dict[str, str]] = field(default_factory=list)  # 字段定义
+    field_requirements: dict[str, str] = field(default_factory=dict)  # 字段要求
 
     # Structured field constraints (Upgrade 6)
-    field_constraints: List[Dict] = field(default_factory=list)
+    field_constraints: list[dict] = field(default_factory=list)
 
     # Validation strategies (Upgrade 3)
-    validation_strategies: List[Dict] = field(default_factory=list)
+    validation_strategies: list[dict] = field(default_factory=list)
 
     # Quality gates (Upgrade 4)
-    quality_gates: List[Dict] = field(default_factory=list)
+    quality_gates: list[dict] = field(default_factory=list)
 
     # Examples
-    examples: List[Dict[str, Any]] = field(default_factory=list)  # 示例
+    examples: list[dict[str, Any]] = field(default_factory=list)  # 示例
 
     # Scoring
-    scoring_rubric: List[Dict[str, str]] = field(default_factory=list)  # 打分标准
+    scoring_rubric: list[dict[str, str]] = field(default_factory=list)  # 打分标准
 
     # Estimates
     estimated_difficulty: str = ""  # easy/medium/hard/expert
     estimated_domain: str = ""  # 领域
     estimated_human_percentage: float = 95.0  # 人工比例估计
-    similar_datasets: List[str] = field(default_factory=list)
+    similar_datasets: list[str] = field(default_factory=list)
 
     # Raw
     raw_text: str = ""
@@ -309,7 +312,7 @@ class SpecificationAnalysis:
     # --- Computed properties ---
 
     @property
-    def field_definitions(self) -> List[FieldDefinition]:
+    def field_definitions(self) -> list[FieldDefinition]:
         """Parse ``fields`` into rich FieldDefinition objects (cached on instance)."""
         cache_attr = "_cached_field_definitions"
         if not hasattr(self, cache_attr) or getattr(self, cache_attr) is None:
@@ -318,9 +321,9 @@ class SpecificationAnalysis:
         return getattr(self, cache_attr)
 
     @property
-    def parsed_constraints(self) -> List[FieldConstraint]:
+    def parsed_constraints(self) -> list[FieldConstraint]:
         """Merge ``field_constraints`` (new) + ``field_requirements`` + ``quality_constraints`` (legacy)."""
-        constraints: List[FieldConstraint] = []
+        constraints: list[FieldConstraint] = []
         # New-format field_constraints
         for c in self.field_constraints:
             constraints.append(FieldConstraint.from_dict(c))
@@ -350,14 +353,14 @@ class SpecificationAnalysis:
                 )
         return constraints
 
-    def constraints_for_field(self, field_name: str) -> List[FieldConstraint]:
+    def constraints_for_field(self, field_name: str) -> list[FieldConstraint]:
         """Return constraints applicable to a specific field (including _global)."""
         return [c for c in self.parsed_constraints if c.field_name in (field_name, "_global")]
 
     @property
-    def parsed_validation_strategies(self) -> List[ValidationStrategy]:
+    def parsed_validation_strategies(self) -> list[ValidationStrategy]:
         """Merge ``validation_strategies`` (new) + legacy ``difficulty_validation``."""
-        strategies: List[ValidationStrategy] = []
+        strategies: list[ValidationStrategy] = []
         for vs in self.validation_strategies:
             strategies.append(ValidationStrategy.from_dict(vs))
         # Legacy difficulty_validation → model_test strategy
@@ -566,7 +569,7 @@ class SpecAnalyzer:
         return self.EXTRACTION_PROMPT.format(document_content=doc.text_content[:15000])
 
     def create_analysis_from_json(
-        self, extracted: Dict, doc: Optional[ParsedDocument] = None
+        self, extracted: dict, doc: Optional[ParsedDocument] = None
     ) -> SpecificationAnalysis:
         """Create SpecificationAnalysis from extracted JSON data.
 
@@ -652,7 +655,7 @@ class SpecAnalyzer:
                 image_count=len(doc.images),
             )
 
-    def _extract_with_llm(self, doc: ParsedDocument) -> Optional[Dict]:
+    def _extract_with_llm(self, doc: ParsedDocument) -> Optional[dict]:
         """Extract structured information using LLM."""
         prompt = self.EXTRACTION_PROMPT.format(
             document_content=doc.text_content[:15000]  # Limit content length
@@ -665,7 +668,7 @@ class SpecAnalyzer:
         else:
             raise ValueError(f"Unknown provider: {self.provider}")
 
-    def _call_anthropic(self, prompt: str, images: List[dict]) -> Optional[Dict]:
+    def _call_anthropic(self, prompt: str, images: list[dict]) -> Optional[dict]:
         """Call Anthropic Claude API."""
         try:
             import anthropic
@@ -709,15 +712,15 @@ class SpecAnalyzer:
         except ImportError:
             raise ImportError("anthropic not installed. Run: pip install anthropic")
         except anthropic.AuthenticationError:
-            print(
+            logger.error(
                 "LLM call failed: ANTHROPIC_API_KEY not set. Run: export ANTHROPIC_API_KEY=your_key"
             )
             return None
         except Exception as e:
-            print(f"LLM call failed: {e}")
+            logger.error(f"LLM call failed: {e}")
             return None
 
-    def _call_openai(self, prompt: str, images: List[dict]) -> Optional[Dict]:
+    def _call_openai(self, prompt: str, images: list[dict]) -> Optional[dict]:
         """Call OpenAI API."""
         try:
             import openai
@@ -756,10 +759,10 @@ class SpecAnalyzer:
         except ImportError:
             raise ImportError("openai not installed. Run: pip install openai")
         except Exception as e:
-            print(f"LLM call failed: {e}")
+            logger.error(f"LLM call failed: {e}")
             return None
 
-    def _parse_json_response(self, text: str) -> Optional[Dict]:
+    def _parse_json_response(self, text: str) -> Optional[dict]:
         """Parse JSON from LLM response."""
         # Try to find JSON block
         import re

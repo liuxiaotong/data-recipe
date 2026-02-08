@@ -5,7 +5,7 @@ the accuracy of cost estimates for new datasets.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -29,7 +29,7 @@ class CalibrationResult:
     # Confidence metrics
     confidence: float = 0.0  # 0-1, based on historical data availability
     based_on_datasets: int = 0
-    similar_datasets: List[str] = field(default_factory=list)
+    similar_datasets: list[str] = field(default_factory=list)
 
     # Range estimates
     cost_range_low: float = 0.0
@@ -37,7 +37,7 @@ class CalibrationResult:
 
     # Explanation
     calibration_method: str = "none"
-    notes: List[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -151,8 +151,6 @@ class CostCalibrator:
 
         # Use the benchmark's average costs to calibrate
         avg_total = benchmark.avg_total_cost
-        avg_human = benchmark.avg_human_cost
-        avg_api = benchmark.avg_api_cost
         n = len(benchmark.datasets)
 
         # Calculate factors (how much historical data differs from model predictions)
@@ -282,7 +280,7 @@ class CostCalibrator:
 
         return result
 
-    def get_calibration_stats(self) -> Dict[str, Any]:
+    def get_calibration_stats(self) -> dict[str, Any]:
         """Get statistics about available calibration data."""
         if self.kb is None:
             return {"available": False, "reason": "知识库不可用"}
@@ -312,7 +310,7 @@ class CostCalibrator:
 
         return stats
 
-    def suggest_next_datasets(self) -> List[str]:
+    def suggest_next_datasets(self) -> list[str]:
         """Suggest dataset types that need more calibration data."""
         if self.kb is None:
             return []

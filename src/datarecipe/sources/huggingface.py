@@ -157,7 +157,7 @@ class HuggingFaceExtractor:
             if re.search(pattern, text_to_search, re.IGNORECASE):
                 found_models.add(model_name)
 
-        return sorted(list(found_models))
+        return sorted(found_models)
 
     def _detect_generation_type(
         self, info, readme_content: Optional[str]

@@ -145,7 +145,7 @@ class WebExtractor:
         for pattern, name in patterns:
             if re.search(pattern, content_lower, re.IGNORECASE):
                 found.add(name)
-        return sorted(list(found))
+        return sorted(found)
 
     def _detect_generation_type(self, content: str) -> tuple:
         """Detect generation type from content."""

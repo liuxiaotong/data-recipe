@@ -20,8 +20,11 @@ Usage:
 """
 
 import json
+import logging
 import sys
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # MCP SDK imports
 try:
@@ -713,9 +716,9 @@ async def _get_agent_context(arguments: dict[str, Any]) -> list[TextContent]:
 async def main():
     """Run the MCP server."""
     if not MCP_AVAILABLE:
-        print("Error: MCP SDK not installed. Run: pip install mcp", file=sys.stderr)
-        print("\nAlternatively, use the CLI with --interactive mode:", file=sys.stderr)
-        print("  datarecipe analyze-spec document.pdf --interactive", file=sys.stderr)
+        logger.error("MCP SDK not installed. Run: pip install mcp")
+        logger.error("Alternatively, use the CLI with --interactive mode:")
+        logger.error("  datarecipe analyze-spec document.pdf --interactive")
         sys.exit(1)
 
     server = create_server()

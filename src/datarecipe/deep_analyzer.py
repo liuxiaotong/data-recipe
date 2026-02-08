@@ -201,7 +201,7 @@ class DeepAnalyzer:
 
             return None
 
-        except Exception:
+        except (ImportError, OSError, ValueError, AttributeError):
             return None
 
     def analyze(self, url: str, search_paper_if_needed: bool = None) -> DeepAnalysisResult:
@@ -324,7 +324,7 @@ class DeepAnalyzer:
             response = requests.get(url, headers=headers, timeout=15)
             if response.status_code == 200:
                 return response.text
-        except Exception:
+        except (OSError, requests.RequestException):
             pass
         return None
 

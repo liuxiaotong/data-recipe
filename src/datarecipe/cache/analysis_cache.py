@@ -6,7 +6,7 @@ import os
 import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -58,7 +58,7 @@ class AnalysisCache:
         self.cache_dir = cache_dir or os.path.expanduser("~/.datarecipe/cache")
         self.default_ttl_days = default_ttl_days
         self.index_path = os.path.join(self.cache_dir, "index.json")
-        self.index: Dict[str, CacheEntry] = {}
+        self.index: dict[str, CacheEntry] = {}
         self._load_index()
 
     def _load_index(self):
@@ -68,7 +68,7 @@ class AnalysisCache:
                 with open(self.index_path, encoding="utf-8") as f:
                     data = json.load(f)
                 self.index = {k: CacheEntry.from_dict(v) for k, v in data.items()}
-            except Exception:
+            except (json.JSONDecodeError, OSError, KeyError, TypeError):
                 self.index = {}
         else:
             os.makedirs(self.cache_dir, exist_ok=True)
@@ -110,7 +110,7 @@ class AnalysisCache:
         key_data = f"{dataset_id}:{hf_commit or ''}:{hf_last_modified or ''}:{sample_size or ''}"
         return hashlib.md5(key_data.encode()).hexdigest()[:12]
 
-    def get_hf_metadata(self, dataset_id: str) -> Dict[str, str]:
+    def get_hf_metadata(self, dataset_id: str) -> dict[str, str]:
         """Get metadata from HuggingFace for a dataset.
 
         Args:
@@ -129,7 +129,7 @@ class AnalysisCache:
                 "commit": info.sha or "",
                 "last_modified": info.last_modified.isoformat() if info.last_modified else "",
             }
-        except Exception:
+        except (ImportError, OSError, ValueError):
             return {"commit": "", "last_modified": ""}
 
     def get(
@@ -290,7 +290,7 @@ class AnalysisCache:
         self.index = {}
         self._save_index()
 
-    def list_entries(self) -> List[CacheEntry]:
+    def list_entries(self) -> list[CacheEntry]:
         """List all cache entries.
 
         Returns:
@@ -298,7 +298,7 @@ class AnalysisCache:
         """
         return list(self.index.values())
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics.
 
         Returns:

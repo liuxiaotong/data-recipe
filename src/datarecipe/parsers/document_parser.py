@@ -4,7 +4,6 @@ import base64
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
 
 
 @dataclass
@@ -14,7 +13,7 @@ class ParsedDocument:
     file_path: str
     file_type: str  # pdf, docx, image, text
     text_content: str = ""
-    images: List[dict] = field(default_factory=list)  # [{data: base64, type: mime}]
+    images: list[dict] = field(default_factory=list)  # [{data: base64, type: mime}]
     pages: int = 0
     metadata: dict = field(default_factory=dict)
 
@@ -178,7 +177,6 @@ class DocumentParser:
 
         try:
             from docx import Document
-            from docx.opc.constants import RELATIONSHIP_TYPE as RT
 
             word_doc = Document(file_path)
 

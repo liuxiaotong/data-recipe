@@ -7,7 +7,7 @@ affect human annotation time and quality requirements.
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class DomainType(Enum):
@@ -60,7 +60,7 @@ class ComplexityMetrics:
 
     # Domain analysis
     primary_domain: DomainType = DomainType.GENERAL
-    domain_scores: Dict[str, float] = field(default_factory=dict)
+    domain_scores: dict[str, float] = field(default_factory=dict)
     domain_confidence: float = 0.0
 
     # Text length metrics
@@ -294,8 +294,7 @@ class ComplexityAnalyzer:
     }
 
     # Technical terms for density calculation
-    TECHNICAL_TERMS = set(
-        [
+    TECHNICAL_TERMS = {
             "algorithm",
             "parameter",
             "configuration",
@@ -312,14 +311,13 @@ class ComplexityAnalyzer:
             "scalability",
             "performance",
             "latency",
-        ]
-    )
+        }
 
     def analyze(
         self,
-        samples: List[Dict[str, Any]],
-        schema_info: Optional[Dict[str, Any]] = None,
-        rubrics: Optional[List[str]] = None,
+        samples: list[dict[str, Any]],
+        schema_info: Optional[dict[str, Any]] = None,
+        rubrics: Optional[list[str]] = None,
     ) -> ComplexityMetrics:
         """Analyze dataset complexity.
 
@@ -369,7 +367,7 @@ class ComplexityAnalyzer:
 
         return metrics
 
-    def _extract_all_text(self, sample: Dict[str, Any]) -> str:
+    def _extract_all_text(self, sample: dict[str, Any]) -> str:
         """Extract all text content from a sample."""
         texts = []
 
@@ -412,7 +410,7 @@ class ComplexityAnalyzer:
                 metrics.primary_domain = DomainType.GENERAL
                 metrics.domain_confidence = 0.5
 
-    def _analyze_text_length(self, metrics: ComplexityMetrics, lengths: List[int]) -> None:
+    def _analyze_text_length(self, metrics: ComplexityMetrics, lengths: list[int]) -> None:
         """Analyze text length distribution."""
         if not lengths:
             return
@@ -438,8 +436,8 @@ class ComplexityAnalyzer:
     def _analyze_structure(
         self,
         metrics: ComplexityMetrics,
-        samples: List[Dict[str, Any]],
-        schema_info: Optional[Dict[str, Any]],
+        samples: list[dict[str, Any]],
+        schema_info: Optional[dict[str, Any]],
     ) -> None:
         """Analyze structure complexity."""
         if not samples:
@@ -485,7 +483,7 @@ class ComplexityAnalyzer:
         self,
         metrics: ComplexityMetrics,
         combined_text: str,
-        all_texts: List[str],
+        all_texts: list[str],
     ) -> None:
         """Analyze content complexity indicators."""
         if not combined_text:
@@ -523,7 +521,7 @@ class ComplexityAnalyzer:
     def _analyze_quality(
         self,
         metrics: ComplexityMetrics,
-        rubrics: Optional[List[str]],
+        rubrics: Optional[list[str]],
     ) -> None:
         """Analyze quality requirements from rubrics."""
         if not rubrics:

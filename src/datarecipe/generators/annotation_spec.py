@@ -6,7 +6,7 @@ that can be used to guide annotators in producing new data.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from datarecipe.task_profiles import get_task_profile
 
@@ -17,7 +17,7 @@ class ScoringCriterion:
 
     score: str  # e.g., "1分", "0分"
     description: str
-    examples: List[str] = field(default_factory=list)
+    examples: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -27,9 +27,9 @@ class ExampleItem:
     id: int
     question_text: str
     answer: str
-    scoring_criteria: List[ScoringCriterion] = field(default_factory=list)
+    scoring_criteria: list[ScoringCriterion] = field(default_factory=list)
     explanation: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -43,22 +43,22 @@ class AnnotationSpec:
     # Task description
     task_name: str = ""
     task_description: str = ""
-    cognitive_requirements: List[str] = field(default_factory=list)
+    cognitive_requirements: list[str] = field(default_factory=list)
     reasoning_chain: str = ""
 
     # Data requirements
-    data_requirements: List[str] = field(default_factory=list)
-    quality_constraints: List[str] = field(default_factory=list)
+    data_requirements: list[str] = field(default_factory=list)
+    quality_constraints: list[str] = field(default_factory=list)
     difficulty_calibration: str = ""
-    format_requirements: List[str] = field(default_factory=list)
+    format_requirements: list[str] = field(default_factory=list)
 
     # Examples
-    examples: List[ExampleItem] = field(default_factory=list)
+    examples: list[ExampleItem] = field(default_factory=list)
 
     # Scoring
-    scoring_dimensions: List[str] = field(default_factory=list)
-    scoring_rubrics: List[Dict[str, Any]] = field(default_factory=list)
-    partial_credit_rules: List[str] = field(default_factory=list)
+    scoring_dimensions: list[str] = field(default_factory=list)
+    scoring_rubrics: list[dict[str, Any]] = field(default_factory=list)
+    partial_credit_rules: list[str] = field(default_factory=list)
 
     # Metadata
     generated_at: str = ""
@@ -155,8 +155,8 @@ class AnnotationSpecGenerator:
         self,
         dataset_id: str,
         dataset_type: str,
-        schema_info: Dict[str, Any],
-        sample_items: List[Dict[str, Any]],
+        schema_info: dict[str, Any],
+        sample_items: list[dict[str, Any]],
         rubrics_result: Optional[Any] = None,
         llm_analysis: Optional[Any] = None,
         complexity_metrics: Optional[Any] = None,
@@ -221,7 +221,7 @@ class AnnotationSpecGenerator:
     def _generate_data_requirements(
         self,
         spec: AnnotationSpec,
-        schema_info: Dict[str, Any],
+        schema_info: dict[str, Any],
         complexity_metrics: Optional[Any],
     ) -> None:
         """Generate data requirements section."""
@@ -297,7 +297,7 @@ class AnnotationSpecGenerator:
     def _generate_format_requirements(
         self,
         spec: AnnotationSpec,
-        schema_info: Dict[str, Any],
+        schema_info: dict[str, Any],
     ) -> None:
         """Generate format requirements section."""
         requirements = []
@@ -324,7 +324,7 @@ class AnnotationSpecGenerator:
 
         spec.format_requirements = requirements
 
-    def _score_example_quality(self, item: Dict[str, Any], dataset_type: str) -> float:
+    def _score_example_quality(self, item: dict[str, Any], dataset_type: str) -> float:
         """Score the quality of an example for selection.
 
         Returns a score from 0-10, higher is better.
@@ -396,10 +396,10 @@ class AnnotationSpecGenerator:
 
     def _select_best_examples(
         self,
-        sample_items: List[Dict[str, Any]],
+        sample_items: list[dict[str, Any]],
         dataset_type: str,
         count: int = 3,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Select the best examples based on quality scoring."""
         if not sample_items:
             return []
@@ -419,7 +419,7 @@ class AnnotationSpecGenerator:
     def _generate_examples(
         self,
         spec: AnnotationSpec,
-        sample_items: List[Dict[str, Any]],
+        sample_items: list[dict[str, Any]],
         rubrics_result: Optional[Any],
     ) -> None:
         """Generate example items section."""
@@ -436,9 +436,9 @@ class AnnotationSpecGenerator:
             )
 
             # Extract question/input
-            for field in ["question", "input", "prompt", "instruction", "problem_statement"]:
-                if field in item and item[field]:
-                    val = item[field]
+            for fld in ["question", "input", "prompt", "instruction", "problem_statement"]:
+                if fld in item and item[fld]:
+                    val = item[fld]
                     if isinstance(val, str):
                         example.question_text = val[:500] + ("..." if len(val) > 500 else "")
                     break
@@ -458,23 +458,23 @@ class AnnotationSpecGenerator:
 
             # Fallback to first string field
             if not example.question_text:
-                for field, val in item.items():
+                for _, val in item.items():
                     if isinstance(val, str) and len(val) > 50:
                         example.question_text = val[:500] + ("..." if len(val) > 500 else "")
                         break
 
             # Extract answer/output
-            for field in ["answer", "output", "response", "completion", "solution"]:
-                if field in item and item[field]:
-                    val = item[field]
+            for fld in ["answer", "output", "response", "completion", "solution"]:
+                if fld in item and item[fld]:
+                    val = item[fld]
                     if isinstance(val, str):
                         example.answer = val[:200] + ("..." if len(val) > 200 else "")
                     break
 
             # Extract rubrics as scoring criteria
-            for field in ["rubrics", "rubric", "criteria"]:
-                if field in item and item[field]:
-                    rubrics = item[field]
+            for fld in ["rubrics", "rubric", "criteria"]:
+                if fld in item and item[fld]:
+                    rubrics = item[fld]
                     if isinstance(rubrics, list):
                         for r in rubrics[:3]:
                             if isinstance(r, str):

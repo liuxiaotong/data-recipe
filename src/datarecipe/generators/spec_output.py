@@ -4,7 +4,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from datarecipe.analyzers.spec_analyzer import FieldDefinition, SpecificationAnalysis
 from datarecipe.task_profiles import get_task_profile
@@ -17,7 +17,7 @@ class SpecOutputResult:
     success: bool = True
     error: str = ""
     output_dir: str = ""
-    files_generated: List[str] = field(default_factory=list)
+    files_generated: list[str] = field(default_factory=list)
 
 
 class SpecOutputGenerator:
@@ -66,7 +66,7 @@ class SpecOutputGenerator:
                 "ai_agent": "08_AI_Agent",
                 "samples": "09_样例数据",
             }
-            for key, subdir in subdirs.items():
+            for _key, subdir in subdirs.items():
                 os.makedirs(os.path.join(output_dir, subdir), exist_ok=True)
 
             result.output_dir = output_dir
@@ -1483,7 +1483,7 @@ class SpecOutputGenerator:
         settings = diff_val.get("settings", "默认设置")
         test_count = diff_val.get("test_count", 3)
         max_correct = diff_val.get("max_correct", 1)
-        pass_criteria = diff_val.get(
+        diff_val.get(
             "pass_criteria", f"跑 {test_count} 次，正确次数 ≤ {max_correct} 次"
         )
 
@@ -1827,7 +1827,7 @@ class SpecOutputGenerator:
         result: SpecOutputResult,
     ):
         """Generate data_template.json — schema-driven single data entry template."""
-        template: Dict[str, Any] = {"id": "EXAMPLE_001"}
+        template: dict[str, Any] = {"id": "EXAMPLE_001"}
 
         # Use field_definitions if available, else fall back to profile defaults
         field_defs = analysis.field_definitions
@@ -3014,7 +3014,7 @@ class SpecOutputGenerator:
                 task_type, automation_analysis.get("default", {})
             )
 
-            for i in range(samples_per_type):
+            for _i in range(samples_per_type):
                 if len(samples) >= max_samples:
                     break
 
@@ -3162,9 +3162,9 @@ class SpecOutputGenerator:
         task_types = []
 
         # Check fields for task_type field
-        for field in analysis.fields:
-            if field.get("name") == "task_type":
-                desc = field.get("description", "")
+        for fld in analysis.fields:
+            if fld.get("name") == "task_type":
+                desc = fld.get("description", "")
                 # Extract types from description like "understanding/editing/generation"
                 if "/" in desc:
                     parts = desc.split("：")[-1] if "：" in desc else desc
@@ -3202,7 +3202,7 @@ class SpecOutputGenerator:
             field_defs = [FieldDefinition.from_dict(f) for f in profile.default_fields]
 
         context = {"task_type": task_type, "sample_index": sample_index}
-        data_fields: Dict[str, Any] = {}
+        data_fields: dict[str, Any] = {}
         for fd in field_defs:
             name = fd.name
             if name == "task_type":

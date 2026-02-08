@@ -11,7 +11,7 @@ Generates a phased project plan with:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class MilestoneStatus(Enum):
@@ -30,10 +30,10 @@ class Milestone:
     id: str
     name: str
     description: str
-    deliverables: List[str] = field(default_factory=list)
-    acceptance_criteria: List[str] = field(default_factory=list)
-    dependencies: List[str] = field(default_factory=list)
-    team: List[str] = field(default_factory=list)
+    deliverables: list[str] = field(default_factory=list)
+    acceptance_criteria: list[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
+    team: list[str] = field(default_factory=list)
     effort_percentage: float = 0.0  # % of total project effort
     status: MilestoneStatus = MilestoneStatus.NOT_STARTED
 
@@ -72,16 +72,16 @@ class MilestonePlan:
     target_size: int
 
     # Milestones
-    milestones: List[Milestone] = field(default_factory=list)
+    milestones: list[Milestone] = field(default_factory=list)
 
     # Risks
-    risks: List[RiskItem] = field(default_factory=list)
+    risks: list[RiskItem] = field(default_factory=list)
 
     # Acceptance criteria
-    acceptance_criteria: List[AcceptanceCriteria] = field(default_factory=list)
+    acceptance_criteria: list[AcceptanceCriteria] = field(default_factory=list)
 
     # Team summary
-    team_composition: Dict[str, int] = field(default_factory=dict)
+    team_composition: dict[str, int] = field(default_factory=dict)
 
     # Estimated duration (in work days)
     estimated_days: int = 0
@@ -484,7 +484,7 @@ class MilestonePlanGenerator:
         dataset_id: str,
         dataset_type: str,
         target_size: int,
-        reproduction_cost: Dict[str, float],
+        reproduction_cost: dict[str, float],
         human_percentage: float,
         complexity_metrics: Optional[Any] = None,
         phased_breakdown: Optional[Any] = None,
@@ -538,7 +538,7 @@ class MilestonePlanGenerator:
 
         return plan
 
-    def _get_milestones(self, dataset_type: str, target_size: int) -> List[Milestone]:
+    def _get_milestones(self, dataset_type: str, target_size: int) -> list[Milestone]:
         """Get milestones for dataset type."""
         templates = MILESTONE_TEMPLATES.get(dataset_type, MILESTONE_TEMPLATES.get("preference", []))
 
@@ -571,7 +571,7 @@ class MilestonePlanGenerator:
 
         return milestones
 
-    def _get_risks(self, dataset_type: str, complexity_metrics: Optional[Any]) -> List[RiskItem]:
+    def _get_risks(self, dataset_type: str, complexity_metrics: Optional[Any]) -> list[RiskItem]:
         """Get risks for project."""
         risks = []
 
@@ -595,7 +595,7 @@ class MilestonePlanGenerator:
 
         return risks
 
-    def _get_acceptance_criteria(self, dataset_type: str) -> List[AcceptanceCriteria]:
+    def _get_acceptance_criteria(self, dataset_type: str) -> list[AcceptanceCriteria]:
         """Get acceptance criteria for dataset type."""
         return ACCEPTANCE_CRITERIA_TEMPLATES.get(
             dataset_type, ACCEPTANCE_CRITERIA_TEMPLATES.get("preference", [])
@@ -603,7 +603,7 @@ class MilestonePlanGenerator:
 
     def _calculate_team(
         self, dataset_type: str, target_size: int, human_percentage: float
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """Calculate recommended team composition."""
         # Base team
         team = {

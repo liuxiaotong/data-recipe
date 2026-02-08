@@ -5,7 +5,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -15,7 +15,7 @@ class RadarDataset:
     id: str  # e.g., "Anthropic/hh-rlhf"
     category: str = ""  # e.g., "preference", "sft", "synthetic"
     downloads: int = 0
-    signals: List[str] = field(default_factory=list)
+    signals: list[str] = field(default_factory=list)
     # Additional metadata from radar
     source: str = "huggingface"  # huggingface, github, etc.
     discovered_date: str = ""
@@ -57,7 +57,7 @@ class RecipeSummary:
     purpose: str = ""
 
     # Cost estimation
-    reproduction_cost: Dict[str, float] = field(default_factory=dict)
+    reproduction_cost: dict[str, float] = field(default_factory=dict)
     # {"human": 5000, "api": 200, "total": 5200}
 
     # Complexity assessment
@@ -66,16 +66,16 @@ class RecipeSummary:
     machine_percentage: float = 0.0
 
     # Key patterns discovered
-    key_patterns: List[str] = field(default_factory=list)
+    key_patterns: list[str] = field(default_factory=list)
     rubric_patterns: int = 0
     prompt_templates: int = 0
 
     # Schema info
-    fields: List[str] = field(default_factory=list)
+    fields: list[str] = field(default_factory=list)
     sample_count: int = 0
 
     # Similar datasets for reference
-    similar_datasets: List[str] = field(default_factory=list)
+    similar_datasets: list[str] = field(default_factory=list)
 
     # File paths for detailed reports
     report_path: str = ""
@@ -99,9 +99,9 @@ class RadarIntegration:
     """Handle integration between data-recipe and ai-dataset-radar."""
 
     def __init__(self):
-        self.datasets: List[RadarDataset] = []
+        self.datasets: list[RadarDataset] = []
 
-    def load_radar_report(self, report_path: str) -> List[RadarDataset]:
+    def load_radar_report(self, report_path: str) -> list[RadarDataset]:
         """Load datasets from a radar report JSON file.
 
         Args:
@@ -128,12 +128,12 @@ class RadarIntegration:
 
     def filter_datasets(
         self,
-        orgs: Optional[List[str]] = None,
-        categories: Optional[List[str]] = None,
+        orgs: Optional[list[str]] = None,
+        categories: Optional[list[str]] = None,
         min_downloads: int = 0,
-        signals: Optional[List[str]] = None,
+        signals: Optional[list[str]] = None,
         limit: int = 0,
-    ) -> List[RadarDataset]:
+    ) -> list[RadarDataset]:
         """Filter datasets based on criteria.
 
         Args:
@@ -160,9 +160,9 @@ class RadarIntegration:
             result = [d for d in result if d.downloads >= min_downloads]
 
         if signals:
-            signals_lower = set(s.lower() for s in signals)
+            signals_lower = {s.lower() for s in signals}
             result = [
-                d for d in result if signals_lower.intersection(set(s.lower() for s in d.signals))
+                d for d in result if signals_lower.intersection({s.lower() for s in d.signals})
             ]
 
         # Sort by downloads (descending)
@@ -173,7 +173,7 @@ class RadarIntegration:
 
         return result
 
-    def get_dataset_ids(self, datasets: Optional[List[RadarDataset]] = None) -> List[str]:
+    def get_dataset_ids(self, datasets: Optional[list[RadarDataset]] = None) -> list[str]:
         """Get list of dataset IDs.
 
         Args:
@@ -215,7 +215,7 @@ class RadarIntegration:
         allocation: Any = None,
         rubrics_result: Any = None,
         prompt_library: Any = None,
-        schema_info: Optional[Dict] = None,
+        schema_info: Optional[dict] = None,
         sample_count: int = 0,
         llm_analysis: Any = None,
         output_dir: str = "",
@@ -393,7 +393,7 @@ class RadarIntegration:
         return RecipeSummary.from_dict(data)
 
     @staticmethod
-    def aggregate_summaries(summaries: List[RecipeSummary]) -> dict:
+    def aggregate_summaries(summaries: list[RecipeSummary]) -> dict:
         """Aggregate multiple summaries for trend analysis.
 
         Args:

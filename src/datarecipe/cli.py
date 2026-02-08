@@ -1389,7 +1389,6 @@ def extract_rubrics(dataset_id: str, output: str, sample_size: int):
         if output:
             import json
 
-            base = output
             if output.endswith(".json"):
                 data_path = output
                 yaml_path = output.replace(".json", "_templates.yaml")
@@ -3166,7 +3165,7 @@ def integrate_report(
     paths = generator.save_report(report, output_dir, list(formats))
 
     console.print("[bold]生成文件:[/bold]")
-    for fmt, path in paths.items():
+    for _fmt, path in paths.items():
         console.print(f"  📄 {path}")
 
 

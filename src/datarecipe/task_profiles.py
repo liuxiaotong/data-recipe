@@ -5,7 +5,7 @@ queryable registry so every module uses consistent defaults.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 
 @dataclass
@@ -15,16 +15,16 @@ class TaskTypeProfile:
     type_id: str  # e.g. "preference", "evaluation", "sft"
     name: str
     description: str
-    cognitive_requirements: List[str] = field(default_factory=list)
+    cognitive_requirements: list[str] = field(default_factory=list)
     reasoning_chain: str = ""
-    default_quality_constraints: List[str] = field(default_factory=list)
-    default_field_constraints: List[Dict[str, Any]] = field(default_factory=list)
-    default_fields: List[Dict[str, Any]] = field(default_factory=list)
+    default_quality_constraints: list[str] = field(default_factory=list)
+    default_field_constraints: list[dict[str, Any]] = field(default_factory=list)
+    default_fields: list[dict[str, Any]] = field(default_factory=list)
     cost_multiplier: float = 1.0
     default_human_percentage: float = 95.0
     preferred_pipeline: str = "hybrid"
-    default_scoring_dimensions: List[str] = field(default_factory=list)
-    extra: Dict[str, Any] = field(default_factory=dict)
+    default_scoring_dimensions: list[str] = field(default_factory=list)
+    extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -46,7 +46,7 @@ class TaskTypeProfile:
 
 # ---- Registry ----
 
-_PROFILE_REGISTRY: Dict[str, TaskTypeProfile] = {}
+_PROFILE_REGISTRY: dict[str, TaskTypeProfile] = {}
 
 
 def register_task_profile(profile: TaskTypeProfile) -> None:
@@ -59,7 +59,7 @@ def get_task_profile(type_id: str) -> TaskTypeProfile:
     return _PROFILE_REGISTRY.get(type_id, _PROFILE_REGISTRY["unknown"])
 
 
-def list_task_profiles() -> List[TaskTypeProfile]:
+def list_task_profiles() -> list[TaskTypeProfile]:
     """Return all registered profiles."""
     return list(_PROFILE_REGISTRY.values())
 

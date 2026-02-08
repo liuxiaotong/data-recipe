@@ -9,9 +9,12 @@
 支持输出到本地文件或调用 Provider API 部署到平台。
 """
 
+import logging
 from typing import Optional
 
 from datarecipe.providers import ProviderNotFoundError, discover_providers
+
+logger = logging.getLogger(__name__)
 from datarecipe.schema import (
     AcceptanceCriterion,
     AnnotatorProfile,
@@ -40,8 +43,8 @@ class ProductionDeployer:
         for name, provider_class in provider_classes.items():
             try:
                 self._providers[name] = provider_class()
-            except Exception as e:
-                print(f"Warning: Failed to instantiate provider {name}: {e}")
+            except (ImportError, TypeError, ValueError, OSError) as e:
+                logger.warning(f"Failed to instantiate provider {name}: {e}")
 
     def list_providers(self) -> list[dict]:
         """列出可用的 providers"""

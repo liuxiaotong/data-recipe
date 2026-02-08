@@ -5,7 +5,11 @@ import os
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from datarecipe.integrations.radar import RecipeSummary
+    from datarecipe.knowledge.dataset_catalog import DatasetInfo
 
 
 @dataclass
@@ -15,9 +19,9 @@ class PatternEntry:
     pattern_type: str  # "rubric", "prompt", "schema", "workflow"
     pattern_key: str  # Unique identifier for the pattern
     frequency: int = 0  # How many times this pattern was seen
-    datasets: List[str] = field(default_factory=list)  # Datasets containing this pattern
-    examples: List[str] = field(default_factory=list)  # Example instances
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    datasets: list[str] = field(default_factory=list)  # Datasets containing this pattern
+    examples: list[str] = field(default_factory=list)  # Example instances
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -32,7 +36,7 @@ class CostBenchmark:
     avg_human_percentage: float = 0.0
     min_cost: float = 0.0
     max_cost: float = 0.0
-    datasets: List[str] = field(default_factory=list)
+    datasets: list[str] = field(default_factory=list)
 
 
 class PatternStore:
@@ -40,7 +44,7 @@ class PatternStore:
 
     def __init__(self, store_path: str = None):
         self.store_path = store_path or os.path.expanduser("~/.datarecipe/knowledge/patterns.json")
-        self.patterns: Dict[str, PatternEntry] = {}
+        self.patterns: dict[str, PatternEntry] = {}
         self._load()
 
     def _load(self):
@@ -71,7 +75,7 @@ class PatternStore:
         pattern_key: str,
         dataset_id: str,
         example: str = None,
-        metadata: Dict = None,
+        metadata: dict = None,
     ):
         """Add or update a pattern entry."""
         full_key = f"{pattern_type}:{pattern_key}"
@@ -100,7 +104,7 @@ class PatternStore:
         self,
         pattern_type: str = None,
         limit: int = 20,
-    ) -> List[PatternEntry]:
+    ) -> list[PatternEntry]:
         """Get most common patterns."""
         patterns = list(self.patterns.values())
 
@@ -110,11 +114,11 @@ class PatternStore:
         patterns.sort(key=lambda x: x.frequency, reverse=True)
         return patterns[:limit]
 
-    def find_patterns_for_dataset(self, dataset_id: str) -> List[PatternEntry]:
+    def find_patterns_for_dataset(self, dataset_id: str) -> list[PatternEntry]:
         """Find all patterns associated with a dataset."""
         return [p for p in self.patterns.values() if dataset_id in p.datasets]
 
-    def get_pattern_stats(self) -> Dict[str, Any]:
+    def get_pattern_stats(self) -> dict[str, Any]:
         """Get overall pattern statistics."""
         stats = {
             "total_patterns": len(self.patterns),
@@ -145,7 +149,7 @@ class TrendAnalyzer:
     def _load(self):
         """Load trend data."""
         self.trends = {}
-        self.benchmarks: Dict[str, CostBenchmark] = {}
+        self.benchmarks: dict[str, CostBenchmark] = {}
 
         if os.path.exists(self.trends_path):
             try:
@@ -239,11 +243,11 @@ class TrendAnalyzer:
         """Get cost benchmark for a dataset type."""
         return self.benchmarks.get(dataset_type)
 
-    def get_all_benchmarks(self) -> Dict[str, CostBenchmark]:
+    def get_all_benchmarks(self) -> dict[str, CostBenchmark]:
         """Get all cost benchmarks."""
         return self.benchmarks.copy()
 
-    def get_trend_summary(self, days: int = 30) -> Dict[str, Any]:
+    def get_trend_summary(self, days: int = 30) -> dict[str, Any]:
         """Get trend summary for recent days."""
         from datetime import timedelta
 
@@ -319,10 +323,10 @@ class KnowledgeBase:
                 )
 
         # Extract schema patterns
-        for field in summary.fields:
+        for fld in summary.fields:
             self.patterns.add_pattern(
                 pattern_type="schema_field",
-                pattern_key=field,
+                pattern_key=fld,
                 dataset_id=dataset_id,
             )
 
@@ -334,11 +338,11 @@ class KnowledgeBase:
                 dataset_id=dataset_id,
             )
 
-    def get_similar_patterns(self, dataset_id: str, limit: int = 10) -> List[str]:
+    def get_similar_patterns(self, dataset_id: str, limit: int = 10) -> list[str]:
         """Find datasets with similar patterns."""
-        target_patterns = set(
+        target_patterns = {
             p.pattern_key for p in self.patterns.find_patterns_for_dataset(dataset_id)
-        )
+        }
 
         if not target_patterns:
             return []
@@ -360,7 +364,7 @@ class KnowledgeBase:
         dataset_type: str,
         dataset_id: str = None,
         limit: int = 5,
-    ) -> List["DatasetInfo"]:
+    ) -> list["DatasetInfo"]:
         """Find similar datasets from the catalog.
 
         This method combines knowledge from:
@@ -402,10 +406,10 @@ class KnowledgeBase:
 
         return results[:limit]
 
-    def get_recommendations(self, dataset_type: str) -> Dict[str, Any]:
+    def get_recommendations(self, dataset_type: str) -> dict[str, Any]:
         """Get recommendations based on accumulated knowledge."""
         benchmark = self.trends.get_cost_benchmark(dataset_type)
-        top_patterns = self.patterns.get_top_patterns(limit=10)
+        self.patterns.get_top_patterns(limit=10)
 
         recommendations = {
             "dataset_type": dataset_type,

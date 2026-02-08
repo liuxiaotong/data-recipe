@@ -6,7 +6,7 @@ to industry standards and similar well-known datasets.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 
 @dataclass
@@ -23,7 +23,7 @@ class BenchmarkComparison:
     # Industry benchmark
     benchmark_available: bool = False
     benchmark_description: str = ""
-    benchmark_cost_range: Dict[str, float] = field(default_factory=dict)  # min, avg, max
+    benchmark_cost_range: dict[str, float] = field(default_factory=dict)  # min, avg, max
     benchmark_human_percentage: float = 0.0
 
     # Comparison results
@@ -35,10 +35,10 @@ class BenchmarkComparison:
     human_explanation: str = ""
 
     # Similar projects
-    similar_projects: List[Dict[str, Any]] = field(default_factory=list)
+    similar_projects: list[dict[str, Any]] = field(default_factory=list)
 
     # Recommendations
-    recommendations: List[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
 
 
 class IndustryBenchmarkGenerator:
@@ -52,7 +52,7 @@ class IndustryBenchmarkGenerator:
         dataset_id: str,
         dataset_type: str,
         sample_count: int,
-        reproduction_cost: Dict[str, float],
+        reproduction_cost: dict[str, float],
         human_percentage: float,
     ) -> BenchmarkComparison:
         """Generate benchmark comparison.
@@ -109,7 +109,7 @@ class IndustryBenchmarkGenerator:
 
                 comparison.similar_projects = benchmark_result.get("similar_projects", [])
 
-        except Exception:
+        except (ImportError, AttributeError, KeyError, TypeError):
             pass
 
         # Generate recommendations
@@ -117,7 +117,7 @@ class IndustryBenchmarkGenerator:
 
         return comparison
 
-    def _generate_recommendations(self, comparison: BenchmarkComparison) -> List[str]:
+    def _generate_recommendations(self, comparison: BenchmarkComparison) -> list[str]:
         """Generate recommendations based on comparison."""
         recommendations = []
 

@@ -4,7 +4,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -40,21 +40,21 @@ class WeeklyReport:
 
     # Radar discoveries
     total_discovered: int = 0
-    discoveries_by_org: Dict[str, int] = field(default_factory=dict)
-    discoveries_by_category: Dict[str, int] = field(default_factory=dict)
+    discoveries_by_org: dict[str, int] = field(default_factory=dict)
+    discoveries_by_category: dict[str, int] = field(default_factory=dict)
 
     # Recipe analysis
     total_analyzed: int = 0
-    analysis_by_type: Dict[str, int] = field(default_factory=dict)
+    analysis_by_type: dict[str, int] = field(default_factory=dict)
     total_reproduction_cost: float = 0.0
     avg_human_percentage: float = 0.0
 
     # Datasets
-    datasets: List[DatasetEntry] = field(default_factory=list)
+    datasets: list[DatasetEntry] = field(default_factory=list)
 
     # Insights
-    insights: List[str] = field(default_factory=list)
-    trends: List[str] = field(default_factory=list)
+    insights: list[str] = field(default_factory=list)
+    trends: list[str] = field(default_factory=list)
 
 
 class IntegratedReportGenerator:
@@ -74,7 +74,7 @@ class IntegratedReportGenerator:
         self.radar_reports_dir = radar_reports_dir
         self.recipe_output_dir = recipe_output_dir
 
-    def load_radar_report(self, report_path: str) -> Dict[str, Any]:
+    def load_radar_report(self, report_path: str) -> dict[str, Any]:
         """Load a Radar intel report.
 
         Args:
@@ -86,7 +86,7 @@ class IntegratedReportGenerator:
         with open(report_path, encoding="utf-8") as f:
             return json.load(f)
 
-    def load_recipe_summary(self, dataset_id: str) -> Optional[Dict[str, Any]]:
+    def load_recipe_summary(self, dataset_id: str) -> Optional[dict[str, Any]]:
         """Load Recipe analysis summary for a dataset.
 
         Args:
@@ -239,7 +239,7 @@ class IntegratedReportGenerator:
 
         return report
 
-    def _generate_insights(self, report: WeeklyReport) -> List[str]:
+    def _generate_insights(self, report: WeeklyReport) -> list[str]:
         """Generate insights from report data."""
         insights = []
 
@@ -271,7 +271,7 @@ class IntegratedReportGenerator:
 
         return insights
 
-    def _generate_trends(self, report: WeeklyReport) -> List[str]:
+    def _generate_trends(self, report: WeeklyReport) -> list[str]:
         """Generate trend observations."""
         trends = []
 
@@ -399,7 +399,7 @@ class IntegratedReportGenerator:
             lines.append("")
 
             # By type
-            cost_by_type: Dict[str, List[float]] = {}
+            cost_by_type: dict[str, list[float]] = {}
             for d in analyzed:
                 dtype = d.dataset_type or "unknown"
                 if dtype not in cost_by_type:
@@ -470,8 +470,8 @@ class IntegratedReportGenerator:
         self,
         report: WeeklyReport,
         output_dir: str,
-        formats: List[str] = None,
-    ) -> Dict[str, str]:
+        formats: list[str] = None,
+    ) -> dict[str, str]:
         """Save report to files.
 
         Args:

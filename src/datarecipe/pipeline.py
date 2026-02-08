@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class PipelineStepType(Enum):
@@ -976,7 +976,7 @@ class PhaseDefinition:
 
 # ---- Phase Registry ----
 
-_PHASE_REGISTRY: Dict[str, PhaseDefinition] = {}
+_PHASE_REGISTRY: dict[str, PhaseDefinition] = {}
 
 
 def register_phase(phase: PhaseDefinition) -> None:
@@ -989,7 +989,7 @@ def get_phase(phase_id: str) -> Optional[PhaseDefinition]:
     return _PHASE_REGISTRY.get(phase_id)
 
 
-def list_phases() -> List[PhaseDefinition]:
+def list_phases() -> list[PhaseDefinition]:
     """List all registered phases."""
     return list(_PHASE_REGISTRY.values())
 
@@ -1117,9 +1117,9 @@ DEFAULT_PHASE_SEQUENCE = ["setup", "pilot", "model_test", "human_review", "produ
 
 
 def assemble_pipeline(
-    phase_ids: Optional[List[str]] = None,
+    phase_ids: Optional[list[str]] = None,
     analysis: Any = None,
-) -> List[PhaseDefinition]:
+) -> list[PhaseDefinition]:
     """Assemble a pipeline from phase IDs, filtering by conditions.
 
     Args:
@@ -1134,7 +1134,7 @@ def assemble_pipeline(
         phase_ids = list(DEFAULT_PHASE_SEQUENCE)
 
     # Gather phases
-    phases: List[PhaseDefinition] = []
+    phases: list[PhaseDefinition] = []
     for pid in phase_ids:
         phase = get_phase(pid)
         if phase is None:
@@ -1149,7 +1149,7 @@ def assemble_pipeline(
 
     # Resolve depends_on: remove references to phases not in the assembled list
     present_ids = {p.phase_id for p in phases}
-    resolved: List[PhaseDefinition] = []
+    resolved: list[PhaseDefinition] = []
     for phase in phases:
         # Create a copy with resolved depends_on
         from copy import copy

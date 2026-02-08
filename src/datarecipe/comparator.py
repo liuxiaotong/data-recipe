@@ -245,7 +245,7 @@ class DatasetComparator:
             if self.include_cost:
                 try:
                     cost = self.cost_calculator.estimate_from_recipe(recipe)
-                except Exception:
+                except (ValueError, TypeError, KeyError, AttributeError):
                     pass
 
             # Quality analysis (requires data loading)
@@ -256,7 +256,7 @@ class DatasetComparator:
                         recipe.source_id,
                         sample_size=self.quality_sample_size,
                     )
-                except Exception:
+                except (ImportError, OSError, ValueError, AttributeError):
                     pass
 
             metrics.append(
@@ -284,7 +284,7 @@ class DatasetComparator:
             try:
                 recipe = self.analyzer.analyze(dataset_id)
                 recipes.append(recipe)
-            except Exception:
+            except (OSError, ValueError, KeyError, AttributeError):
                 # Create a minimal recipe for failed analyses
                 recipe = Recipe(
                     name=dataset_id,

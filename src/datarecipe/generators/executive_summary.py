@@ -11,7 +11,7 @@ Generates a 1-page executive summary with:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class Recommendation(Enum):
@@ -36,21 +36,21 @@ class ValueAssessment:
 
     # Use cases
     primary_use_case: str = ""
-    secondary_use_cases: List[str] = field(default_factory=list)
+    secondary_use_cases: list[str] = field(default_factory=list)
 
     # Expected outcomes
-    expected_outcomes: List[str] = field(default_factory=list)
+    expected_outcomes: list[str] = field(default_factory=list)
 
     # ROI analysis
     roi_ratio: float = 1.0  # Expected value / Cost
     roi_explanation: str = ""
-    payback_scenarios: List[str] = field(default_factory=list)
+    payback_scenarios: list[str] = field(default_factory=list)
 
     # Risks
-    risks: List[Dict[str, str]] = field(default_factory=list)  # [{level, description, mitigation}]
+    risks: list[dict[str, str]] = field(default_factory=list)  # [{level, description, mitigation}]
 
     # Competitive analysis
-    alternatives: List[str] = field(default_factory=list)
+    alternatives: list[str] = field(default_factory=list)
     competitive_advantage: str = ""
 
 
@@ -155,7 +155,7 @@ class ExecutiveSummaryGenerator:
         dataset_id: str,
         dataset_type: str,
         sample_count: int,
-        reproduction_cost: Dict[str, float],
+        reproduction_cost: dict[str, float],
         human_percentage: float,
         complexity_metrics: Optional[Any] = None,
         phased_breakdown: Optional[Any] = None,
@@ -255,10 +255,10 @@ class ExecutiveSummaryGenerator:
         self,
         dataset_type: str,
         sample_count: int,
-        reproduction_cost: Dict[str, float],
+        reproduction_cost: dict[str, float],
         human_percentage: float,
         complexity_metrics: Optional[Any],
-        config: Dict,
+        config: dict,
     ) -> float:
         """Calculate value score (1-10)."""
         score = 5.0  # Base score
@@ -304,7 +304,7 @@ class ExecutiveSummaryGenerator:
     def _get_recommendation(
         self,
         score: float,
-        reproduction_cost: Dict[str, float],
+        reproduction_cost: dict[str, float],
         dataset_type: str,
     ) -> tuple:
         """Determine recommendation based on score and factors."""
@@ -337,9 +337,9 @@ class ExecutiveSummaryGenerator:
     def _calculate_roi(
         self,
         dataset_type: str,
-        reproduction_cost: Dict[str, float],
+        reproduction_cost: dict[str, float],
         sample_count: int,
-        config: Dict,
+        config: dict,
     ) -> tuple:
         """Calculate ROI ratio and explanation."""
         total_cost = reproduction_cost.get("total", 0)
@@ -379,10 +379,10 @@ class ExecutiveSummaryGenerator:
     def _generate_payback_scenarios(
         self,
         dataset_type: str,
-        reproduction_cost: Dict[str, float],
-    ) -> List[str]:
+        reproduction_cost: dict[str, float],
+    ) -> list[str]:
         """Generate payback scenarios."""
-        total_cost = reproduction_cost.get("total", 0)
+        reproduction_cost.get("total", 0)
 
         scenarios = []
 
@@ -421,10 +421,10 @@ class ExecutiveSummaryGenerator:
 
     def _assess_risks(
         self,
-        reproduction_cost: Dict[str, float],
+        reproduction_cost: dict[str, float],
         human_percentage: float,
         complexity_metrics: Optional[Any],
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """Assess project risks."""
         risks = []
 
@@ -455,7 +455,7 @@ class ExecutiveSummaryGenerator:
 
         return risks
 
-    def _find_alternatives(self, dataset_id: str, dataset_type: str) -> List[str]:
+    def _find_alternatives(self, dataset_id: str, dataset_type: str) -> list[str]:
         """Find alternative datasets."""
         # Try to get from knowledge base
         try:
@@ -464,7 +464,7 @@ class ExecutiveSummaryGenerator:
             kb = KnowledgeBase()
             similar = kb.find_similar_datasets(dataset_type, limit=5)
             return [s.dataset_id for s in similar if s.dataset_id != dataset_id][:3]
-        except Exception:
+        except (ImportError, AttributeError, TypeError):
             pass
 
         # Fallback to known alternatives
@@ -529,7 +529,7 @@ class ExecutiveSummaryGenerator:
         assessment: ValueAssessment,
         dataset_id: str,
         dataset_type: str,
-        reproduction_cost: Dict[str, float],
+        reproduction_cost: dict[str, float],
         phased_breakdown: Optional[Any] = None,
     ) -> str:
         """Generate executive summary markdown."""

@@ -4,7 +4,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 # Output directory structure
 OUTPUT_SUBDIRS = {
@@ -130,10 +130,10 @@ class AnalysisResult:
     # Dataset info
     dataset_type: str = ""
     sample_count: int = 0
-    fields: List[str] = field(default_factory=list)
+    fields: list[str] = field(default_factory=list)
 
     # Cost info
-    reproduction_cost: Dict[str, float] = field(default_factory=dict)
+    reproduction_cost: dict[str, float] = field(default_factory=dict)
     human_percentage: float = 0.0
 
     # Analysis stats
@@ -142,10 +142,10 @@ class AnalysisResult:
 
     # Output paths
     output_dir: str = ""
-    files_generated: List[str] = field(default_factory=list)
+    files_generated: list[str] = field(default_factory=list)
 
     # Warnings collected during analysis (non-fatal issues)
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
