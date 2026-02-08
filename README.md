@@ -4,7 +4,7 @@
 
 **AI 数据集逆向工程框架**
 
-[![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue&v=1)](https://pypi.org/project/knowlyr-datarecipe/)
+[![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue&v=3)](https://pypi.org/project/knowlyr-datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/tests-3399_passed-brightgreen.svg)](#开发)
 [![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen.svg)](#开发)
@@ -392,10 +392,10 @@ src/datarecipe/
 # 安装开发依赖
 make install
 
-# 运行测试 (3294 个用例)
+# 运行测试 (3399 个用例)
 make test
 
-# 查看测试覆盖率 (96%+)
+# 查看测试覆盖率 (97%+)
 make cov
 
 # 代码格式化 + lint
@@ -408,9 +408,11 @@ make hooks
 
 **测试覆盖**: 35+ 个测试文件，3399 个测试用例，97% 语句覆盖率。
 
-**CI**: GitHub Actions，支持 Python 3.10 / 3.11 / 3.12 / 3.13，覆盖率阈值 80%。
+**CI**: GitHub Actions，支持 Python 3.10 / 3.11 / 3.12 / 3.13，覆盖率阈值 80%。Tag push 自动发布 PyPI + GitHub Release。
 
 **Pre-commit**: ruff lint + format、trailing-whitespace、check-yaml、check-added-large-files。
+
+详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
 
