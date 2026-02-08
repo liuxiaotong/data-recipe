@@ -1,7 +1,6 @@
 """Extract recipe information from HuggingFace datasets."""
 
 import re
-from typing import Optional
 
 from huggingface_hub import HfApi, hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError
@@ -127,7 +126,7 @@ class HuggingFaceExtractor:
 
         return recipe
 
-    def _get_readme(self, dataset_id: str) -> Optional[str]:
+    def _get_readme(self, dataset_id: str) -> str | None:
         """Try to fetch and return README content."""
         try:
             readme_path = hf_hub_download(
@@ -138,7 +137,7 @@ class HuggingFaceExtractor:
         except (EntryNotFoundError, Exception):
             return None
 
-    def _detect_teacher_models(self, info, readme_content: Optional[str]) -> list[str]:
+    def _detect_teacher_models(self, info, readme_content: str | None) -> list[str]:
         """Detect which teacher models were used."""
         found_models = set()
 
@@ -160,8 +159,8 @@ class HuggingFaceExtractor:
         return sorted(found_models)
 
     def _detect_generation_type(
-        self, info, readme_content: Optional[str]
-    ) -> tuple[GenerationType, Optional[float], Optional[float]]:
+        self, info, readme_content: str | None
+    ) -> tuple[GenerationType, float | None, float | None]:
         """Detect whether data is synthetic, human, or mixed."""
         text_to_search = ""
 
@@ -192,7 +191,7 @@ class HuggingFaceExtractor:
         self,
         teacher_models: list[str],
         generation_type: GenerationType,
-        readme_content: Optional[str],
+        readme_content: str | None,
     ) -> list[GenerationMethod]:
         """Build list of generation methods based on detected info."""
         methods = []
@@ -217,14 +216,14 @@ class HuggingFaceExtractor:
 
         return methods
 
-    def _has_prompt_template(self, readme_content: Optional[str]) -> bool:
+    def _has_prompt_template(self, readme_content: str | None) -> bool:
         """Check if prompt templates are documented."""
         if not readme_content:
             return False
         keywords = ["prompt", "template", "instruction", "system message"]
         return any(kw in readme_content.lower() for kw in keywords)
 
-    def _detect_annotation_platform(self, readme_content: Optional[str]) -> Optional[str]:
+    def _detect_annotation_platform(self, readme_content: str | None) -> str | None:
         """Detect annotation platform if mentioned."""
         if not readme_content:
             return None
@@ -271,7 +270,7 @@ class HuggingFaceExtractor:
         return cost
 
     def _assess_reproducibility(
-        self, info, readme_content: Optional[str], recipe: Recipe
+        self, info, readme_content: str | None, recipe: Recipe
     ) -> Reproducibility:
         """Assess how reproducible this dataset is."""
         available = []

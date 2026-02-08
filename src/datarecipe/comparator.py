@@ -1,7 +1,6 @@
 """Dataset comparison and reporting."""
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from datarecipe.analyzer import DatasetAnalyzer
 from datarecipe.cost_calculator import CostBreakdown, CostCalculator
@@ -15,8 +14,8 @@ class DatasetMetrics:
 
     dataset_id: str
     recipe: Recipe
-    cost: Optional[CostBreakdown] = None
-    quality: Optional[QualityReport] = None
+    cost: CostBreakdown | None = None
+    quality: QualityReport | None = None
 
 
 @dataclass
@@ -140,7 +139,7 @@ class ComparisonReport:
 
         # Header
         lines = []
-        header = "| " + " | ".join(c.ljust(w) for c, w in zip(cols, widths)) + " |"
+        header = "| " + " | ".join(c.ljust(w) for c, w in zip(cols, widths, strict=False)) + " |"
         separator = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
 
         lines.append(separator)
@@ -408,8 +407,9 @@ class DatasetComparator:
 
             # Teacher model analysis
             if m.recipe.teacher_models:
-                premium_models = ["gpt-4", "claude-3-opus", "gemini-ultra"]
-                if any(pm in str(m.recipe.teacher_models).lower() for pm in premium_models):
+                from datarecipe.constants import PREMIUM_TEACHER_MODELS
+
+                if any(pm in str(m.recipe.teacher_models).lower() for pm in PREMIUM_TEACHER_MODELS):
                     s.append("Generated with premium AI models")
 
             # Synthetic ratio analysis

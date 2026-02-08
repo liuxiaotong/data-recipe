@@ -5,7 +5,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -128,10 +128,10 @@ class RadarIntegration:
 
     def filter_datasets(
         self,
-        orgs: Optional[list[str]] = None,
-        categories: Optional[list[str]] = None,
+        orgs: list[str] | None = None,
+        categories: list[str] | None = None,
         min_downloads: int = 0,
-        signals: Optional[list[str]] = None,
+        signals: list[str] | None = None,
         limit: int = 0,
     ) -> list[RadarDataset]:
         """Filter datasets based on criteria.
@@ -173,7 +173,7 @@ class RadarIntegration:
 
         return result
 
-    def get_dataset_ids(self, datasets: Optional[list[RadarDataset]] = None) -> list[str]:
+    def get_dataset_ids(self, datasets: list[RadarDataset] | None = None) -> list[str]:
         """Get list of dataset IDs.
 
         Args:
@@ -215,7 +215,7 @@ class RadarIntegration:
         allocation: Any = None,
         rubrics_result: Any = None,
         prompt_library: Any = None,
-        schema_info: Optional[dict] = None,
+        schema_info: dict | None = None,
         sample_count: int = 0,
         llm_analysis: Any = None,
         output_dir: str = "",

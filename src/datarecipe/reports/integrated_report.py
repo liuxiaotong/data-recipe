@@ -4,7 +4,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -86,7 +86,7 @@ class IntegratedReportGenerator:
         with open(report_path, encoding="utf-8") as f:
             return json.load(f)
 
-    def load_recipe_summary(self, dataset_id: str) -> Optional[dict[str, Any]]:
+    def load_recipe_summary(self, dataset_id: str) -> dict[str, Any] | None:
         """Load Recipe analysis summary for a dataset.
 
         Args:

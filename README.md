@@ -6,8 +6,8 @@
 
 [![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue&v=1)](https://pypi.org/project/knowlyr-datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-3106_passed-brightgreen.svg)](#开发)
-[![Coverage](https://img.shields.io/badge/coverage-83%25-green.svg)](#开发)
+[![Tests](https://img.shields.io/badge/tests-3294_passed-brightgreen.svg)](#开发)
+[![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen.svg)](#开发)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-10_Tools-purple.svg)](#mcp-server)
 
@@ -392,10 +392,10 @@ src/datarecipe/
 # 安装开发依赖
 make install
 
-# 运行测试 (3106 个用例)
+# 运行测试 (3294 个用例)
 make test
 
-# 查看测试覆盖率 (83%+)
+# 查看测试覆盖率 (96%+)
 make cov
 
 # 代码格式化 + lint
@@ -406,7 +406,7 @@ make format
 make hooks
 ```
 
-**测试覆盖**: 30+ 个测试文件，3106 个测试用例，83% 语句覆盖率。核心模块覆盖率 92-100%。
+**测试覆盖**: 35+ 个测试文件，3294 个测试用例，96% 语句覆盖率。
 
 **CI**: GitHub Actions，支持 Python 3.10 / 3.11 / 3.12 / 3.13，覆盖率阈值 80%。
 

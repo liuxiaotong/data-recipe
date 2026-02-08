@@ -1638,7 +1638,7 @@ class TestPhasedCostModelAllScales(unittest.TestCase):
             ProjectScale.LARGE,
             ProjectScale.ENTERPRISE,
         ]
-        for size, expected_scale in zip(sizes, expected_scales):
+        for size, expected_scale in zip(sizes, expected_scales, strict=False):
             breakdown = model.calculate(target_size=size)
             self.assertEqual(breakdown.scale, expected_scale)
             self.assertGreater(breakdown.grand_total, 0)

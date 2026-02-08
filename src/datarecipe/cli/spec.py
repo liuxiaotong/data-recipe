@@ -221,8 +221,8 @@ def analyze_spec(
             )
             if enhanced_context and enhanced_context.generated:
                 output.print("[green]✓ LLM 增强完成[/green]")
-        except Exception:
-            pass
+        except Exception as e:
+            output.print(f"[dim]⚠ LLM 增强跳过: {e}[/dim]")
 
         # Step 4: Generate outputs
         output.print("[dim]📝 生成项目文档...[/dim]")

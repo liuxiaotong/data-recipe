@@ -1,10 +1,10 @@
 """Batch analysis for multiple datasets."""
 
 import json
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
 
 from datarecipe.analyzer import DatasetAnalyzer
 from datarecipe.schema import Recipe
@@ -16,8 +16,8 @@ class BatchResult:
 
     dataset_id: str
     success: bool
-    recipe: Optional[Recipe] = None
-    error: Optional[str] = None
+    recipe: Recipe | None = None
+    error: str | None = None
     duration_seconds: float = 0.0
 
     def to_dict(self) -> dict:
@@ -74,7 +74,7 @@ class BatchAnalyzer:
     def __init__(
         self,
         max_workers: int = 4,
-        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+        progress_callback: Callable[[str, int, int], None] | None = None,
     ):
         """Initialize the batch analyzer.
 

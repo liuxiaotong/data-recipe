@@ -1,7 +1,6 @@
 """Extract recipe information from GitHub repositories."""
 
 import re
-from typing import Optional
 
 import requests
 
@@ -71,7 +70,7 @@ class GitHubExtractor:
 
         return recipe
 
-    def _fetch_repo_info(self, repo_id: str) -> Optional[dict]:
+    def _fetch_repo_info(self, repo_id: str) -> dict | None:
         """Fetch repository information from GitHub API."""
         try:
             url = f"{self.api_base}/repos/{repo_id}"
@@ -82,7 +81,7 @@ class GitHubExtractor:
             pass
         return None
 
-    def _fetch_readme(self, repo_id: str) -> Optional[str]:
+    def _fetch_readme(self, repo_id: str) -> str | None:
         """Fetch README content from repository."""
         try:
             url = f"{self.api_base}/repos/{repo_id}/readme"
@@ -98,7 +97,7 @@ class GitHubExtractor:
             pass
         return None
 
-    def _extract_license(self, repo_info: dict) -> Optional[str]:
+    def _extract_license(self, repo_info: dict) -> str | None:
         """Extract license from repo info."""
         license_info = repo_info.get("license")
         if license_info:
@@ -171,7 +170,7 @@ class GitHubExtractor:
         return methods
 
     def _assess_reproducibility(
-        self, repo_info: dict, readme_content: Optional[str]
+        self, repo_info: dict, readme_content: str | None
     ) -> Reproducibility:
         """Assess reproducibility of the dataset."""
         available = []

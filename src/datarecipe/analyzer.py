@@ -2,7 +2,6 @@
 
 import re
 from pathlib import Path
-from typing import Optional, Union
 
 import yaml
 
@@ -26,7 +25,7 @@ class DatasetAnalyzer:
     def analyze(
         self,
         dataset_id: str,
-        source_type: Optional[SourceType] = None,
+        source_type: SourceType | None = None,
     ) -> Recipe:
         """Analyze a dataset and extract its recipe.
 
@@ -50,7 +49,7 @@ class DatasetAnalyzer:
         extractor = self.extractors[source_type]
         return extractor.extract(dataset_id)
 
-    def _parse_dataset_input(self, dataset_input: str) -> tuple[str, Optional[SourceType]]:
+    def _parse_dataset_input(self, dataset_input: str) -> tuple[str, SourceType | None]:
         """Parse dataset input which can be an ID or URL.
 
         Args:
@@ -90,7 +89,7 @@ class DatasetAnalyzer:
         # Not a URL, return as-is
         return dataset_input, None
 
-    def analyze_from_yaml(self, yaml_path: Union[str, Path]) -> Recipe:
+    def analyze_from_yaml(self, yaml_path: str | Path) -> Recipe:
         """Load a recipe from a YAML file.
 
         Args:
@@ -108,7 +107,7 @@ class DatasetAnalyzer:
 
         return self._recipe_from_dict(data)
 
-    def export_recipe(self, recipe: Recipe, output_path: Union[str, Path]) -> None:
+    def export_recipe(self, recipe: Recipe, output_path: str | Path) -> None:
         """Export a recipe to a YAML file.
 
         Args:

@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 class GenerationType(Enum):
@@ -30,16 +30,16 @@ class SourceType(Enum):
 class Cost:
     """Estimated cost breakdown for dataset creation."""
 
-    estimated_total_usd: Optional[float] = None
-    api_calls_usd: Optional[float] = None
-    human_annotation_usd: Optional[float] = None
-    compute_usd: Optional[float] = None
+    estimated_total_usd: float | None = None
+    api_calls_usd: float | None = None
+    human_annotation_usd: float | None = None
+    compute_usd: float | None = None
     confidence: str = "low"  # low, medium, high
     # New fields for detailed estimation
-    low_estimate_usd: Optional[float] = None
-    high_estimate_usd: Optional[float] = None
+    low_estimate_usd: float | None = None
+    high_estimate_usd: float | None = None
     assumptions: list[str] = field(default_factory=list)
-    tokens_estimated: Optional[int] = None
+    tokens_estimated: int | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -70,7 +70,7 @@ class Reproducibility:
     score: int  # 1-10
     available: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
-    notes: Optional[str] = None
+    notes: str | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -87,9 +87,9 @@ class GenerationMethod:
     """Details about how data was generated."""
 
     method_type: str  # distillation, human_annotation, web_scrape, etc.
-    teacher_model: Optional[str] = None
+    teacher_model: str | None = None
     prompt_template_available: bool = False
-    platform: Optional[str] = None
+    platform: str | None = None
     details: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -111,37 +111,37 @@ class Recipe:
     """Complete recipe for a dataset."""
 
     name: str
-    version: Optional[str] = None
+    version: str | None = None
     source_type: SourceType = SourceType.UNKNOWN
-    source_id: Optional[str] = None
+    source_id: str | None = None
 
     # Dataset characteristics
-    size: Optional[int] = None
-    num_examples: Optional[int] = None
+    size: int | None = None
+    num_examples: int | None = None
     languages: list[str] = field(default_factory=list)
-    license: Optional[str] = None
-    description: Optional[str] = None
+    license: str | None = None
+    description: str | None = None
 
     # Generation details
     generation_type: GenerationType = GenerationType.UNKNOWN
-    synthetic_ratio: Optional[float] = None
-    human_ratio: Optional[float] = None
+    synthetic_ratio: float | None = None
+    human_ratio: float | None = None
     generation_methods: list[GenerationMethod] = field(default_factory=list)
     teacher_models: list[str] = field(default_factory=list)
 
     # Assessment
-    cost: Optional[Cost] = None
-    reproducibility: Optional[Reproducibility] = None
+    cost: Cost | None = None
+    reproducibility: Reproducibility | None = None
 
     # Metadata
     tags: list[str] = field(default_factory=list)
-    created_date: Optional[str] = None
+    created_date: str | None = None
     authors: list[str] = field(default_factory=list)
-    paper_url: Optional[str] = None
-    homepage_url: Optional[str] = None
+    paper_url: str | None = None
+    homepage_url: str | None = None
 
     # Quality metrics (populated by quality analyzer)
-    quality_metrics: Optional[dict] = None
+    quality_metrics: dict | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for YAML export."""
@@ -247,7 +247,7 @@ class SkillRequirement:
     name: str  # Python, 医疗, 英语, Excel
     level: str  # basic, intermediate, advanced, native, required
     required: bool = True  # 必须 vs 加分项
-    details: Optional[str] = None
+    details: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -343,7 +343,7 @@ class QualityRule:
     check_type: str  # format, content, consistency, semantic
     severity: str  # error, warning, info
     auto_check: bool = True  # 是否可自动检查
-    check_code: Optional[str] = None  # 检查代码/正则
+    check_code: str | None = None  # 检查代码/正则
 
     def to_dict(self) -> dict:
         return {
@@ -404,7 +404,7 @@ class ProductionConfig:
 
     # 标注指南
     annotation_guide: str = ""  # Markdown 内容
-    annotation_guide_url: Optional[str] = None
+    annotation_guide_url: str | None = None
 
     # 质检规则
     quality_rules: list[QualityRule] = field(default_factory=list)
@@ -475,8 +475,8 @@ class EnhancedCost:
     assumptions: list[str] = field(default_factory=list)
 
     # ROI 分析
-    estimated_dataset_value: Optional[float] = None
-    roi_ratio: Optional[float] = None
+    estimated_dataset_value: float | None = None
+    roi_ratio: float | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -498,9 +498,9 @@ class DataRecipe(Recipe):
     """Complete data recipe - V2 version extending Recipe with production modules."""
 
     # === V2 extended fields ===
-    annotator_profile: Optional[AnnotatorProfile] = None
-    production_config: Optional[ProductionConfig] = None
-    enhanced_cost: Optional[EnhancedCost] = None
+    annotator_profile: AnnotatorProfile | None = None
+    production_config: ProductionConfig | None = None
+    enhanced_cost: EnhancedCost | None = None
 
     @classmethod
     def from_recipe(cls, recipe: Recipe) -> "DataRecipe":
@@ -582,7 +582,7 @@ class ProjectHandle:
     provider: str
     created_at: str
     status: str
-    url: Optional[str] = None
+    url: str | None = None
     metadata: dict = field(default_factory=dict)
 
 
@@ -591,8 +591,8 @@ class DeploymentResult:
     """部署结果"""
 
     success: bool
-    project_handle: Optional[ProjectHandle] = None
-    error: Optional[str] = None
+    project_handle: ProjectHandle | None = None
+    error: str | None = None
     details: dict = field(default_factory=dict)
 
 
@@ -604,8 +604,8 @@ class ProjectStatus:
     progress: float = 0.0  # 0-100
     completed_count: int = 0
     total_count: int = 0
-    quality_score: Optional[float] = None
-    estimated_completion: Optional[str] = None
+    quality_score: float | None = None
+    estimated_completion: str | None = None
 
 
 @runtime_checkable
@@ -637,7 +637,7 @@ class DeploymentProvider(Protocol):
     def create_project(
         self,
         recipe: DataRecipe,
-        config: Optional[ProductionConfig] = None,
+        config: ProductionConfig | None = None,
     ) -> ProjectHandle:
         """在平台上创建项目"""
         ...

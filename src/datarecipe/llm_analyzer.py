@@ -17,7 +17,6 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass
-from typing import Optional
 
 import requests
 
@@ -71,8 +70,8 @@ class MultiSourceContent:
     website_content: str = ""
     paper_content: str = ""
     github_content: str = ""
-    paper_url: Optional[str] = None
-    github_url: Optional[str] = None
+    paper_url: str | None = None
+    github_url: str | None = None
 
 
 class LLMAnalyzer(DeepAnalyzer):
@@ -129,7 +128,7 @@ class LLMAnalyzer(DeepAnalyzer):
         else:
             raise ValueError(f"Unknown LLM provider: {self.llm_provider}")
 
-    def _fetch_pdf_content(self, url: str) -> Optional[str]:
+    def _fetch_pdf_content(self, url: str) -> str | None:
         """Fetch and extract text from PDF.
 
         Args:
@@ -172,7 +171,7 @@ class LLMAnalyzer(DeepAnalyzer):
         except Exception:
             return None
 
-    def _fetch_github_readme(self, repo_url: str) -> Optional[str]:
+    def _fetch_github_readme(self, repo_url: str) -> str | None:
         """Fetch README content from GitHub repository.
 
         Args:

@@ -6,7 +6,7 @@ import os
 import shutil
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -46,7 +46,7 @@ class AnalysisCache:
 
     def __init__(
         self,
-        cache_dir: Optional[str] = None,
+        cache_dir: str | None = None,
         default_ttl_days: int = 7,
     ):
         """Initialize cache manager.
@@ -136,7 +136,7 @@ class AnalysisCache:
         self,
         dataset_id: str,
         check_freshness: bool = True,
-    ) -> Optional[CacheEntry]:
+    ) -> CacheEntry | None:
         """Get cached analysis if available and fresh.
 
         Args:

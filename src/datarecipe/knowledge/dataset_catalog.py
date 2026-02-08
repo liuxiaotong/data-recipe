@@ -8,7 +8,7 @@ This catalog provides:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class DatasetCategory(Enum):
@@ -432,7 +432,7 @@ class DatasetCatalog:
         self.datasets = KNOWN_DATASETS.copy()
         self.benchmarks = INDUSTRY_BENCHMARKS.copy()
 
-    def get_dataset(self, dataset_id: str) -> Optional[DatasetInfo]:
+    def get_dataset(self, dataset_id: str) -> DatasetInfo | None:
         """Get dataset info by ID."""
         # Normalize ID
         normalized = dataset_id.lower().replace("_", "-")
@@ -531,7 +531,7 @@ class DatasetCatalog:
         results.sort(key=lambda x: (x[1], x[0].citation_count), reverse=True)
         return [info for info, _ in results[:limit]]
 
-    def get_benchmark(self, category: str) -> Optional[IndustryBenchmark]:
+    def get_benchmark(self, category: str) -> IndustryBenchmark | None:
         """Get industry benchmark for a category."""
         return self.benchmarks.get(category.lower())
 

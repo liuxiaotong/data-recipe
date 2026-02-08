@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class PipelineStepType(Enum):
@@ -31,9 +31,9 @@ class PipelineStep:
     inputs: list[str] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)
     tools: list[str] = field(default_factory=list)
-    estimated_cost: Optional[float] = None
-    estimated_time: Optional[str] = None
-    code_snippet: Optional[str] = None
+    estimated_cost: float | None = None
+    estimated_time: str | None = None
+    code_snippet: str | None = None
     tips: list[str] = field(default_factory=list)
 
 
@@ -43,9 +43,9 @@ class ProductionPipeline:
 
     name: str
     description: str
-    target_size: Optional[int] = None
-    estimated_total_cost: Optional[float] = None
-    estimated_total_time: Optional[str] = None
+    target_size: int | None = None
+    estimated_total_cost: float | None = None
+    estimated_total_time: str | None = None
     prerequisites: list[str] = field(default_factory=list)
     steps: list[PipelineStep] = field(default_factory=list)
     quality_criteria: list[str] = field(default_factory=list)
@@ -959,7 +959,7 @@ class PhaseDefinition:
     description: str
     default_steps: list[dict] = field(default_factory=list)
     depends_on: list[str] = field(default_factory=list)
-    condition: Optional[str] = None  # e.g. "has_difficulty_validation"
+    condition: str | None = None  # e.g. "has_difficulty_validation"
     assignee: str = "human"  # human, agent, mixed
 
     def to_dict(self) -> dict:
@@ -984,7 +984,7 @@ def register_phase(phase: PhaseDefinition) -> None:
     _PHASE_REGISTRY[phase.phase_id] = phase
 
 
-def get_phase(phase_id: str) -> Optional[PhaseDefinition]:
+def get_phase(phase_id: str) -> PhaseDefinition | None:
     """Get a phase by id."""
     return _PHASE_REGISTRY.get(phase_id)
 
@@ -1117,7 +1117,7 @@ DEFAULT_PHASE_SEQUENCE = ["setup", "pilot", "model_test", "human_review", "produ
 
 
 def assemble_pipeline(
-    phase_ids: Optional[list[str]] = None,
+    phase_ids: list[str] | None = None,
     analysis: Any = None,
 ) -> list[PhaseDefinition]:
     """Assemble a pipeline from phase IDs, filtering by conditions.

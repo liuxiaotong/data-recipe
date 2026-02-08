@@ -10,7 +10,6 @@ Identifies how dataset contexts were constructed:
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class ContextStrategyType(Enum):
@@ -201,7 +200,7 @@ class ContextStrategyDetector:
             for category, patterns in indicator_dict.items()
         }
 
-    def analyze(self, contexts: list[str], metadata: Optional[dict] = None) -> ContextStrategy:
+    def analyze(self, contexts: list[str], metadata: dict | None = None) -> ContextStrategy:
         """
         Analyze contexts to detect construction strategy.
 

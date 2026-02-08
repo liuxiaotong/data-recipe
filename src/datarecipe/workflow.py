@@ -3,7 +3,6 @@
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from datarecipe.cost_calculator import CostCalculator
 from datarecipe.schema import Recipe
@@ -378,7 +377,7 @@ class WorkflowGenerator:
     def generate(
         self,
         recipe: Recipe,
-        target_size: Optional[int] = None,
+        target_size: int | None = None,
         output_format: str = "huggingface",
     ) -> ProductionWorkflow:
         """Generate a production workflow from a recipe.

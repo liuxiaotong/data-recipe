@@ -1,7 +1,6 @@
 """Extract recipe information from web URLs."""
 
 import re
-from typing import Optional
 
 import requests
 
@@ -69,7 +68,7 @@ class WebExtractor:
 
         return recipe
 
-    def _fetch_page(self, url: str) -> Optional[str]:
+    def _fetch_page(self, url: str) -> str | None:
         """Fetch and parse web page content."""
         try:
             headers = {"User-Agent": "Mozilla/5.0 (compatible; DataRecipe/1.0)"}
@@ -80,7 +79,7 @@ class WebExtractor:
             pass
         return None
 
-    def _extract_title(self, content: str) -> Optional[str]:
+    def _extract_title(self, content: str) -> str | None:
         """Extract page title."""
         # Try <title> tag
         match = re.search(r"<title>([^<]+)</title>", content, re.IGNORECASE)
@@ -99,7 +98,7 @@ class WebExtractor:
 
         return None
 
-    def _extract_description(self, content: str) -> Optional[str]:
+    def _extract_description(self, content: str) -> str | None:
         """Extract page description."""
         # Try meta description
         match = re.search(
@@ -217,7 +216,7 @@ class WebExtractor:
 
         return methods
 
-    def _extract_dataset_size(self, content: str) -> Optional[int]:
+    def _extract_dataset_size(self, content: str) -> int | None:
         """Try to extract dataset size from content."""
         # Look for common patterns like "100,000 examples" or "100k samples"
         patterns = [

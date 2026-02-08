@@ -17,6 +17,9 @@ DEFAULT_OPENAI_MODEL = "gpt-4o"
 # Default fallback model for cost estimation
 DEFAULT_COST_ESTIMATION_MODEL = "gpt-4o"
 
+# Premium teacher models (used for quality assessment in comparisons)
+PREMIUM_TEACHER_MODELS = ["gpt-4", "claude-3-opus", "gemini-ultra"]
+
 
 # =============================================================================
 # Region Cost Multipliers

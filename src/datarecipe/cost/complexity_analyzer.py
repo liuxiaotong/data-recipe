@@ -7,7 +7,7 @@ affect human annotation time and quality requirements.
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class DomainType(Enum):
@@ -316,8 +316,8 @@ class ComplexityAnalyzer:
     def analyze(
         self,
         samples: list[dict[str, Any]],
-        schema_info: Optional[dict[str, Any]] = None,
-        rubrics: Optional[list[str]] = None,
+        schema_info: dict[str, Any] | None = None,
+        rubrics: list[str] | None = None,
     ) -> ComplexityMetrics:
         """Analyze dataset complexity.
 
@@ -437,7 +437,7 @@ class ComplexityAnalyzer:
         self,
         metrics: ComplexityMetrics,
         samples: list[dict[str, Any]],
-        schema_info: Optional[dict[str, Any]],
+        schema_info: dict[str, Any] | None,
     ) -> None:
         """Analyze structure complexity."""
         if not samples:
@@ -521,7 +521,7 @@ class ComplexityAnalyzer:
     def _analyze_quality(
         self,
         metrics: ComplexityMetrics,
-        rubrics: Optional[list[str]],
+        rubrics: list[str] | None,
     ) -> None:
         """Analyze quality requirements from rubrics."""
         if not rubrics:

@@ -10,7 +10,6 @@ Generates comprehensive production guides that include:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 from ..analyzers.context_strategy import ContextStrategy
 from ..extractors.prompt_extractor import PromptLibrary
@@ -41,12 +40,12 @@ class EnhancedProductionGuide:
     generation_date: str = field(default_factory=lambda: datetime.now().isoformat()[:10])
 
     # Discovered patterns
-    rubrics_analysis: Optional[RubricsAnalysisResult] = None
-    prompt_library: Optional[PromptLibrary] = None
-    context_strategy: Optional[ContextStrategy] = None
+    rubrics_analysis: RubricsAnalysisResult | None = None
+    prompt_library: PromptLibrary | None = None
+    context_strategy: ContextStrategy | None = None
 
     # Allocation
-    allocation: Optional[HumanMachineAllocation] = None
+    allocation: HumanMachineAllocation | None = None
 
     # Workload
     workload_estimates: list[WorkloadEstimate] = field(default_factory=list)
@@ -91,10 +90,10 @@ class EnhancedGuideGenerator:
         self,
         dataset_name: str,
         target_size: int,
-        rubrics_analysis: Optional[RubricsAnalysisResult] = None,
-        prompt_library: Optional[PromptLibrary] = None,
-        context_strategy: Optional[ContextStrategy] = None,
-        allocation: Optional[HumanMachineAllocation] = None,
+        rubrics_analysis: RubricsAnalysisResult | None = None,
+        prompt_library: PromptLibrary | None = None,
+        context_strategy: ContextStrategy | None = None,
+        allocation: HumanMachineAllocation | None = None,
         region: str = "china",
     ) -> EnhancedProductionGuide:
         """
@@ -140,7 +139,7 @@ class EnhancedGuideGenerator:
     def _estimate_workload(
         self,
         target_size: int,
-        allocation: Optional[HumanMachineAllocation],
+        allocation: HumanMachineAllocation | None,
         region: str,
     ) -> list[WorkloadEstimate]:
         """Estimate workload for each phase."""
@@ -217,8 +216,8 @@ class EnhancedGuideGenerator:
 
     def _define_quality_checkpoints(
         self,
-        rubrics_analysis: Optional[RubricsAnalysisResult],
-        context_strategy: Optional[ContextStrategy],
+        rubrics_analysis: RubricsAnalysisResult | None,
+        context_strategy: ContextStrategy | None,
     ) -> list[dict]:
         """Define quality checkpoints based on analysis."""
         checkpoints = [

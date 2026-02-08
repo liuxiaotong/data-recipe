@@ -1,7 +1,6 @@
 """Cost calculator for dataset production estimation."""
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from datarecipe.constants import REGION_COST_MULTIPLIERS
 from datarecipe.schema import Recipe
@@ -127,9 +126,9 @@ class CostCalculator:
         model: str = "gpt-4o",
         avg_input_tokens: int = 500,
         avg_output_tokens: int = 200,
-        human_annotation_type: Optional[str] = None,
+        human_annotation_type: str | None = None,
         human_annotation_ratio: float = 0.0,
-        compute_type: Optional[str] = None,
+        compute_type: str | None = None,
         compute_hours: float = 0.0,
         retries: float = 1.2,  # Average retry factor
     ) -> CostBreakdown:
@@ -216,8 +215,8 @@ class CostCalculator:
     def estimate_from_recipe(
         self,
         recipe: Recipe,
-        target_size: Optional[int] = None,
-        model: Optional[str] = None,
+        target_size: int | None = None,
+        model: str | None = None,
     ) -> CostBreakdown:
         """Estimate production cost based on a dataset recipe.
 
@@ -299,7 +298,7 @@ class CostCalculator:
     def _calculate_human_cost(
         self,
         num_examples: int,
-        annotation_type: Optional[str],
+        annotation_type: str | None,
         annotation_ratio: float,
     ) -> CostEstimate:
         """Calculate human annotation costs."""
@@ -319,7 +318,7 @@ class CostCalculator:
 
     def _calculate_compute_cost(
         self,
-        compute_type: Optional[str],
+        compute_type: str | None,
         compute_hours: float,
     ) -> CostEstimate:
         """Calculate compute costs."""
@@ -392,7 +391,7 @@ class CostCalculator:
         else:
             return (300, 150)  # Mixed or human-heavy
 
-    def _infer_annotation_type(self, recipe: Recipe) -> Optional[str]:
+    def _infer_annotation_type(self, recipe: Recipe) -> str | None:
         """Infer annotation type from recipe."""
         if recipe.human_ratio is None or recipe.human_ratio == 0:
             return None
@@ -417,7 +416,7 @@ class CostCalculator:
         else:
             return "quality_check"
 
-    def _estimate_compute(self, recipe: Recipe, num_examples: int) -> tuple[Optional[str], float]:
+    def _estimate_compute(self, recipe: Recipe, num_examples: int) -> tuple[str | None, float]:
         """Estimate compute requirements."""
         # Check for compute-intensive methods
         for method in recipe.generation_methods:
@@ -440,7 +439,7 @@ class CostCalculator:
 
         return (None, 0.0)
 
-    def get_model_pricing(self, model: str) -> Optional[TokenPricing]:
+    def get_model_pricing(self, model: str) -> TokenPricing | None:
         """Get pricing information for a specific model."""
         return self.LLM_PRICING.get(model)
 
@@ -627,8 +626,8 @@ class EnhancedCostCalculator(CostCalculator):
     def calculate_enhanced_cost(
         self,
         recipe: Recipe,
-        target_size: Optional[int] = None,
-        model: Optional[str] = None,
+        target_size: int | None = None,
+        model: str | None = None,
         region: str = "us",
         include_labor: bool = True,
     ) -> EnhancedCostBreakdown:
@@ -715,7 +714,7 @@ class EnhancedCostCalculator(CostCalculator):
     def calculate_roi(
         self,
         production_cost: float,
-        comparable_dataset_price: Optional[float] = None,
+        comparable_dataset_price: float | None = None,
         usage_scenarios: int = 1,
     ) -> dict:
         """计算投资回报率

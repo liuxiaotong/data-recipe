@@ -5,7 +5,6 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -68,7 +67,7 @@ class LocalFilesProvider:
     def create_project(
         self,
         recipe: DataRecipe,
-        config: Optional[ProductionConfig] = None,
+        config: ProductionConfig | None = None,
         output_dir: str = "./project",
     ) -> ProjectHandle:
         """创建本地项目结构
@@ -213,7 +212,7 @@ class LocalFilesProvider:
         """取消项目"""
         return True
 
-    def _generate_readme(self, recipe: DataRecipe, config: Optional[ProductionConfig]) -> str:
+    def _generate_readme(self, recipe: DataRecipe, config: ProductionConfig | None) -> str:
         """生成 README"""
         lines = []
         lines.append(f"# {recipe.name} 投产项目")

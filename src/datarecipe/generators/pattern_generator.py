@@ -6,9 +6,9 @@ Generates new data based on discovered patterns from reverse engineering.
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable, Optional
 
 from ..extractors.prompt_extractor import PromptLibrary, PromptTemplate
 from ..extractors.rubrics_analyzer import RubricsAnalysisResult
@@ -170,11 +170,11 @@ class PatternGenerator:
 
     def generate_rubrics(
         self,
-        rubrics_analysis: Optional[RubricsAnalysisResult] = None,
+        rubrics_analysis: RubricsAnalysisResult | None = None,
         context: str = "the topic",
         count: int = 10,
-        categories: Optional[list[str]] = None,
-        custom_templates: Optional[dict[str, list[str]]] = None,
+        categories: list[str] | None = None,
+        custom_templates: dict[str, list[str]] | None = None,
     ) -> GenerationResult:
         """
         Generate rubrics based on discovered patterns.
@@ -256,11 +256,11 @@ class PatternGenerator:
 
     def generate_prompts(
         self,
-        prompt_library: Optional[PromptLibrary] = None,
+        prompt_library: PromptLibrary | None = None,
         domain: str = "general",
         category: str = "system",
         count: int = 5,
-        customize_fn: Optional[Callable[[str], str]] = None,
+        customize_fn: Callable[[str], str] | None = None,
     ) -> GenerationResult:
         """
         Generate prompts based on extracted templates.
@@ -333,7 +333,7 @@ class PatternGenerator:
         self,
         strategy: str = "synthetic",
         template_type: str = "game_rules",
-        parameters: Optional[dict] = None,
+        parameters: dict | None = None,
         count: int = 1,
     ) -> GenerationResult:
         """

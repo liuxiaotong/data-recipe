@@ -5,7 +5,7 @@ import os
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from datarecipe.integrations.radar import RecipeSummary
@@ -239,7 +239,7 @@ class TrendAnalyzer:
 
         self._save()
 
-    def get_cost_benchmark(self, dataset_type: str) -> Optional[CostBenchmark]:
+    def get_cost_benchmark(self, dataset_type: str) -> CostBenchmark | None:
         """Get cost benchmark for a dataset type."""
         return self.benchmarks.get(dataset_type)
 

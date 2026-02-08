@@ -9,7 +9,6 @@ import hashlib
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -112,7 +111,7 @@ class RubricsAnalyzer:
         self.verb_pattern = re.compile(r"should\s+(not\s+)?(\w+)", re.IGNORECASE)
 
     def analyze(
-        self, rubrics: list[str], task_count: Optional[int] = None
+        self, rubrics: list[str], task_count: int | None = None
     ) -> RubricsAnalysisResult:
         """
         Analyze a list of rubrics to extract patterns.
@@ -202,7 +201,7 @@ class RubricsAnalyzer:
 
         return result
 
-    def _extract_verb(self, rubric: str) -> tuple[Optional[str], Optional[str], bool]:
+    def _extract_verb(self, rubric: str) -> tuple[str | None, str | None, bool]:
         """
         Extract the main verb from a rubric.
 
@@ -223,7 +222,7 @@ class RubricsAnalyzer:
             verb_phrase = f"should {verb}"
             return verb, verb_phrase, False
 
-    def _categorize(self, verb: Optional[str], is_negation: bool) -> str:
+    def _categorize(self, verb: str | None, is_negation: bool) -> str:
         """Categorize a rubric based on its verb."""
         if is_negation:
             return "avoid"
@@ -265,7 +264,7 @@ class RubricsAnalyzer:
     def _extract_structure(
         self,
         rubric: str,
-        verb_phrase: Optional[str],
+        verb_phrase: str | None,
     ) -> tuple[str, str, str]:
         """Extract action/target/condition pieces from the rubric."""
         action = (verb_phrase or "").strip()

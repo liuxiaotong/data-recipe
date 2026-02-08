@@ -11,7 +11,7 @@ Generates a 1-page executive summary with:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class Recommendation(Enum):
@@ -157,10 +157,10 @@ class ExecutiveSummaryGenerator:
         sample_count: int,
         reproduction_cost: dict[str, float],
         human_percentage: float,
-        complexity_metrics: Optional[Any] = None,
-        phased_breakdown: Optional[Any] = None,
-        llm_analysis: Optional[Any] = None,
-        enhanced_context: Optional[Any] = None,
+        complexity_metrics: Any | None = None,
+        phased_breakdown: Any | None = None,
+        llm_analysis: Any | None = None,
+        enhanced_context: Any | None = None,
     ) -> ValueAssessment:
         """Generate value assessment for a dataset.
 
@@ -257,7 +257,7 @@ class ExecutiveSummaryGenerator:
         sample_count: int,
         reproduction_cost: dict[str, float],
         human_percentage: float,
-        complexity_metrics: Optional[Any],
+        complexity_metrics: Any | None,
         config: dict,
     ) -> float:
         """Calculate value score (1-10)."""
@@ -423,7 +423,7 @@ class ExecutiveSummaryGenerator:
         self,
         reproduction_cost: dict[str, float],
         human_percentage: float,
-        complexity_metrics: Optional[Any],
+        complexity_metrics: Any | None,
     ) -> list[dict[str, str]]:
         """Assess project risks."""
         risks = []
@@ -530,7 +530,7 @@ class ExecutiveSummaryGenerator:
         dataset_id: str,
         dataset_type: str,
         reproduction_cost: dict[str, float],
-        phased_breakdown: Optional[Any] = None,
+        phased_breakdown: Any | None = None,
     ) -> str:
         """Generate executive summary markdown."""
         lines = []

@@ -8,7 +8,6 @@ and the full extract() orchestrator with mocked HuggingFace Hub API calls.
 
 import unittest
 from dataclasses import dataclass
-from typing import Optional
 from unittest.mock import MagicMock, patch
 
 from datarecipe.schema import (
@@ -37,11 +36,11 @@ class StubCardData:
 class StubDatasetInfo:
     """Minimal stub matching HuggingFace DatasetInfo interface."""
 
-    description: Optional[str] = None
-    tags: Optional[list] = None
-    author: Optional[str] = None
-    license: Optional[str] = None
-    card_data: Optional[StubCardData] = None
+    description: str | None = None
+    tags: list | None = None
+    author: str | None = None
+    license: str | None = None
+    card_data: StubCardData | None = None
 
 
 # ==================== Initialization Tests ====================

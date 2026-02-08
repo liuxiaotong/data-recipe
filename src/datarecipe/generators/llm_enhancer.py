@@ -12,7 +12,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from datarecipe.constants import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 
@@ -170,17 +170,17 @@ class LLMEnhancer:
         self,
         dataset_id: str,
         dataset_type: str = "unknown",
-        schema_info: Optional[dict] = None,
-        sample_items: Optional[list[dict]] = None,
+        schema_info: dict | None = None,
+        sample_items: list[dict] | None = None,
         sample_count: int = 0,
         domain: str = "通用",
         difficulty: str = "medium",
         human_percentage: float = 0,
         total_cost: float = 0,
-        complexity_metrics: Optional[Any] = None,
-        allocation: Optional[Any] = None,
-        rubrics_result: Optional[Any] = None,
-        llm_analysis: Optional[Any] = None,
+        complexity_metrics: Any | None = None,
+        allocation: Any | None = None,
+        rubrics_result: Any | None = None,
+        llm_analysis: Any | None = None,
     ) -> str:
         """Build the enhancement prompt from analysis data."""
         # Build schema summary

@@ -20,7 +20,6 @@ warnings.warn(
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 import requests
 
@@ -52,7 +51,7 @@ class DeepAnalysisResult:
 
     # Data composition
     data_sources: list[str] = field(default_factory=list)
-    data_format: Optional[str] = None
+    data_format: str | None = None
     size_info: dict = field(default_factory=dict)
 
     # Generation details
@@ -72,13 +71,13 @@ class DeepAnalysisResult:
 
     # Reproducibility
     code_available: bool = False
-    code_url: Optional[str] = None
+    code_url: str | None = None
     data_available: bool = False
-    data_url: Optional[str] = None
-    paper_url: Optional[str] = None  # Auto-discovered paper URL
+    data_url: str | None = None
+    paper_url: str | None = None  # Auto-discovered paper URL
 
     # Cost and resources
-    estimated_cost: Optional[float] = None
+    estimated_cost: float | None = None
     resource_requirements: list[str] = field(default_factory=list)
 
     # Additional insights
@@ -169,7 +168,7 @@ class DeepAnalyzer:
         """
         self.auto_search_paper = auto_search_paper
 
-    def search_related_paper(self, dataset_name: str) -> Optional[str]:
+    def search_related_paper(self, dataset_name: str) -> str | None:
         """Search for related papers on arXiv.
 
         Args:
@@ -330,7 +329,7 @@ class DeepAnalyzer:
 
         return result
 
-    def _fetch_content(self, url: str) -> Optional[str]:
+    def _fetch_content(self, url: str) -> str | None:
         """Fetch content from URL."""
         try:
             # Convert PDF URL to abstract page for arXiv
@@ -638,7 +637,7 @@ class DeepAnalyzer:
 
         return metrics
 
-    def _extract_code_info(self, content: str) -> tuple[bool, Optional[str]]:
+    def _extract_code_info(self, content: str) -> tuple[bool, str | None]:
         """Extract code availability info."""
         # Look for GitHub links - clean up any trailing punctuation
         match = re.search(r"github\.com/([^/\s\"'<>]+/[a-zA-Z0-9_.-]+)", content)
@@ -651,7 +650,7 @@ class DeepAnalyzer:
 
         return False, None
 
-    def _extract_data_info(self, content: str) -> tuple[bool, Optional[str]]:
+    def _extract_data_info(self, content: str) -> tuple[bool, str | None]:
         """Extract data availability info."""
         # Look for HuggingFace links
         match = re.search(r"huggingface\.co/datasets/([^/\s\"'<>]+/[^/\s\"'<>]+)", content)

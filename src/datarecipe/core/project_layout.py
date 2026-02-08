@@ -7,7 +7,6 @@ share this module so that a single dataset produces one project folder.
 import json
 import os
 from datetime import datetime
-from typing import Optional
 
 # Canonical subdirectory mapping — every numbered folder lives here.
 OUTPUT_SUBDIRS = {
@@ -81,12 +80,12 @@ class OutputManager:
         Category keys to create.  ``None`` means create all of them.
     """
 
-    def __init__(self, base_dir: str, subdirs: Optional[list[str]] = None):
+    def __init__(self, base_dir: str, subdirs: list[str] | None = None):
         self.base_dir = base_dir
         self.subdirs: dict[str, str] = {}
         self._create_structure(subdirs)
 
-    def _create_structure(self, keys: Optional[list[str]] = None):
+    def _create_structure(self, keys: list[str] | None = None):
         os.makedirs(self.base_dir, exist_ok=True)
         target_keys = keys if keys is not None else list(OUTPUT_SUBDIRS.keys())
         for key in target_keys:

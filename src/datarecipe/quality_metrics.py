@@ -4,7 +4,7 @@ import math
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -167,12 +167,12 @@ class QualityReport:
     diversity: DiversityMetrics
     consistency: ConsistencyMetrics
     complexity: ComplexityMetrics
-    ai_detection: Optional[AIDetectionMetrics] = None
+    ai_detection: AIDetectionMetrics | None = None
     overall_score: float = 0.0  # 0-100
     recommendations: list[str] = field(default_factory=list)
     sample_size: int = 0
     warnings: list[str] = field(default_factory=list)
-    gate_report: Optional[QualityGateReport] = None
+    gate_report: QualityGateReport | None = None
 
     def to_dict(self) -> dict:
         result = {
@@ -687,7 +687,7 @@ class QualityAnalyzer:
         diversity: DiversityMetrics,
         consistency: ConsistencyMetrics,
         complexity: ComplexityMetrics,
-        ai_detection: Optional[AIDetectionMetrics],
+        ai_detection: AIDetectionMetrics | None,
     ) -> float:
         """Calculate overall quality score (0-100)."""
         score = 0
@@ -733,7 +733,7 @@ class QualityAnalyzer:
         diversity: DiversityMetrics,
         consistency: ConsistencyMetrics,
         complexity: ComplexityMetrics,
-        ai_detection: Optional[AIDetectionMetrics],
+        ai_detection: AIDetectionMetrics | None,
     ) -> list[str]:
         """Generate recommendations based on metrics."""
         recommendations = []
@@ -798,7 +798,7 @@ class QualityAnalyzer:
     def evaluate_gates(
         self,
         report: QualityReport,
-        gates: Optional[list[QualityGateRule]] = None,
+        gates: list[QualityGateRule] | None = None,
     ) -> QualityGateReport:
         """Evaluate quality gates against a report.
 
@@ -853,7 +853,7 @@ class QualityAnalyzer:
         report.gate_report = gate_report
         return gate_report
 
-    def _extract_metric(self, report: QualityReport, metric_path: str) -> Optional[float]:
+    def _extract_metric(self, report: QualityReport, metric_path: str) -> float | None:
         """Extract a metric value from a QualityReport by dot-path."""
         parts = metric_path.split(".")
         obj: Any = report

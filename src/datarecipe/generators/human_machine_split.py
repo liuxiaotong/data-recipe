@@ -7,7 +7,6 @@ between human workers and automated systems.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class TaskType(Enum):
@@ -237,10 +236,10 @@ class HumanMachineSplitter:
     def analyze(
         self,
         dataset_size: int,
-        task_types: Optional[list[TaskType]] = None,
-        context_count: Optional[int] = None,
+        task_types: list[TaskType] | None = None,
+        context_count: int | None = None,
         rubrics_per_task: float = 15.0,
-        custom_hours: Optional[dict[TaskType, float]] = None,
+        custom_hours: dict[TaskType, float] | None = None,
     ) -> HumanMachineAllocation:
         """
         Analyze and allocate tasks between humans and machines.
@@ -295,7 +294,7 @@ class HumanMachineSplitter:
         scale_factor: float,
         context_count: int,
         rubrics_per_task: float,
-        custom_hours: Optional[dict[TaskType, float]],
+        custom_hours: dict[TaskType, float] | None,
     ) -> TaskAllocation:
         """Create allocation for a single task."""
 

@@ -50,18 +50,18 @@ class FieldDefinition:
 
     # Nested structure (for array items / object properties)
     items: Optional["FieldDefinition"] = None  # array element type
-    properties: Optional[list["FieldDefinition"]] = None  # object sub-fields
+    properties: list["FieldDefinition"] | None = None  # object sub-fields
 
     # Enum / union
-    enum: Optional[list[Any]] = None
-    any_of: Optional[list["FieldDefinition"]] = None
+    enum: list[Any] | None = None
+    any_of: list["FieldDefinition"] | None = None
 
     # Constraints
-    min_length: Optional[int] = None
-    max_length: Optional[int] = None
-    minimum: Optional[float] = None
-    maximum: Optional[float] = None
-    pattern: Optional[str] = None
+    min_length: int | None = None
+    max_length: int | None = None
+    minimum: float | None = None
+    maximum: float | None = None
+    pattern: str | None = None
 
     # --- serialization ---
 
@@ -277,7 +277,7 @@ class SpecificationAnalysis:
     difficulty_criteria: str = ""  # 难度标准
 
     # Difficulty validation config (extracted from spec, None if not specified)
-    difficulty_validation: Optional[dict[str, Any]] = None  # 难度验证配置
+    difficulty_validation: dict[str, Any] | None = None  # 难度验证配置
     # Example: {"model": "doubao1.8", "settings": "高思考深度", "test_count": 3, "max_correct": 1, "requires_record": True}
 
     # Data structure
@@ -372,7 +372,7 @@ class SpecificationAnalysis:
                 )
         return strategies
 
-    def get_strategy(self, strategy_type: str) -> Optional[ValidationStrategy]:
+    def get_strategy(self, strategy_type: str) -> ValidationStrategy | None:
         """Get a specific validation strategy by type."""
         for s in self.parsed_validation_strategies:
             if s.strategy_type == strategy_type and s.enabled:
@@ -539,7 +539,7 @@ class SpecAnalyzer:
     def __init__(self, provider: str = "anthropic"):
         self.provider = provider
         self.parser = DocumentParser()
-        self._last_doc: Optional[ParsedDocument] = None
+        self._last_doc: ParsedDocument | None = None
 
     def parse_document(self, file_path: str) -> ParsedDocument:
         """Parse document without LLM analysis.
@@ -553,7 +553,7 @@ class SpecAnalyzer:
         self._last_doc = self.parser.parse(file_path)
         return self._last_doc
 
-    def get_extraction_prompt(self, doc: Optional[ParsedDocument] = None) -> str:
+    def get_extraction_prompt(self, doc: ParsedDocument | None = None) -> str:
         """Get the LLM extraction prompt for a parsed document.
 
         Args:
@@ -570,7 +570,7 @@ class SpecAnalyzer:
         return self.EXTRACTION_PROMPT.format(document_content=doc.text_content[:15000])
 
     def create_analysis_from_json(
-        self, extracted: dict, doc: Optional[ParsedDocument] = None
+        self, extracted: dict, doc: ParsedDocument | None = None
     ) -> SpecificationAnalysis:
         """Create SpecificationAnalysis from extracted JSON data.
 
@@ -656,7 +656,7 @@ class SpecAnalyzer:
                 image_count=len(doc.images),
             )
 
-    def _extract_with_llm(self, doc: ParsedDocument) -> Optional[dict]:
+    def _extract_with_llm(self, doc: ParsedDocument) -> dict | None:
         """Extract structured information using LLM."""
         prompt = self.EXTRACTION_PROMPT.format(
             document_content=doc.text_content[:15000]  # Limit content length
@@ -669,7 +669,7 @@ class SpecAnalyzer:
         else:
             raise ValueError(f"Unknown provider: {self.provider}")
 
-    def _call_anthropic(self, prompt: str, images: list[dict]) -> Optional[dict]:
+    def _call_anthropic(self, prompt: str, images: list[dict]) -> dict | None:
         """Call Anthropic Claude API."""
         try:
             import anthropic
@@ -721,7 +721,7 @@ class SpecAnalyzer:
             logger.error(f"LLM call failed: {e}")
             return None
 
-    def _call_openai(self, prompt: str, images: list[dict]) -> Optional[dict]:
+    def _call_openai(self, prompt: str, images: list[dict]) -> dict | None:
         """Call OpenAI API."""
         try:
             import openai
@@ -763,7 +763,7 @@ class SpecAnalyzer:
             logger.error(f"LLM call failed: {e}")
             return None
 
-    def _parse_json_response(self, text: str) -> Optional[dict]:
+    def _parse_json_response(self, text: str) -> dict | None:
         """Parse JSON from LLM response."""
         # Try to find JSON block
         import re

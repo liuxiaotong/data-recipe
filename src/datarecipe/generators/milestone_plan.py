@@ -11,7 +11,7 @@ Generates a phased project plan with:
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class MilestoneStatus(Enum):
@@ -486,9 +486,9 @@ class MilestonePlanGenerator:
         target_size: int,
         reproduction_cost: dict[str, float],
         human_percentage: float,
-        complexity_metrics: Optional[Any] = None,
-        phased_breakdown: Optional[Any] = None,
-        enhanced_context: Optional[Any] = None,
+        complexity_metrics: Any | None = None,
+        phased_breakdown: Any | None = None,
+        enhanced_context: Any | None = None,
     ) -> MilestonePlan:
         """Generate milestone plan.
 
@@ -571,7 +571,7 @@ class MilestonePlanGenerator:
 
         return milestones
 
-    def _get_risks(self, dataset_type: str, complexity_metrics: Optional[Any]) -> list[RiskItem]:
+    def _get_risks(self, dataset_type: str, complexity_metrics: Any | None) -> list[RiskItem]:
         """Get risks for project."""
         risks = []
 
@@ -637,7 +637,7 @@ class MilestonePlanGenerator:
         self,
         target_size: int,
         human_percentage: float,
-        complexity_metrics: Optional[Any],
+        complexity_metrics: Any | None,
     ) -> int:
         """Estimate project duration in work days."""
         # Base: 1 day per 100 samples for human work

@@ -4,7 +4,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from datarecipe.analyzers.spec_analyzer import FieldDefinition, SpecificationAnalysis
 from datarecipe.core.project_layout import (
@@ -1222,7 +1222,7 @@ class SpecOutputGenerator:
         return self._generate_value_from_field(fd, mode="sample", context=context)
 
     def _generate_value_from_field(
-        self, fd: FieldDefinition, mode: str = "template", context: Optional[dict] = None
+        self, fd: FieldDefinition, mode: str = "template", context: dict | None = None
     ) -> Any:
         """Recursively generate a value from a FieldDefinition.
 

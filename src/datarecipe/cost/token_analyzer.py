@@ -6,7 +6,7 @@ and API costs based on real data rather than fixed estimates.
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -199,8 +199,8 @@ class TokenAnalyzer:
     def analyze_samples(
         self,
         samples: list[dict[str, Any]],
-        input_fields: Optional[list[str]] = None,
-        output_fields: Optional[list[str]] = None,
+        input_fields: list[str] | None = None,
+        output_fields: list[str] | None = None,
     ) -> TokenStats:
         """Analyze samples to calculate token statistics.
 
@@ -415,8 +415,8 @@ class PreciseCostCalculator:
         target_size: int,
         model: str = "gpt-4o",
         iteration_factor: float = 1.2,
-        input_fields: Optional[list[str]] = None,
-        output_fields: Optional[list[str]] = None,
+        input_fields: list[str] | None = None,
+        output_fields: list[str] | None = None,
     ) -> PreciseCostEstimate:
         """Calculate precise API cost based on sample analysis.
 
@@ -491,7 +491,7 @@ class PreciseCostCalculator:
         self,
         samples: list[dict[str, Any]],
         target_size: int,
-        models: Optional[list[str]] = None,
+        models: list[str] | None = None,
     ) -> dict[str, PreciseCostEstimate]:
         """Compare costs across multiple models.
 

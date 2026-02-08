@@ -5,7 +5,7 @@ the accuracy of cost estimates for new datasets.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -90,7 +90,7 @@ class CostCalibrator:
         dataset_type: str,
         human_cost: float,
         api_cost: float,
-        complexity_metrics: Optional[Any] = None,
+        complexity_metrics: Any | None = None,
         sample_count: int = 0,
     ) -> CalibrationResult:
         """Calibrate cost estimates using historical benchmarks.

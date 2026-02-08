@@ -5,10 +5,10 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class RadarWatcher:
         self.processed_files: dict[str, str] = {}  # file -> last_modified
         self.state_file = self.watch_dir / ".datarecipe_watcher_state.json"
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self._load_state()
 

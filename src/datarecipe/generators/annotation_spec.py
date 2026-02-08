@@ -10,7 +10,7 @@ Supports two input modes:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from datarecipe.task_profiles import get_task_profile
 
@@ -81,10 +81,10 @@ class AnnotationSpecGenerator:
         dataset_type: str,
         schema_info: dict[str, Any],
         sample_items: list[dict[str, Any]],
-        rubrics_result: Optional[Any] = None,
-        llm_analysis: Optional[Any] = None,
-        complexity_metrics: Optional[Any] = None,
-        enhanced_context: Optional[Any] = None,
+        rubrics_result: Any | None = None,
+        llm_analysis: Any | None = None,
+        complexity_metrics: Any | None = None,
+        enhanced_context: Any | None = None,
     ) -> AnnotationSpec:
         """Generate annotation specification.
 
@@ -146,7 +146,7 @@ class AnnotationSpecGenerator:
         self,
         spec: AnnotationSpec,
         schema_info: dict[str, Any],
-        complexity_metrics: Optional[Any],
+        complexity_metrics: Any | None,
     ) -> None:
         """Generate data requirements section."""
         requirements = []
@@ -187,7 +187,7 @@ class AnnotationSpecGenerator:
         self,
         spec: AnnotationSpec,
         dataset_type: str,
-        rubrics_result: Optional[Any],
+        rubrics_result: Any | None,
     ) -> None:
         """Generate quality constraints section."""
         constraints = []
@@ -344,7 +344,7 @@ class AnnotationSpecGenerator:
         self,
         spec: AnnotationSpec,
         sample_items: list[dict[str, Any]],
-        rubrics_result: Optional[Any],
+        rubrics_result: Any | None,
     ) -> None:
         """Generate example items section."""
         examples = []
@@ -431,8 +431,8 @@ class AnnotationSpecGenerator:
     def _generate_scoring_rubrics(
         self,
         spec: AnnotationSpec,
-        rubrics_result: Optional[Any],
-        llm_analysis: Optional[Any],
+        rubrics_result: Any | None,
+        llm_analysis: Any | None,
     ) -> None:
         """Generate scoring rubrics section."""
         dimensions = []

@@ -8,7 +8,6 @@
 - 费率参考
 """
 
-from typing import Optional
 
 from datarecipe.constants import REGION_COST_MULTIPLIERS
 from datarecipe.schema import (
@@ -143,7 +142,7 @@ ANNOTATION_TIME_PER_TYPE = {
 class AnnotatorProfiler:
     """标注专家画像生成器"""
 
-    def __init__(self, custom_rules: Optional[dict] = None):
+    def __init__(self, custom_rules: dict | None = None):
         """初始化
 
         Args:
@@ -154,9 +153,9 @@ class AnnotatorProfiler:
     def generate_profile(
         self,
         recipe: Recipe,
-        target_size: Optional[int] = None,
+        target_size: int | None = None,
         region: str = "us",
-        budget: Optional[float] = None,
+        budget: float | None = None,
     ) -> AnnotatorProfile:
         """根据数据集配方生成标注专家画像
 

@@ -10,7 +10,6 @@
 """
 
 import logging
-from typing import Optional
 
 from datarecipe.providers import ProviderNotFoundError, discover_providers
 
@@ -61,7 +60,7 @@ class ProductionDeployer:
     def generate_config(
         self,
         recipe: DataRecipe,
-        profile: Optional[AnnotatorProfile] = None,
+        profile: AnnotatorProfile | None = None,
     ) -> ProductionConfig:
         """生成投产配置
 
@@ -104,8 +103,8 @@ class ProductionDeployer:
         recipe: DataRecipe,
         output: str,
         provider: str = "local",
-        config: Optional[ProductionConfig] = None,
-        profile: Optional[AnnotatorProfile] = None,
+        config: ProductionConfig | None = None,
+        profile: AnnotatorProfile | None = None,
         submit: bool = True,
     ) -> DeploymentResult:
         """部署投产项目
@@ -203,7 +202,7 @@ class ProductionDeployer:
     def _generate_annotation_guide(
         self,
         recipe: DataRecipe,
-        profile: Optional[AnnotatorProfile],
+        profile: AnnotatorProfile | None,
     ) -> str:
         """生成标注指南"""
         lines = []
@@ -524,7 +523,7 @@ class ProductionDeployer:
     def _generate_milestones(
         self,
         recipe: DataRecipe,
-        profile: Optional[AnnotatorProfile],
+        profile: AnnotatorProfile | None,
     ) -> list[Milestone]:
         """生成项目里程碑"""
         milestones = []
@@ -614,7 +613,7 @@ class ProductionDeployer:
     def _estimate_timeline(
         self,
         recipe: DataRecipe,
-        profile: Optional[AnnotatorProfile],
+        profile: AnnotatorProfile | None,
     ) -> int:
         """估算项目时间"""
         base_days = 30
