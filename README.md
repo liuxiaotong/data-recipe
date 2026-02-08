@@ -6,8 +6,8 @@
 
 [![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue&v=1)](https://pypi.org/project/knowlyr-datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-2090_passed-brightgreen.svg)](#开发)
-[![Coverage](https://img.shields.io/badge/coverage-62%25-green.svg)](#开发)
+[![Tests](https://img.shields.io/badge/tests-3106_passed-brightgreen.svg)](#开发)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-green.svg)](#开发)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-10_Tools-purple.svg)](#mcp-server)
 
@@ -373,7 +373,15 @@ src/datarecipe/
 ├── quality_metrics.py              # 质量评估指标
 ├── pipeline.py                     # 多阶段流水线模板
 ├── mcp_server.py                   # MCP Server (10 工具)
-└── cli.py                          # CLI 入口
+└── cli/                            # CLI 命令包
+    ├── __init__.py                 # 命令注册
+    ├── _helpers.py                 # 共享工具函数
+    ├── analyze.py                  # analyze, show, export, guide
+    ├── deep.py                     # deep-analyze
+    ├── spec.py                     # analyze-spec
+    ├── batch.py                    # batch, batch-from-radar, integrate-report
+    ├── tools.py                    # cost, quality, deploy, workflow 等
+    └── infra.py                    # watch, cache, knowledge
 ```
 
 ---
@@ -384,20 +392,25 @@ src/datarecipe/
 # 安装开发依赖
 make install
 
-# 运行测试 (2090 个用例)
+# 运行测试 (3106 个用例)
 make test
 
-# 查看测试覆盖率
-make coverage
+# 查看测试覆盖率 (83%+)
+make cov
 
 # 代码格式化 + lint
 make lint
 make format
+
+# 安装 pre-commit hooks
+make hooks
 ```
 
-**测试覆盖**: 27 个测试文件，2090 个测试用例，62% 语句覆盖率。核心模块覆盖率 92-100%。
+**测试覆盖**: 30+ 个测试文件，3106 个测试用例，83% 语句覆盖率。核心模块覆盖率 92-100%。
 
-**CI**: GitHub Actions，支持 Python 3.10 / 3.11 / 3.12 / 3.13。
+**CI**: GitHub Actions，支持 Python 3.10 / 3.11 / 3.12 / 3.13，覆盖率阈值 80%。
+
+**Pre-commit**: ruff lint + format、trailing-whitespace、check-yaml、check-added-large-files。
 
 ---
 
