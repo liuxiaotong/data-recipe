@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -59,6 +60,8 @@ class AnalysisCache:
         self.default_ttl_days = default_ttl_days
         self.index_path = os.path.join(self.cache_dir, "index.json")
         self.index: dict[str, CacheEntry] = {}
+        self._hf_metadata_cache: dict[str, tuple[float, dict[str, str]]] = {}
+        self._hf_cache_ttl = 300  # 5 minutes
         self._load_index()
 
     def _load_index(self):
@@ -113,24 +116,35 @@ class AnalysisCache:
     def get_hf_metadata(self, dataset_id: str) -> dict[str, str]:
         """Get metadata from HuggingFace for a dataset.
 
+        Uses an in-memory TTL cache (5 min) to avoid redundant API calls.
+
         Args:
             dataset_id: Dataset identifier (e.g., "Anthropic/hh-rlhf")
 
         Returns:
             Dict with 'commit' and 'last_modified' keys
         """
+        now = time.monotonic()
+        if dataset_id in self._hf_metadata_cache:
+            cached_time, cached_data = self._hf_metadata_cache[dataset_id]
+            if now - cached_time < self._hf_cache_ttl:
+                return cached_data
+
         try:
             from huggingface_hub import HfApi
 
             api = HfApi()
             info = api.dataset_info(dataset_id)
 
-            return {
+            result = {
                 "commit": info.sha or "",
                 "last_modified": info.last_modified.isoformat() if info.last_modified else "",
             }
         except (ImportError, OSError, ValueError):
-            return {"commit": "", "last_modified": ""}
+            result = {"commit": "", "last_modified": ""}
+
+        self._hf_metadata_cache[dataset_id] = (now, result)
+        return result
 
     def get(
         self,

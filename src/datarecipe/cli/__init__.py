@@ -12,7 +12,7 @@ from datarecipe.cli._helpers import (  # noqa: F401
 
 # Main CLI group
 @click.group()
-@click.version_option(version="0.3.2", prog_name="datarecipe")
+@click.version_option(version="0.3.3", prog_name="datarecipe")
 def main():
     """DataRecipe - Analyze AI dataset ingredients, estimate costs, and generate workflows."""
     pass

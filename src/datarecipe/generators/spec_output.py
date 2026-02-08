@@ -2,6 +2,7 @@
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -73,59 +74,57 @@ class SpecOutputGenerator:
 
             result.output_dir = output_dir
 
-            # Generate each document
-            self._generate_annotation_spec(
-                analysis, output_dir, subdirs, result, enhanced_context=enhanced_context
-            )
-            self._generate_executive_summary(
-                analysis,
-                output_dir,
-                subdirs,
-                target_size,
-                region,
-                result,
-                enhanced_context=enhanced_context,
-            )
-            self._generate_milestone_plan(
-                analysis,
-                output_dir,
-                subdirs,
-                target_size,
-                region,
-                result,
-                enhanced_context=enhanced_context,
-            )
-            self._generate_cost_breakdown(
-                analysis, output_dir, subdirs, target_size, region, result
-            )
-            self._generate_industry_benchmark(
-                analysis, output_dir, subdirs, target_size, region, result
-            )
-            self._generate_raw_analysis(analysis, output_dir, subdirs, result)
+            # Generate all documents in parallel using thread-local results
+            def _run_generator(fn, *args, **kwargs):
+                local_result = SpecOutputResult()
+                fn(*args, local_result, **kwargs)
+                return local_result.files_generated
 
-            # Generate production documents
-            self._generate_training_guide(analysis, output_dir, subdirs, result)
-            self._generate_qa_checklist(analysis, output_dir, subdirs, result)
-            self._generate_data_template(analysis, output_dir, subdirs, result)
-            self._generate_production_sop(analysis, output_dir, subdirs, result)
-            self._generate_data_schema(analysis, output_dir, subdirs, result)
+            generators = [
+                # Core reports
+                lambda r: self._generate_annotation_spec(
+                    analysis, output_dir, subdirs, r, enhanced_context=enhanced_context),
+                lambda r: self._generate_executive_summary(
+                    analysis, output_dir, subdirs, target_size, region, r,
+                    enhanced_context=enhanced_context),
+                lambda r: self._generate_milestone_plan(
+                    analysis, output_dir, subdirs, target_size, region, r,
+                    enhanced_context=enhanced_context),
+                lambda r: self._generate_cost_breakdown(
+                    analysis, output_dir, subdirs, target_size, region, r),
+                lambda r: self._generate_industry_benchmark(
+                    analysis, output_dir, subdirs, target_size, region, r),
+                lambda r: self._generate_raw_analysis(analysis, output_dir, subdirs, r),
+                # Production documents
+                lambda r: self._generate_training_guide(analysis, output_dir, subdirs, r),
+                lambda r: self._generate_qa_checklist(analysis, output_dir, subdirs, r),
+                lambda r: self._generate_data_template(analysis, output_dir, subdirs, r),
+                lambda r: self._generate_production_sop(analysis, output_dir, subdirs, r),
+                lambda r: self._generate_data_schema(analysis, output_dir, subdirs, r),
+                lambda r: self._generate_validation_guide(analysis, output_dir, subdirs, r),
+                # AI Agent layer
+                lambda r: self._generate_ai_agent_context(
+                    analysis, output_dir, subdirs, target_size, region, r),
+                lambda r: self._generate_ai_workflow_state(analysis, output_dir, subdirs, r),
+                lambda r: self._generate_ai_reasoning_traces(
+                    analysis, output_dir, subdirs, target_size, region, r),
+                lambda r: self._generate_ai_pipeline(analysis, output_dir, subdirs, r),
+                lambda r: self._generate_ai_readme(analysis, output_dir, subdirs, r),
+                # Sample data
+                lambda r: self._generate_think_po_samples(
+                    analysis, output_dir, subdirs, target_size, r),
+            ]
 
-            # Generate validation guides for all strategies
-            self._generate_validation_guide(analysis, output_dir, subdirs, result)
-
-            # Generate AI Agent layer
-            self._generate_ai_agent_context(
-                analysis, output_dir, subdirs, target_size, region, result
-            )
-            self._generate_ai_workflow_state(analysis, output_dir, subdirs, result)
-            self._generate_ai_reasoning_traces(
-                analysis, output_dir, subdirs, target_size, region, result
-            )
-            self._generate_ai_pipeline(analysis, output_dir, subdirs, result)
-            self._generate_ai_readme(analysis, output_dir, subdirs, result)
-
-            # Generate sample data
-            self._generate_think_po_samples(analysis, output_dir, subdirs, target_size, result)
+            with ThreadPoolExecutor(max_workers=6) as executor:
+                futures = []
+                for gen_fn in generators:
+                    local_result = SpecOutputResult()
+                    futures.append(
+                        (executor.submit(gen_fn, local_result), local_result)
+                    )
+                for future, local_result in futures:
+                    future.result()  # wait and raise exceptions
+                    result.files_generated.extend(local_result.files_generated)
 
             # Update project manifest and generate README
             manifest = ProjectManifest(output_dir)

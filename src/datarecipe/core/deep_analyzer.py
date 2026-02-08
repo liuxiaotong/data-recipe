@@ -2,6 +2,7 @@
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -312,190 +313,184 @@ class DeepAnalyzerCore:
             elif rubrics:
                 detected_type = "evaluation"
 
-            # Run analyzers
-            rubrics_result = None
-            if rubrics:
-                analyzer = RubricsAnalyzer()
-                rubrics_result = analyzer.analyze(rubrics, task_count=sample_count)
+            # === Tier 1: Independent analyzers (parallel) ===
+            def _analyze_rubrics():
+                files, rr = [], None
+                if rubrics:
+                    analyzer = RubricsAnalyzer()
+                    rr = analyzer.analyze(rubrics, task_count=sample_count)
+                    with open(output_mgr.get_path("data", "rubrics_analysis.json"), "w", encoding="utf-8") as f:
+                        json.dump(analyzer.to_dict(rr), f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("data", "rubrics_analysis.json"))
+                    with open(output_mgr.get_path("annotation", "rubric_template.yaml"), "w", encoding="utf-8") as f:
+                        f.write(analyzer.to_yaml_templates(rr))
+                    files.append(output_mgr.get_relative_path("annotation", "rubric_template.yaml"))
+                    with open(output_mgr.get_path("annotation", "rubric_template.md"), "w", encoding="utf-8") as f:
+                        f.write(analyzer.to_markdown_templates(rr))
+                    files.append(output_mgr.get_relative_path("annotation", "rubric_template.md"))
+                return rr, files
+
+            def _analyze_prompts():
+                files, pl = [], None
+                if messages:
+                    extractor = PromptExtractor()
+                    pl = extractor.extract(messages)
+                    with open(output_mgr.get_path("data", "prompt_templates.json"), "w", encoding="utf-8") as f:
+                        json.dump(extractor.to_dict(pl), f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("data", "prompt_templates.json"))
+                return pl, files
+
+            def _analyze_context_strategy():
+                files, sr = [], None
+                if contexts:
+                    detector = ContextStrategyDetector()
+                    sr = detector.analyze(contexts[:100])
+                    with open(output_mgr.get_path("data", "context_strategy.json"), "w", encoding="utf-8") as f:
+                        json.dump(detector.to_dict(sr), f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("data", "context_strategy.json"))
+                return sr, files
+
+            def _analyze_preference():
+                files = []
+                if is_preference_dataset and preference_pairs:
+                    pref_data = {
+                        "is_preference_dataset": True, "total_pairs": sample_count,
+                        "topic_distribution": preference_topics,
+                        "patterns": preference_patterns, "examples": preference_pairs[:10],
+                    }
+                    with open(output_mgr.get_path("data", "preference_analysis.json"), "w", encoding="utf-8") as f:
+                        json.dump(pref_data, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("data", "preference_analysis.json"))
+                return files
+
+            def _analyze_swe():
+                files = []
+                if is_swe_dataset and swe_stats["repos"]:
+                    avg_patch = (
+                        sum(swe_stats["patch_lines"]) / len(swe_stats["patch_lines"])
+                        if swe_stats["patch_lines"] else 0
+                    )
+                    swe_data = {
+                        "is_swe_dataset": True, "total_tasks": sample_count,
+                        "repos_count": len(swe_stats["repos"]),
+                        "repo_distribution": dict(sorted(swe_stats["repos"].items(), key=lambda x: -x[1])[:20]),
+                        "language_distribution": swe_stats["languages"],
+                        "avg_patch_lines": avg_patch, "examples": swe_stats["examples"],
+                    }
+                    with open(output_mgr.get_path("data", "swe_analysis.json"), "w", encoding="utf-8") as f:
+                        json.dump(swe_data, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("data", "swe_analysis.json"))
+                return files
+
+            def _analyze_llm():
+                files, warnings, la, dt = [], [], None, None
+                is_known_type = is_preference_dataset or is_swe_dataset or rubrics or messages
+                if self.use_llm and not is_known_type:
+                    try:
+                        from datarecipe.analyzers.llm_dataset_analyzer import LLMDatasetAnalyzer
+                        llm_analyzer = LLMDatasetAnalyzer(provider=self.llm_provider)
+                        la = llm_analyzer.analyze(
+                            dataset_id=dataset_id, schema_info=schema_info,
+                            sample_items=sample_items, sample_count=sample_count,
+                        )
+                        dt = la.dataset_type
+                        llm_result_dict = {
+                            "dataset_type": la.dataset_type, "purpose": la.purpose,
+                            "structure_description": la.structure_description,
+                            "key_fields": la.key_fields, "production_steps": la.production_steps,
+                            "quality_criteria": la.quality_criteria,
+                            "estimated_difficulty": la.estimated_difficulty,
+                            "similar_datasets": la.similar_datasets,
+                        }
+                        with open(output_mgr.get_path("data", "llm_analysis.json"), "w", encoding="utf-8") as f:
+                            json.dump(llm_result_dict, f, indent=2, ensure_ascii=False)
+                        files.append(output_mgr.get_relative_path("data", "llm_analysis.json"))
+                    except Exception as e:
+                        warnings.append(f"LLM 数据集分析跳过: {e}")
+                return la, dt, files, warnings
+
+            def _analyze_cost():
+                files, warnings = [], []
+                pac, ts, pe = None, None, None
+                try:
+                    from datarecipe.cost import PreciseCostCalculator
+                    cost_calc = PreciseCostCalculator()
+                    pe = cost_calc.calculate(
+                        samples=sample_items, target_size=actual_size,
+                        model="gpt-4o", iteration_factor=1.2,
+                    )
+                    pac = pe.adjusted_cost
+                    ts = pe.token_stats
+                    with open(output_mgr.get_path("cost", "token_analysis.json"), "w", encoding="utf-8") as f:
+                        json.dump(pe.to_dict(), f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("cost", "token_analysis.json"))
+                    comparisons = cost_calc.compare_models(
+                        samples=sample_items, target_size=actual_size,
+                        models=["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "deepseek-v3"],
+                    )
+                    comparison_data = {m: e.to_dict() for m, e in comparisons.items()}
+                    with open(output_mgr.get_path("cost", "cost_comparison.json"), "w", encoding="utf-8") as f:
+                        json.dump(comparison_data, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("cost", "cost_comparison.json"))
+                except Exception as e:
+                    warnings.append(f"Token 成本计算跳过: {e}")
+                return pac, ts, files, warnings
+
+            def _analyze_allocation():
+                s = HumanMachineSplitter(region=self.region)
+                alloc = s.analyze(
+                    dataset_size=actual_size,
+                    task_types=[
+                        TaskType.CONTEXT_CREATION, TaskType.TASK_DESIGN,
+                        TaskType.RUBRICS_WRITING, TaskType.DATA_GENERATION,
+                        TaskType.QUALITY_REVIEW,
+                    ],
+                )
+                return s, alloc
+
+            # Execute Tier 1 analyzers in parallel
+            with ThreadPoolExecutor(max_workers=6) as executor:
+                f_rubrics = executor.submit(_analyze_rubrics)
+                f_prompts = executor.submit(_analyze_prompts)
+                f_strategy = executor.submit(_analyze_context_strategy)
+                f_pref = executor.submit(_analyze_preference)
+                f_swe = executor.submit(_analyze_swe)
+                f_llm = executor.submit(_analyze_llm)
+                f_cost = executor.submit(_analyze_cost)
+                f_alloc = executor.submit(_analyze_allocation)
+
+            # Collect Tier 1 results
+            rubrics_result, rubrics_files = f_rubrics.result()
+            result.files_generated.extend(rubrics_files)
+            if rubrics_result:
                 result.rubric_patterns = rubrics_result.unique_patterns
 
-                # Save rubric analysis to data/
-                with open(
-                    output_mgr.get_path("data", "rubrics_analysis.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(analyzer.to_dict(rubrics_result), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("data", "rubrics_analysis.json")
-                )
-
-                # Save rubric templates to annotation/
-                with open(
-                    output_mgr.get_path("annotation", "rubric_template.yaml"), "w", encoding="utf-8"
-                ) as f:
-                    f.write(analyzer.to_yaml_templates(rubrics_result))
-                result.files_generated.append(
-                    output_mgr.get_relative_path("annotation", "rubric_template.yaml")
-                )
-
-                with open(
-                    output_mgr.get_path("annotation", "rubric_template.md"), "w", encoding="utf-8"
-                ) as f:
-                    f.write(analyzer.to_markdown_templates(rubrics_result))
-                result.files_generated.append(
-                    output_mgr.get_relative_path("annotation", "rubric_template.md")
-                )
-
-            prompt_library = None
-            if messages:
-                extractor = PromptExtractor()
-                prompt_library = extractor.extract(messages)
+            prompt_library, prompt_files = f_prompts.result()
+            result.files_generated.extend(prompt_files)
+            if prompt_library:
                 result.prompt_templates = prompt_library.unique_count
 
-                with open(
-                    output_mgr.get_path("data", "prompt_templates.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(extractor.to_dict(prompt_library), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("data", "prompt_templates.json")
-                )
+            strategy_result, strategy_files = f_strategy.result()
+            result.files_generated.extend(strategy_files)
 
-            strategy_result = None
-            if contexts:
-                detector = ContextStrategyDetector()
-                strategy_result = detector.analyze(contexts[:100])
-                with open(
-                    output_mgr.get_path("data", "context_strategy.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(detector.to_dict(strategy_result), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("data", "context_strategy.json")
-                )
+            result.files_generated.extend(f_pref.result())
+            result.files_generated.extend(f_swe.result())
 
-            # Preference analysis
-            if is_preference_dataset and preference_pairs:
-                preference_analysis = {
-                    "is_preference_dataset": True,
-                    "total_pairs": sample_count,
-                    "topic_distribution": preference_topics,
-                    "patterns": preference_patterns,
-                    "examples": preference_pairs[:10],
-                }
-                with open(
-                    output_mgr.get_path("data", "preference_analysis.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(preference_analysis, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("data", "preference_analysis.json")
-                )
+            llm_analysis, llm_detected_type, llm_files, llm_warnings = f_llm.result()
+            result.files_generated.extend(llm_files)
+            result.warnings.extend(llm_warnings)
+            if llm_detected_type:
+                detected_type = llm_detected_type
 
-            # SWE analysis
-            if is_swe_dataset and swe_stats["repos"]:
-                avg_patch = (
-                    sum(swe_stats["patch_lines"]) / len(swe_stats["patch_lines"])
-                    if swe_stats["patch_lines"]
-                    else 0
-                )
-                swe_analysis = {
-                    "is_swe_dataset": True,
-                    "total_tasks": sample_count,
-                    "repos_count": len(swe_stats["repos"]),
-                    "repo_distribution": dict(
-                        sorted(swe_stats["repos"].items(), key=lambda x: -x[1])[:20]
-                    ),
-                    "language_distribution": swe_stats["languages"],
-                    "avg_patch_lines": avg_patch,
-                    "examples": swe_stats["examples"],
-                }
-                with open(
-                    output_mgr.get_path("data", "swe_analysis.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(swe_analysis, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("data", "swe_analysis.json")
-                )
+            precise_api_cost, token_stats, cost_files, cost_warnings = f_cost.result()
+            result.files_generated.extend(cost_files)
+            result.warnings.extend(cost_warnings)
 
-            # LLM analysis
-            llm_analysis = None
-            is_known_type = is_preference_dataset or is_swe_dataset or rubrics or messages
-            if self.use_llm and not is_known_type:
-                try:
-                    from datarecipe.analyzers.llm_dataset_analyzer import LLMDatasetAnalyzer
-
-                    llm_analyzer = LLMDatasetAnalyzer(provider=self.llm_provider)
-                    llm_analysis = llm_analyzer.analyze(
-                        dataset_id=dataset_id,
-                        schema_info=schema_info,
-                        sample_items=sample_items,
-                        sample_count=sample_count,
-                    )
-                    detected_type = llm_analysis.dataset_type
-
-                    llm_result_dict = {
-                        "dataset_type": llm_analysis.dataset_type,
-                        "purpose": llm_analysis.purpose,
-                        "structure_description": llm_analysis.structure_description,
-                        "key_fields": llm_analysis.key_fields,
-                        "production_steps": llm_analysis.production_steps,
-                        "quality_criteria": llm_analysis.quality_criteria,
-                        "estimated_difficulty": llm_analysis.estimated_difficulty,
-                        "similar_datasets": llm_analysis.similar_datasets,
-                    }
-                    with open(
-                        output_mgr.get_path("data", "llm_analysis.json"), "w", encoding="utf-8"
-                    ) as f:
-                        json.dump(llm_result_dict, f, indent=2, ensure_ascii=False)
-                    result.files_generated.append(
-                        output_mgr.get_relative_path("data", "llm_analysis.json")
-                    )
-                except Exception as e:
-                    result.warnings.append(f"LLM 数据集分析跳过: {e}")
+            splitter, allocation = f_alloc.result()
 
             result.dataset_type = detected_type
 
-            # Precise token-based API cost calculation
-            precise_api_cost = None
-            token_stats = None
-            try:
-                from datarecipe.cost import PreciseCostCalculator
-
-                cost_calc = PreciseCostCalculator()
-                precise_estimate = cost_calc.calculate(
-                    samples=sample_items,
-                    target_size=actual_size,
-                    model="gpt-4o",
-                    iteration_factor=1.2,
-                )
-                precise_api_cost = precise_estimate.adjusted_cost
-                token_stats = precise_estimate.token_stats
-
-                # Save token analysis to cost/
-                with open(
-                    output_mgr.get_path("cost", "token_analysis.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(precise_estimate.to_dict(), f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("cost", "token_analysis.json")
-                )
-
-                # Model comparison
-                comparisons = cost_calc.compare_models(
-                    samples=sample_items,
-                    target_size=actual_size,
-                    models=["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "deepseek-v3"],
-                )
-                comparison_data = {m: e.to_dict() for m, e in comparisons.items()}
-                with open(
-                    output_mgr.get_path("cost", "cost_comparison.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(comparison_data, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("cost", "cost_comparison.json")
-                )
-
-            except Exception as e:
-                result.warnings.append(f"Token 成本计算跳过: {e}")
-
-            # Complexity analysis for dynamic cost adjustment
+            # === Tier 2: Complexity analysis (depends on rubrics) ===
             complexity_metrics = None
             try:
                 from datarecipe.cost import ComplexityAnalyzer
@@ -507,7 +502,6 @@ class DeepAnalyzerCore:
                     rubrics=rubrics if rubrics else None,
                 )
 
-                # Save complexity analysis to data/
                 with open(
                     output_mgr.get_path("data", "complexity_analysis.json"), "w", encoding="utf-8"
                 ) as f:
@@ -519,19 +513,7 @@ class DeepAnalyzerCore:
             except Exception as e:
                 result.warnings.append(f"复杂度分析跳过: {e}")
 
-            # Human-machine allocation
-            splitter = HumanMachineSplitter(region=self.region)
-            allocation = splitter.analyze(
-                dataset_size=actual_size,
-                task_types=[
-                    TaskType.CONTEXT_CREATION,
-                    TaskType.TASK_DESIGN,
-                    TaskType.RUBRICS_WRITING,
-                    TaskType.DATA_GENERATION,
-                    TaskType.QUALITY_REVIEW,
-                ],
-            )
-
+            # === Tier 3: Cost calibration + phased breakdown (depend on Tier 1+2) ===
             # Apply complexity multipliers to human cost
             human_cost = allocation.total_human_cost
             if complexity_metrics:
@@ -554,11 +536,9 @@ class DeepAnalyzerCore:
                     sample_count=sample_count,
                 )
 
-                # Use calibrated costs
                 human_cost = calibration_result.calibrated_human_cost
                 api_cost = calibration_result.calibrated_api_cost
 
-                # Save calibration analysis to cost/
                 with open(
                     output_mgr.get_path("cost", "cost_calibration.json"), "w", encoding="utf-8"
                 ) as f:
@@ -579,7 +559,6 @@ class DeepAnalyzerCore:
 
                 phased_model = PhasedCostModel(region=self.region)
 
-                # Calculate API cost per sample for phased model
                 api_per_sample = api_cost / actual_size if actual_size > 0 else 0.01
                 complexity_mult = complexity_metrics.cost_multiplier if complexity_metrics else 1.0
                 quality_req = (
@@ -595,7 +574,6 @@ class DeepAnalyzerCore:
                     quality_requirement=quality_req,
                 )
 
-                # Save phased cost analysis to cost/
                 with open(
                     output_mgr.get_path("cost", "phased_cost.json"), "w", encoding="utf-8"
                 ) as f:
@@ -604,7 +582,6 @@ class DeepAnalyzerCore:
                     output_mgr.get_relative_path("cost", "phased_cost.json")
                 )
 
-                # Save phased cost report to cost/
                 phased_report = phased_model.format_report(phased_breakdown)
                 with open(
                     output_mgr.get_path("cost", "COST_BREAKDOWN.md"), "w", encoding="utf-8"
@@ -745,213 +722,153 @@ class DeepAnalyzerCore:
             except Exception:
                 pass  # enhancement prompt is optional
 
-            # Generate reports to guide/
-            report = self._generate_analysis_report(
-                dataset_id,
-                sample_count,
-                actual_size,
-                rubrics_result,
-                prompt_library,
-                strategy_result,
-                allocation,
-                self.region,
-                enhanced_context=enhanced_context,
-            )
-            with open(
-                output_mgr.get_path("guide", "ANALYSIS_REPORT.md"), "w", encoding="utf-8"
-            ) as f:
-                f.write(report)
-            result.files_generated.append(
-                output_mgr.get_relative_path("guide", "ANALYSIS_REPORT.md")
-            )
+            # Generate reports in parallel (all generators are independent)
+            def _gen_analysis_report():
+                files, warnings = [], []
+                try:
+                    report = self._generate_analysis_report(
+                        dataset_id, sample_count, actual_size,
+                        rubrics_result, prompt_library, strategy_result,
+                        allocation, self.region, enhanced_context=enhanced_context,
+                    )
+                    path = output_mgr.get_path("guide", "ANALYSIS_REPORT.md")
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(report)
+                    files.append(output_mgr.get_relative_path("guide", "ANALYSIS_REPORT.md"))
+                except Exception as e:
+                    warnings.append(f"分析报告生成失败: {e}")
+                return files, warnings
 
-            guide = self._generate_reproduction_guide(
-                dataset_id,
-                schema_info,
-                category_set,
-                sub_category_set,
-                system_prompts_by_domain,
-                rubrics_examples,
-                sample_items,
-                rubrics_result,
-                prompt_library,
-                allocation,
-                is_preference_dataset,
-                preference_pairs,
-                preference_topics,
-                preference_patterns,
-                is_swe_dataset,
-                swe_stats,
-                llm_analysis,
-                enhanced_context=enhanced_context,
-            )
-            with open(
-                output_mgr.get_path("guide", "REPRODUCTION_GUIDE.md"), "w", encoding="utf-8"
-            ) as f:
-                f.write(guide)
-            result.files_generated.append(
-                output_mgr.get_relative_path("guide", "REPRODUCTION_GUIDE.md")
-            )
+            def _gen_reproduction_guide():
+                files, warnings = [], []
+                try:
+                    guide = self._generate_reproduction_guide(
+                        dataset_id, schema_info, category_set, sub_category_set,
+                        system_prompts_by_domain, rubrics_examples, sample_items,
+                        rubrics_result, prompt_library, allocation,
+                        is_preference_dataset, preference_pairs,
+                        preference_topics, preference_patterns,
+                        is_swe_dataset, swe_stats, llm_analysis,
+                        enhanced_context=enhanced_context,
+                    )
+                    path = output_mgr.get_path("guide", "REPRODUCTION_GUIDE.md")
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(guide)
+                    files.append(output_mgr.get_relative_path("guide", "REPRODUCTION_GUIDE.md"))
+                except Exception as e:
+                    warnings.append(f"复刻指南生成失败: {e}")
+                return files, warnings
 
-            # Annotation specification (forward-looking production guide)
-            try:
-                from datarecipe.generators.annotation_spec import AnnotationSpecGenerator
+            def _gen_annotation_spec():
+                files, warnings = [], []
+                try:
+                    from datarecipe.generators.annotation_spec import AnnotationSpecGenerator
+                    spec_generator = AnnotationSpecGenerator()
+                    annotation_spec = spec_generator.generate(
+                        dataset_id=dataset_id, dataset_type=detected_type or "unknown",
+                        schema_info=schema_info, sample_items=sample_items,
+                        rubrics_result=rubrics_result, llm_analysis=llm_analysis,
+                        complexity_metrics=complexity_metrics, enhanced_context=enhanced_context,
+                    )
+                    spec_md = spec_generator.to_markdown(annotation_spec)
+                    with open(output_mgr.get_path("annotation", "ANNOTATION_SPEC.md"), "w", encoding="utf-8") as f:
+                        f.write(spec_md)
+                    files.append(output_mgr.get_relative_path("annotation", "ANNOTATION_SPEC.md"))
+                    spec_dict = spec_generator.to_dict(annotation_spec)
+                    with open(output_mgr.get_path("annotation", "annotation_spec.json"), "w", encoding="utf-8") as f:
+                        json.dump(spec_dict, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("annotation", "annotation_spec.json"))
+                except Exception as e:
+                    warnings.append(f"标注规范生成失败: {e}")
+                return files, warnings
 
-                spec_generator = AnnotationSpecGenerator()
-                annotation_spec = spec_generator.generate(
-                    dataset_id=dataset_id,
-                    dataset_type=detected_type or "unknown",
-                    schema_info=schema_info,
-                    sample_items=sample_items,
-                    rubrics_result=rubrics_result,
-                    llm_analysis=llm_analysis,
-                    complexity_metrics=complexity_metrics,
-                    enhanced_context=enhanced_context,
-                )
+            def _gen_milestone_plan():
+                files, warnings = [], []
+                try:
+                    from datarecipe.generators.milestone_plan import MilestonePlanGenerator
+                    milestone_generator = MilestonePlanGenerator()
+                    plan = milestone_generator.generate(
+                        dataset_id=dataset_id, dataset_type=detected_type or "unknown",
+                        target_size=actual_size, reproduction_cost=result.reproduction_cost,
+                        human_percentage=result.human_percentage,
+                        complexity_metrics=complexity_metrics,
+                        phased_breakdown=phased_breakdown, enhanced_context=enhanced_context,
+                    )
+                    milestone_md = milestone_generator.to_markdown(plan)
+                    with open(output_mgr.get_path("project", "MILESTONE_PLAN.md"), "w", encoding="utf-8") as f:
+                        f.write(milestone_md)
+                    files.append(output_mgr.get_relative_path("project", "MILESTONE_PLAN.md"))
+                    milestone_dict = milestone_generator.to_dict(plan)
+                    with open(output_mgr.get_path("project", "milestone_plan.json"), "w", encoding="utf-8") as f:
+                        json.dump(milestone_dict, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("project", "milestone_plan.json"))
+                except Exception as e:
+                    warnings.append(f"里程碑计划生成失败: {e}")
+                return files, warnings
 
-                # Save as Markdown to annotation/
-                spec_md = spec_generator.to_markdown(annotation_spec)
-                with open(
-                    output_mgr.get_path("annotation", "ANNOTATION_SPEC.md"), "w", encoding="utf-8"
-                ) as f:
-                    f.write(spec_md)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("annotation", "ANNOTATION_SPEC.md")
-                )
+            def _gen_executive_summary():
+                files, warnings = [], []
+                try:
+                    from datarecipe.generators.executive_summary import ExecutiveSummaryGenerator
+                    exec_generator = ExecutiveSummaryGenerator()
+                    exec_assessment = exec_generator.generate(
+                        dataset_id=dataset_id, dataset_type=detected_type or "unknown",
+                        sample_count=sample_count, reproduction_cost=result.reproduction_cost,
+                        human_percentage=result.human_percentage,
+                        complexity_metrics=complexity_metrics,
+                        phased_breakdown=phased_breakdown, llm_analysis=llm_analysis,
+                        enhanced_context=enhanced_context,
+                    )
+                    exec_md = exec_generator.to_markdown(
+                        assessment=exec_assessment, dataset_id=dataset_id,
+                        dataset_type=detected_type or "unknown",
+                        reproduction_cost=result.reproduction_cost,
+                        phased_breakdown=phased_breakdown,
+                    )
+                    with open(output_mgr.get_path("decision", "EXECUTIVE_SUMMARY.md"), "w", encoding="utf-8") as f:
+                        f.write(exec_md)
+                    files.append(output_mgr.get_relative_path("decision", "EXECUTIVE_SUMMARY.md"))
+                    exec_dict = exec_generator.to_dict(exec_assessment)
+                    with open(output_mgr.get_path("decision", "executive_summary.json"), "w", encoding="utf-8") as f:
+                        json.dump(exec_dict, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("decision", "executive_summary.json"))
+                except Exception as e:
+                    warnings.append(f"执行摘要生成失败: {e}")
+                return files, warnings
 
-                # Save as JSON to annotation/
-                spec_dict = spec_generator.to_dict(annotation_spec)
-                with open(
-                    output_mgr.get_path("annotation", "annotation_spec.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(spec_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("annotation", "annotation_spec.json")
-                )
+            def _gen_industry_benchmark():
+                files, warnings = [], []
+                try:
+                    from datarecipe.generators.industry_benchmark import IndustryBenchmarkGenerator
+                    benchmark_generator = IndustryBenchmarkGenerator()
+                    benchmark_comparison = benchmark_generator.generate(
+                        dataset_id=dataset_id, dataset_type=detected_type or "unknown",
+                        sample_count=actual_size, reproduction_cost=result.reproduction_cost,
+                        human_percentage=result.human_percentage,
+                    )
+                    benchmark_md = benchmark_generator.to_markdown(benchmark_comparison)
+                    with open(output_mgr.get_path("project", "INDUSTRY_BENCHMARK.md"), "w", encoding="utf-8") as f:
+                        f.write(benchmark_md)
+                    files.append(output_mgr.get_relative_path("project", "INDUSTRY_BENCHMARK.md"))
+                    benchmark_dict = benchmark_generator.to_dict(benchmark_comparison)
+                    with open(output_mgr.get_path("project", "industry_benchmark.json"), "w", encoding="utf-8") as f:
+                        json.dump(benchmark_dict, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("project", "industry_benchmark.json"))
+                except Exception as e:
+                    warnings.append(f"行业基准对比生成失败: {e}")
+                return files, warnings
 
-            except Exception as e:
-                result.warnings.append(f"标注规范生成失败: {e}")
-
-            # Milestone plan (for project management)
-            try:
-                from datarecipe.generators.milestone_plan import MilestonePlanGenerator
-
-                milestone_generator = MilestonePlanGenerator()
-                milestone_plan = milestone_generator.generate(
-                    dataset_id=dataset_id,
-                    dataset_type=detected_type or "unknown",
-                    target_size=actual_size,
-                    reproduction_cost=result.reproduction_cost,
-                    human_percentage=result.human_percentage,
-                    complexity_metrics=complexity_metrics,
-                    phased_breakdown=phased_breakdown,
-                    enhanced_context=enhanced_context,
-                )
-
-                # Save as Markdown to project/
-                milestone_md = milestone_generator.to_markdown(milestone_plan)
-                with open(
-                    output_mgr.get_path("project", "MILESTONE_PLAN.md"), "w", encoding="utf-8"
-                ) as f:
-                    f.write(milestone_md)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("project", "MILESTONE_PLAN.md")
-                )
-
-                # Save as JSON to project/
-                milestone_dict = milestone_generator.to_dict(milestone_plan)
-                with open(
-                    output_mgr.get_path("project", "milestone_plan.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(milestone_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("project", "milestone_plan.json")
-                )
-
-            except Exception as e:
-                result.warnings.append(f"里程碑计划生成失败: {e}")
-
-            # Executive summary (for decision makers)
-            try:
-                from datarecipe.generators.executive_summary import ExecutiveSummaryGenerator
-
-                exec_generator = ExecutiveSummaryGenerator()
-                exec_assessment = exec_generator.generate(
-                    dataset_id=dataset_id,
-                    dataset_type=detected_type or "unknown",
-                    sample_count=sample_count,
-                    reproduction_cost=result.reproduction_cost,
-                    human_percentage=result.human_percentage,
-                    complexity_metrics=complexity_metrics,
-                    phased_breakdown=phased_breakdown,
-                    llm_analysis=llm_analysis,
-                    enhanced_context=enhanced_context,
-                )
-
-                # Save as Markdown to decision/
-                exec_md = exec_generator.to_markdown(
-                    assessment=exec_assessment,
-                    dataset_id=dataset_id,
-                    dataset_type=detected_type or "unknown",
-                    reproduction_cost=result.reproduction_cost,
-                    phased_breakdown=phased_breakdown,
-                )
-                with open(
-                    output_mgr.get_path("decision", "EXECUTIVE_SUMMARY.md"), "w", encoding="utf-8"
-                ) as f:
-                    f.write(exec_md)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("decision", "EXECUTIVE_SUMMARY.md")
-                )
-
-                # Save as JSON to decision/
-                exec_dict = exec_generator.to_dict(exec_assessment)
-                with open(
-                    output_mgr.get_path("decision", "executive_summary.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(exec_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("decision", "executive_summary.json")
-                )
-
-            except Exception as e:
-                result.warnings.append(f"执行摘要生成失败: {e}")
-
-            # Industry benchmark comparison
-            try:
-                from datarecipe.generators.industry_benchmark import IndustryBenchmarkGenerator
-
-                benchmark_generator = IndustryBenchmarkGenerator()
-                benchmark_comparison = benchmark_generator.generate(
-                    dataset_id=dataset_id,
-                    dataset_type=detected_type or "unknown",
-                    sample_count=actual_size,
-                    reproduction_cost=result.reproduction_cost,
-                    human_percentage=result.human_percentage,
-                )
-
-                # Save as Markdown to project/
-                benchmark_md = benchmark_generator.to_markdown(benchmark_comparison)
-                with open(
-                    output_mgr.get_path("project", "INDUSTRY_BENCHMARK.md"), "w", encoding="utf-8"
-                ) as f:
-                    f.write(benchmark_md)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("project", "INDUSTRY_BENCHMARK.md")
-                )
-
-                # Save as JSON to project/
-                benchmark_dict = benchmark_generator.to_dict(benchmark_comparison)
-                with open(
-                    output_mgr.get_path("project", "industry_benchmark.json"), "w", encoding="utf-8"
-                ) as f:
-                    json.dump(benchmark_dict, f, indent=2, ensure_ascii=False)
-                result.files_generated.append(
-                    output_mgr.get_relative_path("project", "industry_benchmark.json")
-                )
-
-            except Exception as e:
-                result.warnings.append(f"行业基准对比生成失败: {e}")
+            # Execute all generators in parallel
+            generator_fns = [
+                _gen_analysis_report, _gen_reproduction_guide, _gen_annotation_spec,
+                _gen_milestone_plan, _gen_executive_summary, _gen_industry_benchmark,
+            ]
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = {executor.submit(fn): fn for fn in generator_fns}
+                for future in as_completed(futures):
+                    files, warnings = future.result()
+                    result.files_generated.extend(files)
+                    result.warnings.extend(warnings)
 
             # Recipe summary (stays in root)
             summary = RadarIntegration.create_summary(

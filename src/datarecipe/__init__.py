@@ -1,6 +1,6 @@
 """DataRecipe - AI dataset analyzer: reverse-engineer datasets, estimate costs, analyze quality, generate workflows."""
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 from datarecipe.analyzer import DatasetAnalyzer
 from datarecipe.schema import (
