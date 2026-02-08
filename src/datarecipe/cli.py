@@ -1160,8 +1160,9 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
 
     # 默认输出目录
     if not output:
-        safe_name = dataset_id.replace("/", "_").replace(" ", "_").lower()
-        output = f"./projects/{safe_name}"
+        from datarecipe.core.project_layout import safe_name as _safe_name
+
+        output = f"./projects/{_safe_name(dataset_id)}"
         console.print(f"[dim]Output directory: {output}[/dim]")
 
     analyzer = DatasetAnalyzer()
