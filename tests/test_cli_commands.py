@@ -92,7 +92,7 @@ class TestMainGroup(unittest.TestCase):
     def test_main_version(self):
         result = self.runner.invoke(main, ["--version"])
         self.assertEqual(result.exit_code, 0)
-        self.assertIn("0.3.1", result.output)
+        self.assertIn("0.3.2", result.output)
 
     def test_main_no_args_shows_usage(self):
         result = self.runner.invoke(main, [])

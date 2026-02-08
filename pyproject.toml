@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "knowlyr-datarecipe"
-version = "0.3.1"
+version = "0.3.2"
 description = "AI dataset 'ingredients label' analyzer - reverse-engineer datasets, estimate costs, analyze quality, and generate production workflows"
 readme = "README.md"
 license = {text = "MIT"}
@@ -75,13 +75,7 @@ all = [
     "mcp>=1.0.0",
 ]
 full = [
-    "anthropic>=0.18.0",
-    "openai>=1.0.0",
-    "pymupdf>=1.23.0",
-    "sentence-transformers>=2.2.0",
-    "datasets>=2.14.0",
-    "datasketch>=1.6.0",
-    "jinja2>=3.1.0",
+    "knowlyr-datarecipe[all]",
     "tenacity>=8.0.0",
     "label-studio>=1.10.0",
     "scikit-learn>=1.3.0",
