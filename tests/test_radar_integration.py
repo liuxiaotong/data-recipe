@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import unittest
 from dataclasses import dataclass, field
+
 from datarecipe.integrations.radar import (
     RadarDataset,
     RadarIntegration,

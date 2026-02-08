@@ -475,5 +475,253 @@ Here's my analysis:
         self.assertEqual(ctx.team_recommendations, "5 experienced annotators with NLP background")
 
 
+# ==================== enhance() with interactive mode ====================
+
+
+class TestEnhanceInteractive(unittest.TestCase):
+    """Test _enhance_interactive() mode (lines 327-358)."""
+
+    def test_enhance_interactive_with_valid_json_input(self):
+        """Simulate interactive mode: prompt goes to stdout, JSON from stdin."""
+        enhancer = LLMEnhancer(mode="interactive")
+        valid_json = json.dumps({"dataset_purpose_summary": "Interactive test"})
+
+        # Mock stdin to provide JSON followed by empty line
+        import io
+
+        mock_stdin = io.StringIO(valid_json + "\n\n")
+        mock_stderr = io.StringIO()
+
+        with patch("sys.stdin", mock_stdin), patch("sys.stderr", mock_stderr):
+            ctx = enhancer.enhance(dataset_id="test/ds", dataset_type="sft")
+
+        self.assertTrue(ctx.generated)
+        self.assertEqual(ctx.dataset_purpose_summary, "Interactive test")
+
+    def test_enhance_interactive_empty_stdin(self):
+        """Interactive mode with empty stdin returns not generated."""
+        enhancer = LLMEnhancer(mode="interactive")
+
+        import io
+
+        mock_stdin = io.StringIO("\n")
+        mock_stderr = io.StringIO()
+
+        with patch("sys.stdin", mock_stdin), patch("sys.stderr", mock_stderr):
+            ctx = enhancer.enhance(dataset_id="test/ds")
+
+        self.assertFalse(ctx.generated)
+        self.assertIn("No JSON received", ctx.raw_response)
+
+    def test_enhance_interactive_eof(self):
+        """Interactive mode with EOF on stdin."""
+        enhancer = LLMEnhancer(mode="interactive")
+
+        import io
+
+        mock_stdin = io.StringIO("")  # EOF immediately
+        mock_stderr = io.StringIO()
+
+        with patch("sys.stdin", mock_stdin), patch("sys.stderr", mock_stderr):
+            ctx = enhancer.enhance(dataset_id="test/ds")
+
+        self.assertFalse(ctx.generated)
+
+
+# ==================== enhance() with API mode ====================
+
+
+class TestEnhanceAPI(unittest.TestCase):
+    """Test _enhance_api() mode (lines 362-385)."""
+
+    def test_enhance_api_anthropic_success(self):
+        """API mode with mocked Anthropic client."""
+        enhancer = LLMEnhancer(mode="api", provider="anthropic")
+
+        json.dumps({"dataset_purpose_summary": "API test anthropic"})
+
+        # Create mock client and response
+        mock_content = unittest.mock.MagicMock()
+        mock_content.text = '{"dataset_purpose_summary": "API test anthropic"}'
+
+        mock_response = unittest.mock.MagicMock()
+        mock_response.content = [mock_content]
+
+        mock_client = unittest.mock.MagicMock()
+        mock_client.messages.create.return_value = mock_response
+
+        enhancer._client = mock_client
+
+        ctx = enhancer._enhance_api(dataset_id="test/ds", dataset_type="sft")
+        self.assertTrue(ctx.generated)
+        self.assertEqual(ctx.dataset_purpose_summary, "API test anthropic")
+        mock_client.messages.create.assert_called_once()
+
+    def test_enhance_api_openai_success(self):
+        """API mode with mocked OpenAI client."""
+        enhancer = LLMEnhancer(mode="api", provider="openai")
+
+        mock_message = unittest.mock.MagicMock()
+        mock_message.content = '{"dataset_purpose_summary": "API test openai"}'
+
+        mock_choice = unittest.mock.MagicMock()
+        mock_choice.message = mock_message
+
+        mock_response = unittest.mock.MagicMock()
+        mock_response.choices = [mock_choice]
+
+        mock_client = unittest.mock.MagicMock()
+        mock_client.chat.completions.create.return_value = mock_response
+
+        enhancer._client = mock_client
+
+        ctx = enhancer._enhance_api(dataset_id="test/ds", dataset_type="sft")
+        self.assertTrue(ctx.generated)
+        self.assertEqual(ctx.dataset_purpose_summary, "API test openai")
+
+    def test_enhance_api_exception_returns_not_generated(self):
+        """API mode returns not_generated when API call fails."""
+        enhancer = LLMEnhancer(mode="api", provider="anthropic")
+
+        mock_client = unittest.mock.MagicMock()
+        mock_client.messages.create.side_effect = Exception("API error")
+
+        enhancer._client = mock_client
+
+        ctx = enhancer._enhance_api(dataset_id="test/ds")
+        self.assertFalse(ctx.generated)
+        self.assertIn("API call failed", ctx.raw_response)
+
+    def test_enhance_dispatches_to_api_mode(self):
+        """enhance() dispatches to _enhance_api when mode='api'."""
+        enhancer = LLMEnhancer(mode="api", provider="anthropic")
+
+        mock_content = unittest.mock.MagicMock()
+        mock_content.text = '{"dataset_purpose_summary": "dispatched"}'
+
+        mock_response = unittest.mock.MagicMock()
+        mock_response.content = [mock_content]
+
+        mock_client = unittest.mock.MagicMock()
+        mock_client.messages.create.return_value = mock_response
+
+        enhancer._client = mock_client
+
+        ctx = enhancer.enhance(dataset_id="test/ds")
+        self.assertTrue(ctx.generated)
+
+    def test_enhance_dispatches_to_interactive_mode(self):
+        """enhance() dispatches to _enhance_interactive when mode='interactive'."""
+        enhancer = LLMEnhancer(mode="interactive")
+
+        import io
+
+        valid_json = json.dumps({"dataset_purpose_summary": "interactive dispatch"})
+        mock_stdin = io.StringIO(valid_json + "\n\n")
+        mock_stderr = io.StringIO()
+
+        with patch("sys.stdin", mock_stdin), patch("sys.stderr", mock_stderr):
+            ctx = enhancer.enhance(dataset_id="test/ds")
+
+        self.assertTrue(ctx.generated)
+
+
+# ==================== _get_client ====================
+
+
+class TestGetClient(unittest.TestCase):
+    """Test _get_client() for various providers (lines 392-418)."""
+
+    def test_get_client_returns_cached_client(self):
+        """If _client is already set, return it."""
+        enhancer = LLMEnhancer(mode="api", provider="anthropic")
+        sentinel = object()
+        enhancer._client = sentinel
+        self.assertIs(enhancer._get_client(), sentinel)
+
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"})
+    def test_get_client_anthropic_creates_client(self):
+        """Anthropic client creation with mocked import."""
+        enhancer = LLMEnhancer(mode="api", provider="anthropic")
+
+        mock_anthropic_module = unittest.mock.MagicMock()
+        mock_client_instance = unittest.mock.MagicMock()
+        mock_anthropic_module.Anthropic.return_value = mock_client_instance
+
+        with patch.dict("sys.modules", {"anthropic": mock_anthropic_module}):
+            client = enhancer._get_client()
+
+        self.assertIs(client, mock_client_instance)
+        mock_anthropic_module.Anthropic.assert_called_once_with(api_key="test-key")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"})
+    def test_get_client_openai_creates_client(self):
+        """OpenAI client creation with mocked import."""
+        enhancer = LLMEnhancer(mode="api", provider="openai")
+
+        mock_openai_module = unittest.mock.MagicMock()
+        mock_client_instance = unittest.mock.MagicMock()
+        mock_openai_module.OpenAI.return_value = mock_client_instance
+
+        with patch.dict("sys.modules", {"openai": mock_openai_module}):
+            client = enhancer._get_client()
+
+        self.assertIs(client, mock_client_instance)
+        mock_openai_module.OpenAI.assert_called_once_with(api_key="test-key")
+
+    def test_get_client_unknown_provider_raises(self):
+        """Unknown provider raises ValueError."""
+        enhancer = LLMEnhancer(mode="api", provider="unknown_provider")
+        with self.assertRaises(ValueError) as cm:
+            enhancer._get_client()
+        self.assertIn("Unknown provider", str(cm.exception))
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_get_client_anthropic_no_key_raises(self):
+        """Anthropic without API key raises ValueError."""
+        enhancer = LLMEnhancer(mode="api", provider="anthropic")
+
+        mock_anthropic_module = unittest.mock.MagicMock()
+        env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+        with patch.dict(os.environ, env, clear=True):
+            with patch.dict("sys.modules", {"anthropic": mock_anthropic_module}):
+                with self.assertRaises(ValueError) as cm:
+                    enhancer._get_client()
+                self.assertIn("ANTHROPIC_API_KEY", str(cm.exception))
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_get_client_openai_no_key_raises(self):
+        """OpenAI without API key raises ValueError."""
+        enhancer = LLMEnhancer(mode="api", provider="openai")
+
+        mock_openai_module = unittest.mock.MagicMock()
+        env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
+        with patch.dict(os.environ, env, clear=True):
+            with patch.dict("sys.modules", {"openai": mock_openai_module}):
+                with self.assertRaises(ValueError) as cm:
+                    enhancer._get_client()
+                self.assertIn("OPENAI_API_KEY", str(cm.exception))
+
+    def test_get_client_anthropic_import_error(self):
+        """Anthropic import error raises ImportError."""
+        enhancer = LLMEnhancer(mode="api", provider="anthropic")
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "key"}):
+            with patch("builtins.__import__", side_effect=ImportError("no anthropic")):
+                with self.assertRaises(ImportError) as cm:
+                    enhancer._get_client()
+                self.assertIn("install", str(cm.exception).lower())
+
+    def test_get_client_openai_import_error(self):
+        """OpenAI import error raises ImportError."""
+        enhancer = LLMEnhancer(mode="api", provider="openai")
+
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "key"}):
+            with patch("builtins.__import__", side_effect=ImportError("no openai")):
+                with self.assertRaises(ImportError) as cm:
+                    enhancer._get_client()
+                self.assertIn("install", str(cm.exception).lower())
+
+
 if __name__ == "__main__":
     unittest.main()

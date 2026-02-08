@@ -15,7 +15,6 @@ from datarecipe.generators.human_machine_split import (
     TaskType,
 )
 
-
 # ==================== Enum Tests ====================
 
 

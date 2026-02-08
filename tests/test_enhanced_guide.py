@@ -14,7 +14,6 @@ from datarecipe.generators.enhanced_guide import (
     WorkloadEstimate,
 )
 
-
 # ---------- Stub objects for dependencies ----------
 
 
@@ -453,7 +452,7 @@ class TestRecommendTeam(unittest.TestCase):
 
     def test_each_role_has_count_role_skills(self):
         team = self.gen._recommend_team([])
-        for role_key, info in team.items():
+        for _role_key, info in team.items():
             self.assertIn("count", info)
             self.assertIn("role", info)
             self.assertIn("skills", info)

@@ -6,7 +6,7 @@ _analyze_strengths_weaknesses, _determine_best_for, _generate_recommendations).
 """
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from datarecipe.comparator import ComparisonReport, DatasetComparator, DatasetMetrics
 from datarecipe.cost_calculator import CostBreakdown, CostEstimate
@@ -17,7 +17,6 @@ from datarecipe.quality_metrics import (
     QualityReport,
 )
 from datarecipe.schema import Recipe, Reproducibility
-
 
 # ==================== Helper factories ====================
 

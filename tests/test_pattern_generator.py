@@ -15,7 +15,6 @@ import json
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
 
 from datarecipe.extractors.prompt_extractor import PromptLibrary, PromptTemplate
 from datarecipe.extractors.rubrics_analyzer import RubricsAnalysisResult
@@ -24,7 +23,6 @@ from datarecipe.generators.pattern_generator import (
     GenerationResult,
     PatternGenerator,
 )
-
 
 # ==================== GeneratedDataItem ====================
 

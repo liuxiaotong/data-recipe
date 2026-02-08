@@ -37,7 +37,6 @@ from datarecipe.cost_calculator import (
 )
 from datarecipe.schema import GenerationMethod, Recipe
 
-
 # =============================================================================
 # Helpers
 # =============================================================================

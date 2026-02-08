@@ -11,10 +11,9 @@ import os
 import tempfile
 import unittest
 from dataclasses import dataclass, field
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 from datarecipe.core.deep_analyzer import AnalysisResult, DeepAnalyzerCore
-
 
 # ==================== Stub / Helper Objects ====================
 
@@ -640,26 +639,26 @@ class TestGenerateReproductionGuide(unittest.TestCase):
         self.schema_info = {"field_a": {"type": "str", "examples": []}}
 
     def _make_guide(self, **overrides):
-        defaults = dict(
-            dataset_id="test/ds",
-            schema_info=self.schema_info,
-            category_set=set(),
-            sub_category_set=set(),
-            system_prompts_by_domain={},
-            rubrics_examples=[],
-            sample_items=[],
-            rubrics_result=None,
-            prompt_library=None,
-            allocation=self.allocation,
-            is_preference_dataset=False,
-            preference_pairs=[],
-            preference_topics={},
-            preference_patterns={},
-            is_swe_dataset=False,
-            swe_stats={},
-            llm_analysis=None,
-            enhanced_context=None,
-        )
+        defaults = {
+            "dataset_id": "test/ds",
+            "schema_info": self.schema_info,
+            "category_set": set(),
+            "sub_category_set": set(),
+            "system_prompts_by_domain": {},
+            "rubrics_examples": [],
+            "sample_items": [],
+            "rubrics_result": None,
+            "prompt_library": None,
+            "allocation": self.allocation,
+            "is_preference_dataset": False,
+            "preference_pairs": [],
+            "preference_topics": {},
+            "preference_patterns": {},
+            "is_swe_dataset": False,
+            "swe_stats": {},
+            "llm_analysis": None,
+            "enhanced_context": None,
+        }
         defaults.update(overrides)
         return self.core._generate_reproduction_guide(**defaults)
 
@@ -919,7 +918,7 @@ class TestGenerateAiAgentLayer(unittest.TestCase):
             is_swe_dataset=False,
         )
         # All 5 files should be generated
-        ai_agent_dir = output_mgr.get_path("ai_agent", "")
+        output_mgr.get_path("ai_agent", "")
         expected_files = [
             "agent_context.json",
             "workflow_state.json",
@@ -1088,7 +1087,7 @@ class TestAnalyzeOrchestratorSimplified(unittest.TestCase):
                 get_dataset_config_names=MagicMock(return_value=["other", "default"]),
             ),
         }):
-            result = core.analyze("test/dataset", split="train")
+            core.analyze("test/dataset", split="train")
 
         self.assertEqual(captured_kwargs.get("name"), "default")
 
@@ -1107,7 +1106,7 @@ class TestAnalyzeOrchestratorSimplified(unittest.TestCase):
                 get_dataset_config_names=MagicMock(return_value=["first_config", "second_config"]),
             ),
         }):
-            result = core.analyze("test/dataset", split="train")
+            core.analyze("test/dataset", split="train")
 
         self.assertEqual(captured_kwargs.get("name"), "first_config")
 

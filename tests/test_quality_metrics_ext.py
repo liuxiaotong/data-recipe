@@ -19,7 +19,6 @@ from datarecipe.quality_metrics import (
     QualityReport,
 )
 
-
 # ==================== Dataclass to_dict Tests ====================
 
 

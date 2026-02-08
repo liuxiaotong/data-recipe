@@ -6,7 +6,6 @@ default values, edge cases, and the DeploymentProvider protocol.
 
 import json
 import unittest
-from dataclasses import fields
 
 from datarecipe.schema import (
     AcceptanceCriterion,
@@ -33,7 +32,6 @@ from datarecipe.schema import (
     SourceType,
     ValidationResult,
 )
-
 
 # =============================================================================
 # Enum Tests

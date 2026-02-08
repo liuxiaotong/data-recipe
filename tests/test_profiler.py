@@ -20,7 +20,6 @@ import unittest
 
 from datarecipe.constants import REGION_COST_MULTIPLIERS
 from datarecipe.profiler import (
-    ANNOTATION_TIME_PER_TYPE,
     BASE_HOURLY_RATES,
     DATASET_TYPE_EDUCATION,
     DATASET_TYPE_EXPERIENCE,

@@ -1,6 +1,18 @@
-"""LLM-enhanced analyzer for extracting detailed dataset information."""
+"""LLM-enhanced analyzer for extracting detailed dataset information.
+
+.. deprecated::
+    This module will be removed in v0.4.0.
+"""
 
 import logging
+import warnings
+
+warnings.warn(
+    "datarecipe.llm_analyzer is deprecated. This module will be removed in v0.4.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import os
 import re
 import tempfile

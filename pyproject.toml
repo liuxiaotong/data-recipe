@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "knowlyr-datarecipe"
-version = "0.2.0"
+version = "0.3.0"
 description = "AI dataset 'ingredients label' analyzer - reverse-engineer datasets, estimate costs, analyze quality, and generate production workflows"
 readme = "README.md"
 license = {text = "MIT"}
@@ -89,7 +89,7 @@ full = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "black>=23.0.0",
+    "pre-commit>=3.5.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]
@@ -133,3 +133,11 @@ python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+
+[tool.coverage.run]
+omit = [
+    "src/datarecipe/deep_analyzer.py",
+    "src/datarecipe/llm_analyzer.py",
+    "src/datarecipe/mcp_server.py",
+    "src/datarecipe/triggers/watcher.py",
+]

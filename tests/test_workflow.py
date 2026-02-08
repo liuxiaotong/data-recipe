@@ -1,13 +1,12 @@
 """Unit tests for workflow.py - production workflow generation."""
 
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from datarecipe.cost_calculator import CostBreakdown, CostEstimate
-from datarecipe.schema import GenerationMethod, GenerationType, Recipe, SourceType
+from datarecipe.schema import GenerationType, Recipe, SourceType
 from datarecipe.workflow import (
     Milestone,
     ProductionWorkflow,
@@ -16,23 +15,22 @@ from datarecipe.workflow import (
     WorkflowStep,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 def _make_recipe(**overrides) -> Recipe:
     """Create a Recipe with sensible defaults, overridden by kwargs."""
-    defaults = dict(
-        name="test-dataset",
-        source_type=SourceType.HUGGINGFACE,
-        source_id="org/test-dataset",
-        num_examples=1000,
-        generation_type=GenerationType.SYNTHETIC,
-        synthetic_ratio=1.0,
-        human_ratio=0.0,
-        teacher_models=["gpt-4o"],
-    )
+    defaults = {
+        "name": "test-dataset",
+        "source_type": SourceType.HUGGINGFACE,
+        "source_id": "org/test-dataset",
+        "num_examples": 1000,
+        "generation_type": GenerationType.SYNTHETIC,
+        "synthetic_ratio": 1.0,
+        "human_ratio": 0.0,
+        "teacher_models": ["gpt-4o"],
+    }
     defaults.update(overrides)
     return Recipe(**defaults)
 
@@ -133,22 +131,22 @@ class TestProductionWorkflow(unittest.TestCase):
                     outputs=[f"out{i}.txt"],
                 )
             )
-        defaults = dict(
-            name="Test Workflow",
-            description="A test workflow",
-            steps=steps,
-            milestones=[
+        defaults = {
+            "name": "Test Workflow",
+            "description": "A test workflow",
+            "steps": steps,
+            "milestones": [
                 Milestone(name="M1", description="First milestone", deliverables=["d1", "d2"]),
             ],
-            resource_checklist=ResourceChecklist(
+            "resource_checklist": ResourceChecklist(
                 api_keys=[("SomeAPI", "https://example.com", "SOME_KEY")],
                 dependencies=["dep-a"],
                 compute_requirements={"CPU": "4 cores"},
             ),
-            timeline=[("Phase 1", "Setup"), ("Phase 2", "Execute")],
-            estimated_total_cost=100.0,
-            target_size=5000,
-        )
+            "timeline": [("Phase 1", "Setup"), ("Phase 2", "Execute")],
+            "estimated_total_cost": 100.0,
+            "target_size": 5000,
+        }
         defaults.update(kwargs)
         return ProductionWorkflow(**defaults)
 

@@ -20,7 +20,6 @@ from datarecipe.extractors.prompt_extractor import (
     PromptTemplate,
 )
 
-
 # ==================== PromptTemplate Dataclass ====================
 
 

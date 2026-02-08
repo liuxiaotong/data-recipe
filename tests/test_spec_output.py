@@ -8,47 +8,44 @@ import json
 import os
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
 
 from datarecipe.analyzers.spec_analyzer import (
     FieldDefinition,
     SpecificationAnalysis,
-    ValidationStrategy,
 )
 from datarecipe.generators.spec_output import SpecOutputGenerator, SpecOutputResult
-
 
 # --------------- helpers ---------------
 
 
 def _make_analysis(**overrides) -> SpecificationAnalysis:
     """Create a SpecificationAnalysis with sensible defaults."""
-    defaults = dict(
-        project_name="TestProject",
-        dataset_type="evaluation",
-        description="A test dataset for evaluation.",
-        task_type="reasoning",
-        task_description="Solve complex reasoning problems.",
-        cognitive_requirements=["逻辑推理", "空间想象"],
-        reasoning_chain=["理解题意", "分析条件", "推导结果"],
-        data_requirements=["高质量原创题目"],
-        quality_constraints=["答案必须唯一", "步骤完整"],
-        forbidden_items=["禁止使用 AI 生成内容"],
-        difficulty_criteria="expert-level problems",
-        fields=[
+    defaults = {
+        "project_name": "TestProject",
+        "dataset_type": "evaluation",
+        "description": "A test dataset for evaluation.",
+        "task_type": "reasoning",
+        "task_description": "Solve complex reasoning problems.",
+        "cognitive_requirements": ["逻辑推理", "空间想象"],
+        "reasoning_chain": ["理解题意", "分析条件", "推导结果"],
+        "data_requirements": ["高质量原创题目"],
+        "quality_constraints": ["答案必须唯一", "步骤完整"],
+        "forbidden_items": ["禁止使用 AI 生成内容"],
+        "difficulty_criteria": "expert-level problems",
+        "fields": [
             {"name": "question", "type": "string", "required": True, "description": "题目文字"},
             {"name": "answer", "type": "string", "required": True, "description": "标准答案"},
             {"name": "explanation", "type": "text", "required": False, "description": "解析"},
         ],
-        field_requirements={"question": "不少于20字"},
-        estimated_difficulty="hard",
-        estimated_domain="数学",
-        estimated_human_percentage=95.0,
-        has_images=False,
-        image_count=0,
-        scoring_rubric=[{"name": "正确性", "weight": 1.0}],
-        examples=[],
-    )
+        "field_requirements": {"question": "不少于20字"},
+        "estimated_difficulty": "hard",
+        "estimated_domain": "数学",
+        "estimated_human_percentage": 95.0,
+        "has_images": False,
+        "image_count": 0,
+        "scoring_rubric": [{"name": "正确性", "weight": 1.0}],
+        "examples": [],
+    }
     defaults.update(overrides)
     return SpecificationAnalysis(**defaults)
 
@@ -683,14 +680,14 @@ class TestGenerateCostBreakdown(unittest.TestCase):
         # Check md
         md_path = os.path.join(self.tmpdir, self.subdirs["cost"], "COST_BREAKDOWN.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("成本明细", content)
         self.assertIn("TestProject", content)
         # Check json
         json_path = os.path.join(self.tmpdir, self.subdirs["cost"], "cost_breakdown.json")
         self.assertTrue(os.path.exists(json_path))
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertEqual(data["target_size"], 100)
         self.assertIn("grand_total", data)
@@ -700,7 +697,7 @@ class TestGenerateCostBreakdown(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_cost_breakdown(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["cost"], "cost_breakdown.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertEqual(data["design_cost"], 2000)
 
@@ -709,7 +706,7 @@ class TestGenerateCostBreakdown(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_cost_breakdown(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["cost"], "cost_breakdown.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertEqual(data["design_cost"], 1200)
 
@@ -718,7 +715,7 @@ class TestGenerateCostBreakdown(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_cost_breakdown(a, self.tmpdir, self.subdirs, 100, "china", result)
         md_path = os.path.join(self.tmpdir, self.subdirs["cost"], "COST_BREAKDOWN.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("图片制作", content)
 
@@ -738,7 +735,7 @@ class TestGenerateIndustryBenchmark(unittest.TestCase):
         self.assertTrue(len(result.files_generated) >= 1)
         md_path = os.path.join(self.tmpdir, self.subdirs["project"], "INDUSTRY_BENCHMARK.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("行业基准", content)
         self.assertIn("evaluation", content)
@@ -749,7 +746,7 @@ class TestGenerateIndustryBenchmark(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_industry_benchmark(a, self.tmpdir, self.subdirs, 100, "china", result)
         md_path = os.path.join(self.tmpdir, self.subdirs["project"], "INDUSTRY_BENCHMARK.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("成本低于行业平均", content)
 
@@ -758,7 +755,7 @@ class TestGenerateIndustryBenchmark(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_industry_benchmark(a, self.tmpdir, self.subdirs, 100, "china", result)
         md_path = os.path.join(self.tmpdir, self.subdirs["project"], "INDUSTRY_BENCHMARK.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("multimodal", content)
 
@@ -777,7 +774,7 @@ class TestGenerateRawAnalysis(unittest.TestCase):
         self.gen._generate_raw_analysis(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["data"], "spec_analysis.json")
         self.assertTrue(os.path.exists(json_path))
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertEqual(data["project_name"], "TestProject")
 
@@ -796,7 +793,7 @@ class TestGenerateTrainingGuide(unittest.TestCase):
         self.gen._generate_training_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "TRAINING_GUIDE.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("标注员培训手册", content)
         self.assertIn("逻辑推理", content)  # cognitive requirement
@@ -810,7 +807,7 @@ class TestGenerateTrainingGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_training_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "TRAINING_GUIDE.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("图片", content)
 
@@ -821,7 +818,7 @@ class TestGenerateTrainingGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_training_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "TRAINING_GUIDE.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("What is 2+2?", content)
         self.assertIn("simple addition", content)
@@ -831,7 +828,7 @@ class TestGenerateTrainingGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_training_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "TRAINING_GUIDE.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("示例模板", content)
 
@@ -840,7 +837,7 @@ class TestGenerateTrainingGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_training_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "TRAINING_GUIDE.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("难度验证", content)
         self.assertIn("3 次测试", content)
@@ -850,7 +847,7 @@ class TestGenerateTrainingGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_training_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "TRAINING_GUIDE.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("评分标准错误", content)
 
@@ -859,7 +856,7 @@ class TestGenerateTrainingGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_training_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "TRAINING_GUIDE.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("所有必填项已填写", content)
 
@@ -870,7 +867,7 @@ class TestGenerateTrainingGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_training_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "TRAINING_GUIDE.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("AI 生成图片", content)
 
@@ -889,7 +886,7 @@ class TestGenerateQaChecklist(unittest.TestCase):
         self.gen._generate_qa_checklist(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "QA_CHECKLIST.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("质量检查清单", content)
         self.assertIn("题目检查", content)
@@ -900,7 +897,7 @@ class TestGenerateQaChecklist(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_qa_checklist(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "QA_CHECKLIST.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("图片检查", content)
         self.assertIn("原创性", content)
@@ -910,7 +907,7 @@ class TestGenerateQaChecklist(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_qa_checklist(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "QA_CHECKLIST.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("难度验证检查", content)
         self.assertIn("难度验证通过率", content)
@@ -922,7 +919,7 @@ class TestGenerateQaChecklist(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_qa_checklist(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "QA_CHECKLIST.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("质量门禁", content)
         self.assertIn("accuracy_gate", content)
@@ -942,7 +939,7 @@ class TestGenerateQaChecklist(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_qa_checklist(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["annotation"], "QA_CHECKLIST.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("结构化字段约束", content)
         self.assertIn("不少于20字", content)
@@ -968,7 +965,7 @@ class TestGenerateDifficultyValidation(unittest.TestCase):
         self.gen._generate_difficulty_validation(a, self.tmpdir, self.subdirs, result)
         self.assertTrue(len(result.files_generated) >= 1)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "DIFFICULTY_VALIDATION.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("难度验证流程", content)
         self.assertIn("doubao1.8", content)
@@ -979,7 +976,7 @@ class TestGenerateDifficultyValidation(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_difficulty_validation(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "DIFFICULTY_VALIDATION.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("上传图片", content)
 
@@ -988,7 +985,7 @@ class TestGenerateDifficultyValidation(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_difficulty_validation(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "DIFFICULTY_VALIDATION.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("批量记录表格", content)
         self.assertIn("001", content)
@@ -1024,7 +1021,7 @@ class TestGenerateValidationGuide(unittest.TestCase):
         self.gen._generate_validation_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "VALIDATION_HUMAN_REVIEW.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("human_review", content)
         self.assertIn("审核员", content)
@@ -1037,7 +1034,7 @@ class TestGenerateValidationGuide(unittest.TestCase):
         self.gen._generate_validation_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "VALIDATION_FORMAT_CHECK.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("DATA_SCHEMA.json", content)
 
@@ -1049,7 +1046,7 @@ class TestGenerateValidationGuide(unittest.TestCase):
         self.gen._generate_validation_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "VALIDATION_CROSS_VALIDATION.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("Cohen's Kappa", content)
 
@@ -1061,7 +1058,7 @@ class TestGenerateValidationGuide(unittest.TestCase):
         self.gen._generate_validation_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "VALIDATION_AUTO_SCORING.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("评分函数", content)
 
@@ -1072,7 +1069,7 @@ class TestGenerateValidationGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_validation_guide(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "VALIDATION_HUMAN_REVIEW.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("配置参数", content)
         self.assertIn("sample_rate", content)
@@ -1092,7 +1089,7 @@ class TestGenerateDataTemplate(unittest.TestCase):
         self.gen._generate_data_template(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["templates"], "data_template.json")
         self.assertTrue(os.path.exists(json_path))
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertIn("id", data)
         self.assertEqual(data["id"], "EXAMPLE_001")
@@ -1104,7 +1101,7 @@ class TestGenerateDataTemplate(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_data_template(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["templates"], "data_template.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertIn("image", data)
 
@@ -1113,7 +1110,7 @@ class TestGenerateDataTemplate(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_data_template(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["templates"], "data_template.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertIn("model_test", data)
         self.assertEqual(data["model_test"]["model"], "doubao1.8")
@@ -1141,7 +1138,7 @@ class TestGenerateProductionSop(unittest.TestCase):
         self.gen._generate_production_sop(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "PRODUCTION_SOP.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("生产标准操作流程", content)
         self.assertIn("准备阶段", content)
@@ -1153,7 +1150,7 @@ class TestGenerateProductionSop(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_production_sop(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "PRODUCTION_SOP.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("难度验证", content)
         self.assertIn("doubao1.8", content)
@@ -1165,7 +1162,7 @@ class TestGenerateProductionSop(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_production_sop(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["guide"], "PRODUCTION_SOP.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("图片制作", content)
 
@@ -1184,7 +1181,7 @@ class TestGenerateDataSchema(unittest.TestCase):
         self.gen._generate_data_schema(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["guide"], "DATA_SCHEMA.json")
         self.assertTrue(os.path.exists(json_path))
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertEqual(data["type"], "object")
         self.assertIn("question", data["properties"])
@@ -1194,7 +1191,7 @@ class TestGenerateDataSchema(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_data_schema(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["guide"], "DATA_SCHEMA.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         # Should use generic schema
         self.assertIn("question", data["properties"])
@@ -1205,7 +1202,7 @@ class TestGenerateDataSchema(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_data_schema(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["guide"], "DATA_SCHEMA.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertIn("image", data["properties"])
         self.assertIn("image", data["required"])
@@ -1215,7 +1212,7 @@ class TestGenerateDataSchema(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_data_schema(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["guide"], "DATA_SCHEMA.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertIn("model_test", data["properties"])
         self.assertIn("model_test", data["required"])
@@ -1238,7 +1235,7 @@ class TestGenerateAiAgentContext(unittest.TestCase):
         self.gen._generate_ai_agent_context(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "agent_context.json")
         self.assertTrue(os.path.exists(json_path))
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertEqual(data["project"]["name"], "TestProject")
         self.assertIsNone(data["validation"])
@@ -1250,7 +1247,7 @@ class TestGenerateAiAgentContext(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_agent_context(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "agent_context.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertIsNotNone(data["validation"])
         self.assertTrue(data["validation"]["enabled"])
@@ -1271,7 +1268,7 @@ class TestGenerateAiWorkflowState(unittest.TestCase):
         self.gen._generate_ai_workflow_state(a, self.tmpdir, self.subdirs, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "workflow_state.json")
         self.assertTrue(os.path.exists(json_path))
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertEqual(data["current_phase"], "ready_for_review")
         self.assertIn("phases", data)
@@ -1294,7 +1291,7 @@ class TestGenerateAiReasoningTraces(unittest.TestCase):
         self.gen._generate_ai_reasoning_traces(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "reasoning_traces.json")
         self.assertTrue(os.path.exists(json_path))
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertIn("reasoning", data)
         self.assertIn("difficulty", data["reasoning"])
@@ -1306,7 +1303,7 @@ class TestGenerateAiReasoningTraces(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_reasoning_traces(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "reasoning_traces.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         chain = data["reasoning"]["difficulty"]["chain"]
         self.assertTrue(len(chain) >= 1)
@@ -1320,7 +1317,7 @@ class TestGenerateAiReasoningTraces(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_reasoning_traces(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "reasoning_traces.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         chain = data["reasoning"]["difficulty"]["chain"]
         steps = [c["step"] for c in chain]
@@ -1331,7 +1328,7 @@ class TestGenerateAiReasoningTraces(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_reasoning_traces(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "reasoning_traces.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         hp = data["reasoning"]["human_percentage"]
         self.assertEqual(hp["confidence"], 0.95)
@@ -1342,7 +1339,7 @@ class TestGenerateAiReasoningTraces(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_reasoning_traces(a, self.tmpdir, self.subdirs, 100, "china", result)
         json_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "reasoning_traces.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         cost_chain = data["reasoning"]["cost"]["chain"]
         steps = [c["step"] for c in cost_chain]
@@ -1363,7 +1360,7 @@ class TestGenerateAiPipeline(unittest.TestCase):
         self.gen._generate_ai_pipeline(a, self.tmpdir, self.subdirs, result)
         yaml_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "pipeline.yaml")
         self.assertTrue(os.path.exists(yaml_path))
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             content = f.read()
         self.assertIn("数据生产流水线", content)
         self.assertIn("setup", content)
@@ -1376,7 +1373,7 @@ class TestGenerateAiPipeline(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_pipeline(a, self.tmpdir, self.subdirs, result)
         yaml_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "pipeline.yaml")
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             content = f.read()
         self.assertIn("validation_model", content)
         self.assertIn("run_model_test", content)
@@ -1388,7 +1385,7 @@ class TestGenerateAiPipeline(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_pipeline(a, self.tmpdir, self.subdirs, result)
         yaml_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "pipeline.yaml")
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             content = f.read()
         self.assertIn("human_review", content)
         self.assertIn("sample_rate", content)
@@ -1400,7 +1397,7 @@ class TestGenerateAiPipeline(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_pipeline(a, self.tmpdir, self.subdirs, result)
         yaml_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "pipeline.yaml")
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             content = f.read()
         self.assertIn("format_check", content)
 
@@ -1411,7 +1408,7 @@ class TestGenerateAiPipeline(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_pipeline(a, self.tmpdir, self.subdirs, result)
         yaml_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "pipeline.yaml")
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             content = f.read()
         self.assertIn("cross_validation", content)
         self.assertIn("min_kappa", content)
@@ -1423,7 +1420,7 @@ class TestGenerateAiPipeline(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_pipeline(a, self.tmpdir, self.subdirs, result)
         yaml_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "pipeline.yaml")
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             content = f.read()
         self.assertIn("auto_scoring", content)
         self.assertIn("threshold", content)
@@ -1435,7 +1432,7 @@ class TestGenerateAiPipeline(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_pipeline(a, self.tmpdir, self.subdirs, result)
         yaml_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "pipeline.yaml")
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             content = f.read()
         self.assertIn("custom_check", content)
         self.assertIn("Custom validation", content)
@@ -1455,7 +1452,7 @@ class TestGenerateAiReadme(unittest.TestCase):
         self.gen._generate_ai_readme(a, self.tmpdir, self.subdirs, result)
         md_path = os.path.join(self.tmpdir, self.subdirs["ai_agent"], "README.md")
         self.assertTrue(os.path.exists(md_path))
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("AI Agent 入口", content)
         self.assertIn("agent_context.json", content)
@@ -1481,7 +1478,7 @@ class TestGenerateThinkPoSamples(unittest.TestCase):
         self.gen._generate_think_po_samples(a, self.tmpdir, self.subdirs, 10, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["samples"], "samples.json")
         self.assertTrue(os.path.exists(json_path))
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertIn("samples", data)
         self.assertIn("automation_summary", data)
@@ -1494,7 +1491,7 @@ class TestGenerateThinkPoSamples(unittest.TestCase):
         self.gen._generate_think_po_samples(a, self.tmpdir, self.subdirs, 5, result)
         guide_path = os.path.join(self.tmpdir, self.subdirs["samples"], "SAMPLE_GUIDE.md")
         self.assertTrue(os.path.exists(guide_path))
-        with open(guide_path, "r") as f:
+        with open(guide_path) as f:
             content = f.read()
         self.assertIn("样例数据指南", content)
         self.assertIn("自动化评估", content)
@@ -1504,7 +1501,7 @@ class TestGenerateThinkPoSamples(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_think_po_samples(a, self.tmpdir, self.subdirs, 3, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["samples"], "samples.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertTrue(len(data["samples"]) <= 3)
 
@@ -1519,7 +1516,7 @@ class TestGenerateThinkPoSamples(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_think_po_samples(a, self.tmpdir, self.subdirs, 20, result)
         json_path = os.path.join(self.tmpdir, self.subdirs["samples"], "samples.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         task_types = {s["task_type"] for s in data["samples"]}
         self.assertIn("read", task_types)
@@ -1585,7 +1582,7 @@ class TestGenerateSamplesGuide(unittest.TestCase):
         self.gen._generate_samples_guide(a, self.tmpdir, self.subdirs, samples_doc, result)
         guide_path = os.path.join(self.tmpdir, self.subdirs["samples"], "SAMPLE_GUIDE.md")
         self.assertTrue(os.path.exists(guide_path))
-        with open(guide_path, "r") as f:
+        with open(guide_path) as f:
             content = f.read()
         self.assertIn("样例数据指南", content)
 
@@ -1595,7 +1592,7 @@ class TestGenerateSamplesGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_samples_guide(a, self.tmpdir, self.subdirs, samples_doc, result)
         guide_path = os.path.join(self.tmpdir, self.subdirs["samples"], "SAMPLE_GUIDE.md")
-        with open(guide_path, "r") as f:
+        with open(guide_path) as f:
             content = f.read()
         self.assertIn("高度自动化", content)
 
@@ -1605,7 +1602,7 @@ class TestGenerateSamplesGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_samples_guide(a, self.tmpdir, self.subdirs, samples_doc, result)
         guide_path = os.path.join(self.tmpdir, self.subdirs["samples"], "SAMPLE_GUIDE.md")
-        with open(guide_path, "r") as f:
+        with open(guide_path) as f:
             content = f.read()
         self.assertIn("半自动化", content)
 
@@ -1615,7 +1612,7 @@ class TestGenerateSamplesGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_samples_guide(a, self.tmpdir, self.subdirs, samples_doc, result)
         guide_path = os.path.join(self.tmpdir, self.subdirs["samples"], "SAMPLE_GUIDE.md")
-        with open(guide_path, "r") as f:
+        with open(guide_path) as f:
             content = f.read()
         self.assertIn("低自动化", content)
 
@@ -1627,7 +1624,7 @@ class TestGenerateSamplesGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_samples_guide(a, self.tmpdir, self.subdirs, samples_doc, result)
         guide_path = os.path.join(self.tmpdir, self.subdirs["samples"], "SAMPLE_GUIDE.md")
-        with open(guide_path, "r") as f:
+        with open(guide_path) as f:
             content = f.read()
         self.assertIn("自动化阻塞因素", content)
         self.assertIn("No AI allowed", content)
@@ -1650,7 +1647,7 @@ class TestGenerateSamplesGuide(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_samples_guide(a, self.tmpdir, self.subdirs, samples_doc, result)
         guide_path = os.path.join(self.tmpdir, self.subdirs["samples"], "SAMPLE_GUIDE.md")
-        with open(guide_path, "r") as f:
+        with open(guide_path) as f:
             content = f.read()
         self.assertIn("无需人工参与", content)
 
@@ -1799,7 +1796,7 @@ class TestEdgeCases(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_qa_checklist(a, tmpdir, subdirs, result)
         md_path = os.path.join(tmpdir, subdirs["annotation"], "QA_CHECKLIST.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("gate_1", content)
 
@@ -1821,7 +1818,7 @@ class TestEdgeCases(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_industry_benchmark(a, tmpdir, subdirs, 100, "us", result)
         md_path = os.path.join(tmpdir, subdirs["project"], "INDUSTRY_BENCHMARK.md")
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             content = f.read()
         self.assertIn("成本高于行业基准", content)
 
@@ -1846,7 +1843,7 @@ class TestRemainingCoveragePaths(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_data_template(a, tmpdir, subdirs, result)
         json_path = os.path.join(tmpdir, subdirs["templates"], "data_template.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         # id should be the static EXAMPLE_001, not a placeholder
         self.assertEqual(data["id"], "EXAMPLE_001")
@@ -1862,7 +1859,7 @@ class TestRemainingCoveragePaths(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_ai_reasoning_traces(a, tmpdir, subdirs, 100, "china", result)
         json_path = os.path.join(tmpdir, subdirs["ai_agent"], "reasoning_traces.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         hp = data["reasoning"]["human_percentage"]
         # Should hit the else branch (non-AI forbidden items)
@@ -1888,7 +1885,7 @@ class TestRemainingCoveragePaths(unittest.TestCase):
         result = SpecOutputResult()
         self.gen._generate_think_po_samples(a, tmpdir, subdirs, 3, result)
         json_path = os.path.join(tmpdir, subdirs["samples"], "samples.json")
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             data = json.load(f)
         self.assertTrue(len(data["samples"]) <= 3)
 

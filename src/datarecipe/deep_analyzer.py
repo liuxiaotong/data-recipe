@@ -8,6 +8,15 @@
     migrate URL analysis into ``datarecipe.core`` and remove this file.
 """
 
+import warnings
+
+warnings.warn(
+    "datarecipe.deep_analyzer is deprecated. Use datarecipe.core.deep_analyzer instead. "
+    "This module will be removed in v0.4.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import re
 from dataclasses import dataclass, field
 from enum import Enum

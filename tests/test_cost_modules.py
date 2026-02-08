@@ -37,7 +37,6 @@ from datarecipe.cost.phased_model import (
     ProductionPhaseCost,
 )
 
-
 # ==========================================================================
 # __init__.py re-exports
 # ==========================================================================
@@ -47,24 +46,27 @@ class TestCostPackageExports(unittest.TestCase):
     """Ensure __init__.py re-exports all public symbols."""
 
     def test_token_analyzer_exports(self):
-        from datarecipe.cost import TokenAnalyzer, TokenStats, MODEL_PRICING, ModelPricing
+        from datarecipe.cost import MODEL_PRICING, TokenAnalyzer
 
         self.assertTrue(callable(TokenAnalyzer))
         self.assertIsInstance(MODEL_PRICING, dict)
 
     def test_complexity_analyzer_exports(self):
-        from datarecipe.cost import ComplexityAnalyzer, ComplexityMetrics, DomainType, DOMAIN_DIFFICULTY
+        from datarecipe.cost import (
+            DOMAIN_DIFFICULTY,
+            ComplexityAnalyzer,
+        )
 
         self.assertTrue(callable(ComplexityAnalyzer))
         self.assertIsInstance(DOMAIN_DIFFICULTY, dict)
 
     def test_calibrator_exports(self):
-        from datarecipe.cost import CostCalibrator, CalibrationResult
+        from datarecipe.cost import CostCalibrator
 
         self.assertTrue(callable(CostCalibrator))
 
     def test_phased_model_exports(self):
-        from datarecipe.cost import PhasedCostModel, PhasedCostBreakdown, ProjectScale
+        from datarecipe.cost import PhasedCostModel
 
         self.assertTrue(callable(PhasedCostModel))
 
@@ -78,14 +80,14 @@ class TestCalibrationResult(unittest.TestCase):
     """Tests for CalibrationResult dataclass."""
 
     def _make_result(self, **kwargs):
-        defaults = dict(
-            original_human_cost=100.0,
-            original_api_cost=50.0,
-            original_total=150.0,
-            calibrated_human_cost=110.0,
-            calibrated_api_cost=55.0,
-            calibrated_total=165.0,
-        )
+        defaults = {
+            "original_human_cost": 100.0,
+            "original_api_cost": 50.0,
+            "original_total": 150.0,
+            "calibrated_human_cost": 110.0,
+            "calibrated_api_cost": 55.0,
+            "calibrated_total": 165.0,
+        }
         defaults.update(kwargs)
         return CalibrationResult(**defaults)
 

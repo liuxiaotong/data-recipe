@@ -9,10 +9,9 @@ import os
 import shutil
 import tempfile
 import unittest
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from datarecipe.knowledge.dataset_catalog import (
     INDUSTRY_BENCHMARKS,
@@ -29,7 +28,6 @@ from datarecipe.knowledge.knowledge_base import (
     PatternStore,
     TrendAnalyzer,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helper: minimal RecipeSummary stand-in

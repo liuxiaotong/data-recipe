@@ -13,7 +13,6 @@ from datarecipe.generators.industry_benchmark import (
     IndustryBenchmarkGenerator,
 )
 
-
 # ---------- Stub for DatasetCatalog ----------
 
 
