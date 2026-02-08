@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue&v=1)](https://pypi.org/project/knowlyr-datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![MCP](https://img.shields.io/badge/MCP-9_Tools-purple.svg)](#mcp-server)
+[![MCP](https://img.shields.io/badge/MCP-10_Tools-purple.svg)](#mcp-server)
 
 [快速开始](#快速开始) · [LLM 增强](#llm-增强层) · [需求文档分析](#需求文档分析) · [MCP Server](#mcp-server) · [Data Pipeline 生态](#data-pipeline-生态)
 
@@ -125,9 +125,23 @@ knowlyr-datarecipe analyze-spec requirements.pdf --from-json analysis.json
 | **MILESTONE_PLAN** | 套话风险 | 分阶段具体风险 + 缓解措施 |
 | **ANALYSIS_REPORT** | 几乎空白 | 方法学洞察、竞争分析、领域建议 |
 
+### MCP 两步式增强（推荐）
+
+通过 MCP Server 调用时，Claude Agent 自身作为 LLM 处理增强 prompt，无需 API key：
+
+```
+1. Claude 调用 analyze_huggingface_dataset("tencent/CL-bench")
+   → 返回分析结果 + enhancement_prompt
+
+2. Claude 处理 enhancement_prompt，生成增强 JSON
+
+3. Claude 调用 enhance_analysis_reports(output_dir, enhanced_context)
+   → 报告从模板占位符 → 针对性的具体分析内容
+```
+
 ### 编程接口
 
-在 Claude Code 等 LLM 环境中，可通过 `get_prompt()` + `enhance_from_response()` 模式集成：
+在 Claude Code 等 LLM 环境中，也可通过 `get_prompt()` + `enhance_from_response()` 模式集成：
 
 ```python
 from datarecipe.generators.llm_enhancer import LLMEnhancer
@@ -222,7 +236,7 @@ projects/{数据集名}/
 
 ## MCP Server
 
-在 Claude Desktop / Claude Code 中直接使用，9 个工具覆盖完整工作流。
+在 Claude Desktop / Claude Code 中直接使用，10 个工具覆盖完整工作流。
 
 ```json
 {
@@ -237,9 +251,10 @@ projects/{数据集名}/
 
 | 工具 | 功能 |
 |------|------|
-| `parse_spec_document` | 解析需求文档 |
+| `parse_spec_document` | 解析需求文档，返回提取 prompt |
 | `generate_spec_output` | 生成 23+ 项目文档 |
-| `analyze_huggingface_dataset` | 深度分析 HF 数据集 |
+| `analyze_huggingface_dataset` | 深度分析 HF 数据集，返回 enhancement_prompt |
+| `enhance_analysis_reports` | 应用 LLM 增强内容，重新生成高质量报告 |
 | `get_extraction_prompt` | 获取 LLM 提取模板 |
 | `extract_rubrics` | 提取评分标准 |
 | `extract_prompts` | 提取 Prompt 模板 |
@@ -335,7 +350,7 @@ src/datarecipe/
 ├── task_profiles.py                # 任务类型注册表 (5 种内置类型)
 ├── pipeline.py                     # 多阶段流水线模板
 ├── quality_metrics.py              # 质量评估指标
-├── mcp_server.py                   # MCP Server (9 工具)
+├── mcp_server.py                   # MCP Server (10 工具)
 └── cli.py                          # CLI 入口
 ```
 
