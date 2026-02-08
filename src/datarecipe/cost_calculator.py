@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
+from datarecipe.constants import REGION_COST_MULTIPLIERS
 from datarecipe.schema import Recipe
 
 
@@ -492,18 +493,8 @@ LABOR_COST_RATES = {
     "expert": {"base": 80, "annotation": 60, "review": 100},
 }
 
-# 地区费率系数
-REGION_COST_MULTIPLIERS = {
-    "us": 1.0,
-    "uk": 0.9,
-    "eu": 0.85,
-    "cn": 0.4,  # 中国
-    "china": 0.4,
-    "in": 0.25,  # 印度
-    "india": 0.25,
-    "sea": 0.3,  # 东南亚
-    "latam": 0.35,  # 拉美
-}
+# Re-export for backward compatibility (canonical source: constants.py)
+# REGION_COST_MULTIPLIERS is imported from datarecipe.constants
 
 # 标注类型 → 每条平均时间（分钟）
 ANNOTATION_TIME_ESTIMATES = {

@@ -222,6 +222,29 @@ def create_server() -> "Server":
                     "required": ["output_dir"],
                 },
             ),
+            Tool(
+                name="enhance_analysis_reports",
+                description=(
+                    "Apply LLM-enhanced context to regenerate analysis reports with rich, "
+                    "dataset-specific content. Use after analyze_huggingface_dataset returns "
+                    "an enhancement_prompt. Process the prompt yourself and pass the resulting "
+                    "JSON here to replace template placeholders with tailored analysis."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "output_dir": {
+                            "type": "string",
+                            "description": "Output directory from previous analyze_huggingface_dataset call",
+                        },
+                        "enhanced_context": {
+                            "type": "object",
+                            "description": "LLM-generated enhanced context JSON (from processing the enhancement_prompt)",
+                        },
+                    },
+                    "required": ["output_dir", "enhanced_context"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -246,6 +269,8 @@ def create_server() -> "Server":
             return await _profile_dataset(arguments)
         elif name == "get_agent_context":
             return await _get_agent_context(arguments)
+        elif name == "enhance_analysis_reports":
+            return await _enhance_analysis_reports(arguments)
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -391,6 +416,17 @@ async def _analyze_huggingface_dataset(arguments: dict[str, Any]) -> list[TextCo
                 "agent_context": f"{result.output_dir}/08_AI_Agent/agent_context.json",
             },
         }
+
+        # Include enhancement prompt for MCP two-step workflow
+        if result.enhancement_prompt:
+            output["enhancement_prompt"] = result.enhancement_prompt
+            output["enhancement_instructions"] = (
+                "报告已生成，但部分内容为模板化占位符。"
+                "上面的 enhancement_prompt 包含一个数据集增强分析提示。"
+                "请根据此提示生成 JSON 格式的增强内容，"
+                "然后调用 enhance_analysis_reports 工具将增强内容应用到报告中，"
+                "使报告包含针对性的、具体的分析内容。"
+            )
 
         return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
 
@@ -711,6 +747,92 @@ async def _get_agent_context(arguments: dict[str, Any]) -> list[TextContent]:
 
     except Exception as e:
         return [TextContent(type="text", text=f"Error reading agent context: {e}")]
+
+
+async def _enhance_analysis_reports(arguments: dict[str, Any]) -> list[TextContent]:
+    """Apply LLM-enhanced context to regenerate analysis reports."""
+    import os
+
+    from datarecipe.core.deep_analyzer import DeepAnalyzerCore
+
+    output_dir = arguments.get("output_dir")
+    enhanced_context_data = arguments.get("enhanced_context")
+
+    if not output_dir:
+        return [TextContent(type="text", text="Error: output_dir is required")]
+    if not enhanced_context_data:
+        return [TextContent(type="text", text="Error: enhanced_context is required")]
+
+    # Read _enhancement_state.json for re-run parameters
+    state_path = os.path.join(output_dir, "_enhancement_state.json")
+    if not os.path.exists(state_path):
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(
+                    {
+                        "success": False,
+                        "error": "_enhancement_state.json not found",
+                        "hint": "Run analyze_huggingface_dataset first to generate the analysis state.",
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+            )
+        ]
+
+    try:
+        with open(state_path, encoding="utf-8") as f:
+            state = json.load(f)
+
+        # Convert JSON dict to EnhancedContext
+        from datarecipe.generators.llm_enhancer import LLMEnhancer
+
+        enhancer = LLMEnhancer()
+        enhanced_context = enhancer._dict_to_context(enhanced_context_data)
+
+        # Re-run analysis with pre-loaded enhanced context
+        base_dir = os.path.dirname(output_dir)
+        analyzer = DeepAnalyzerCore(
+            output_dir=base_dir,
+            region=state.get("region", "china"),
+            pre_enhanced_context=enhanced_context,
+        )
+
+        result = analyzer.analyze(
+            dataset_id=state["dataset_id"],
+            sample_size=state.get("sample_size", 500),
+            target_size=state.get("target_size"),
+            split=state.get("split"),
+        )
+
+        if not result.success:
+            return [TextContent(type="text", text=f"Error: {result.error}")]
+
+        output = {
+            "success": True,
+            "output_dir": result.output_dir,
+            "files_regenerated": result.files_generated,
+            "message": "报告已使用 LLM 增强内容重新生成",
+            "key_files": {
+                "executive_summary": f"{result.output_dir}/01_决策参考/EXECUTIVE_SUMMARY.md",
+                "reproduction_guide": f"{result.output_dir}/04_复刻指南/REPRODUCTION_GUIDE.md",
+                "annotation_spec": f"{result.output_dir}/03_标注规范/ANNOTATION_SPEC.md",
+                "agent_context": f"{result.output_dir}/08_AI_Agent/agent_context.json",
+            },
+        }
+
+        return [TextContent(type="text", text=json.dumps(output, ensure_ascii=False, indent=2))]
+
+    except Exception as e:
+        import traceback
+
+        return [
+            TextContent(
+                type="text",
+                text=f"Error enhancing reports: {e}\n{traceback.format_exc()}",
+            )
+        ]
 
 
 async def main():

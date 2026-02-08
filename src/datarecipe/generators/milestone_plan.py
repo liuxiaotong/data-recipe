@@ -861,3 +861,207 @@ class MilestonePlanGenerator:
                 for r in plan.risks
             ],
         }
+
+    # ------------------------------------------------------------------
+    # analyze-spec pipeline: generate from SpecificationAnalysis
+    # ------------------------------------------------------------------
+
+    def spec_to_markdown(
+        self,
+        analysis: Any,
+        target_size: int,
+        region: str,
+        enhanced_context: Any = None,
+    ) -> str:
+        """Generate MILESTONE_PLAN.md from a SpecificationAnalysis object.
+
+        Used by the analyze-spec pipeline (vs to_markdown which is for deep-analyze).
+        """
+        difficulty_days = {
+            "easy": 14,
+            "medium": 21,
+            "hard": 30,
+            "expert": 45,
+        }
+        total_days = difficulty_days.get(analysis.estimated_difficulty, 30)
+
+        lines = []
+        lines.append(f"# {analysis.project_name} 里程碑计划")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"> 数据集类型: {analysis.dataset_type}")
+        lines.append(f"> 目标规模: {target_size} 条")
+        lines.append(f"> 预估工期: {total_days} 工作日")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Progress visualization
+        lines.append("## 项目概览")
+        lines.append("")
+        lines.append("```")
+        lines.append("阶段进度:")
+        lines.append("M1 项目启动与规范制定    ███                  15%")
+        lines.append("M2 试点标注与标准校准    ██                   10%")
+        lines.append("M3 主体标注 - 第一批次  ██████               30%")
+        lines.append("M4 主体标注 - 第二批次  ██████               30%")
+        lines.append("M5 质量审核与交付      ███                  15%")
+        lines.append("```")
+        lines.append("")
+
+        # Team composition
+        lines.append("### 团队配置")
+        lines.append("")
+        lines.append("| 角色 | 人数 | 说明 |")
+        lines.append("|------|------|------|")
+        lines.append("| 项目经理 | 1 | 整体协调 |")
+
+        if analysis.estimated_difficulty in ["hard", "expert"]:
+            lines.append("| 领域专家 | 2-3 | 规则设计、质量把控 |")
+        else:
+            lines.append("| 领域专家 | 1-2 | 规则设计、质量把控 |")
+
+        lines.append("| QA | 1-2 | 质量抽检 |")
+
+        if analysis.has_images:
+            lines.append("| 图片制作 | 2-3 | 原创图片设计 |")
+
+        annotator_count = max(2, target_size // 50)
+        lines.append(f"| 标注员 | {annotator_count}-{annotator_count + 2} | 数据生产 |")
+        lines.append("")
+
+        # Milestones
+        lines.append("---")
+        lines.append("")
+        lines.append("## 里程碑详情")
+        lines.append("")
+
+        milestones = [
+            (
+                "M1",
+                "项目启动与规范制定",
+                "完成项目初始化、制定标注规范和质量标准",
+                ["标注指南文档 v1.0", "Schema 定义与示例", "标注工具配置完成", "团队培训材料"],
+            ),
+            (
+                "M2",
+                "试点标注与标准校准",
+                "完成试点批次，验证标注流程和质量标准",
+                [
+                    f"试点数据 ({max(5, target_size // 20)} 条)",
+                    "标注一致性报告",
+                    "流程问题清单与解决方案",
+                ],
+            ),
+            (
+                "M3",
+                "主体标注 - 第一批次",
+                "完成 40% 的标注量",
+                [f"已标注数据 ({int(target_size * 0.4)} 条)", "质量周报"],
+            ),
+            (
+                "M4",
+                "主体标注 - 第二批次",
+                "完成剩余 60% 的标注量",
+                [f"已标注数据 ({target_size} 条)", "质量周报"],
+            ),
+            (
+                "M5",
+                "质量审核与交付",
+                "完成最终质量审核和数据交付",
+                ["最终数据集", "质量报告", "数据文档"],
+            ),
+        ]
+
+        for mid, name, desc, deliverables in milestones:
+            lines.append(f"### {mid}: {name}")
+            lines.append("")
+            lines.append(f"**描述**: {desc}")
+            lines.append("")
+            lines.append("**交付物**:")
+            for d in deliverables:
+                lines.append(f"- [ ] {d}")
+            lines.append("")
+
+        # Acceptance criteria
+        lines.append("---")
+        lines.append("")
+        lines.append("## 验收标准")
+        lines.append("")
+        lines.append("| 类别 | 指标 | 阈值 |")
+        lines.append("|------|------|------|")
+        lines.append("| 一致性 | Cohen's Kappa | ≥ 0.7 |")
+        lines.append("| 准确性 | 专家审核通过率 | ≥ 95% |")
+        lines.append("| 完整性 | 空值率 | = 0% |")
+
+        if analysis.difficulty_criteria:
+            criteria_text = analysis.difficulty_criteria
+            if len(criteria_text) > 30:
+                criteria_text = criteria_text[:30] + "..."
+            lines.append(f"| 难度 | {criteria_text} | 通过验证 |")
+
+        lines.append("")
+
+        # Risks
+        lines.append("---")
+        lines.append("")
+        lines.append("## 风险管理")
+        lines.append("")
+
+        if analysis.forbidden_items:
+            lines.append("### R1: 数据合规性风险")
+            lines.append("")
+            lines.append("- **概率**: 中")
+            lines.append("- **影响**: 高")
+            lines.append("- **缓解措施**: 严格审核流程，确保不含AI内容")
+            lines.append("")
+
+        lines.append("### R2: 质量不稳定风险")
+        lines.append("")
+        lines.append("- **概率**: 中")
+        lines.append("- **影响**: 中")
+        lines.append("- **缓解措施**: 加强培训，定期校准，建立QA流程")
+        lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("> 本计划由 DataRecipe 从需求文档自动生成")
+
+        return "\n".join(lines)
+
+    def spec_to_dict(self, analysis: Any, target_size: int) -> dict:
+        """Convert SpecificationAnalysis to milestone plan dict."""
+        difficulty_days = {
+            "easy": 14,
+            "medium": 21,
+            "hard": 30,
+            "expert": 45,
+        }
+        total_days = difficulty_days.get(analysis.estimated_difficulty, 30)
+
+        milestones = [
+            {"id": "M1", "name": "项目启动与规范制定",
+             "description": "完成项目初始化、制定标注规范和质量标准",
+             "deliverables": ["标注指南文档 v1.0", "Schema 定义与示例",
+                              "标注工具配置完成", "团队培训材料"]},
+            {"id": "M2", "name": "试点标注与标准校准",
+             "description": "完成试点批次，验证标注流程和质量标准",
+             "deliverables": [f"试点数据 ({max(5, target_size // 20)} 条)",
+                              "标注一致性报告", "流程问题清单与解决方案"]},
+            {"id": "M3", "name": "主体标注 - 第一批次",
+             "description": "完成 40% 的标注量",
+             "deliverables": [f"已标注数据 ({int(target_size * 0.4)} 条)", "质量周报"]},
+            {"id": "M4", "name": "主体标注 - 第二批次",
+             "description": "完成剩余 60% 的标注量",
+             "deliverables": [f"已标注数据 ({target_size} 条)", "质量周报"]},
+            {"id": "M5", "name": "质量审核与交付",
+             "description": "完成最终质量审核和数据交付",
+             "deliverables": ["最终数据集", "质量报告", "数据文档"]},
+        ]
+
+        return {
+            "project_name": analysis.project_name,
+            "target_size": target_size,
+            "total_days": total_days,
+            "milestones": milestones,
+        }

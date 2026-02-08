@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from datarecipe.constants import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 from datarecipe.parsers import DocumentParser, ParsedDocument
 
 logger = logging.getLogger(__name__)
@@ -700,7 +701,7 @@ class SpecAnalyzer:
             )
 
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model=DEFAULT_ANTHROPIC_MODEL,
                 max_tokens=4096,
                 messages=[{"role": "user", "content": content}],
             )
@@ -748,7 +749,7 @@ class SpecAnalyzer:
             )
 
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model=DEFAULT_OPENAI_MODEL,
                 max_tokens=4096,
                 messages=[{"role": "user", "content": content}],
             )

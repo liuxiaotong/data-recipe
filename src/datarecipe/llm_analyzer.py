@@ -11,6 +11,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+from datarecipe.constants import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 from datarecipe.deep_analyzer import (
     DatasetCategory,
     DeepAnalysisResult,
@@ -263,14 +264,14 @@ class LLMAnalyzer(DeepAnalyzer):
 
             if self.llm_provider == "anthropic":
                 response = client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model=DEFAULT_ANTHROPIC_MODEL,
                     max_tokens=2000,
                     messages=[{"role": "user", "content": prompt}],
                 )
                 response_text = response.content[0].text
             else:  # openai
                 response = client.chat.completions.create(
-                    model="gpt-4o",
+                    model=DEFAULT_OPENAI_MODEL,
                     max_tokens=2000,
                     messages=[{"role": "user", "content": prompt}],
                 )

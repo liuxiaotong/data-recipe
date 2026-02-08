@@ -2,6 +2,10 @@
 
 Generates forward-looking annotation specification documents
 that can be used to guide annotators in producing new data.
+
+Supports two input modes:
+- generate() + to_markdown(): from deep-analyze (HuggingFace dataset samples)
+- spec_to_markdown(): from analyze-spec (SpecificationAnalysis object)
 """
 
 from dataclasses import dataclass, field
@@ -67,86 +71,6 @@ class AnnotationSpec:
 
 class AnnotationSpecGenerator:
     """Generates annotation specifications from dataset analysis."""
-
-    # Task type descriptions
-    TASK_TYPE_INFO = {
-        "preference": {
-            "name": "偏好对比数据",
-            "description": "人类偏好对比数据集，用于训练奖励模型或直接偏好优化。标注员需要对比两个回答，选择更符合人类偏好的一个。",
-            "cognitive_requirements": [
-                "理解问题上下文",
-                "评估回答质量（准确性、有用性、安全性）",
-                "进行相对比较判断",
-            ],
-            "reasoning_chain": "理解问题 → 阅读两个回答 → 多维度评估 → 选择更优回答",
-        },
-        "evaluation": {
-            "name": "评测基准数据",
-            "description": "用于评估模型能力的测试数据集。每道题目需要有明确的评分标准和参考答案。",
-            "cognitive_requirements": [
-                "理解任务目标",
-                "设计有区分度的题目",
-                "制定清晰的评分标准",
-                "确保答案唯一性或评分客观性",
-            ],
-            "reasoning_chain": "定义考察点 → 设计题目 → 制定评分标准 → 验证难度",
-        },
-        "sft": {
-            "name": "监督微调数据",
-            "description": "用于模型监督微调的指令-回答对数据。需要高质量的指令和对应的标准回答。",
-            "cognitive_requirements": [
-                "理解指令意图",
-                "生成准确、有帮助的回答",
-                "保持一致的风格和格式",
-            ],
-            "reasoning_chain": "理解指令 → 规划回答结构 → 生成内容 → 质量检查",
-        },
-        "swe_bench": {
-            "name": "软件工程评测数据",
-            "description": "用于评估模型代码理解和修复能力的数据集。包含真实的代码问题和对应的修复补丁。",
-            "cognitive_requirements": [
-                "理解代码结构和逻辑",
-                "定位问题根因",
-                "设计正确的修复方案",
-                "验证修复的正确性",
-            ],
-            "reasoning_chain": "理解问题描述 → 分析代码 → 定位bug → 设计修复 → 验证补丁",
-        },
-        "unknown": {
-            "name": "通用数据标注",
-            "description": "通用数据标注任务，请根据具体数据特点制定标注规范。",
-            "cognitive_requirements": [
-                "理解数据结构",
-                "掌握标注标准",
-                "保持标注一致性",
-            ],
-            "reasoning_chain": "理解任务 → 分析样本 → 执行标注 → 质量检查",
-        },
-    }
-
-    # Default quality constraints by type
-    DEFAULT_QUALITY_CONSTRAINTS = {
-        "preference": [
-            "两个回答必须有明显的质量差异",
-            "选择理由需要有明确依据",
-            "避免基于主观喜好的判断",
-        ],
-        "evaluation": [
-            "题目答案必须唯一或有明确的评分标准",
-            "题目难度需要经过模型验证",
-            "禁止使用 AI 生成的内容作为题目或答案",
-        ],
-        "sft": [
-            "回答必须准确、有帮助",
-            "格式和风格保持一致",
-            "避免有害或不当内容",
-        ],
-        "swe_bench": [
-            "补丁必须能够正确修复问题",
-            "代码风格与原项目保持一致",
-            "包含必要的测试验证",
-        ],
-    }
 
     def __init__(self):
         pass
@@ -791,4 +715,213 @@ class AnnotationSpecGenerator:
                 "generated_at": spec.generated_at,
                 "source_samples": spec.source_samples,
             },
+        }
+
+    # ------------------------------------------------------------------
+    # analyze-spec pipeline: generate from SpecificationAnalysis
+    # ------------------------------------------------------------------
+
+    def spec_to_markdown(self, analysis: Any, enhanced_context: Any = None) -> str:
+        """Generate ANNOTATION_SPEC.md from a SpecificationAnalysis object.
+
+        Used by the analyze-spec pipeline (vs to_markdown which is for deep-analyze).
+        """
+        lines = []
+
+        lines.append(f"# {analysis.project_name} 标注规范")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"> 数据类型: {analysis.dataset_type}")
+        if analysis.has_images:
+            lines.append(f"> 包含图片: 是 ({analysis.image_count} 张)")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Section 1: Task Type Description
+        lines.append("## 一、题目类型描述")
+        lines.append("")
+        lines.append(f"**任务名称**: {analysis.task_type}")
+        lines.append("")
+        lines.append(f"**任务说明**: {analysis.task_description}")
+        lines.append("")
+
+        if analysis.cognitive_requirements:
+            lines.append("**认知要求**:")
+            for req in analysis.cognitive_requirements:
+                lines.append(f"- {req}")
+            lines.append("")
+
+        if analysis.reasoning_chain:
+            lines.append("**推理链**:")
+            lines.append("")
+            lines.append("```")
+            lines.append(" → ".join(analysis.reasoning_chain))
+            lines.append("```")
+            lines.append("")
+
+        # Section 2: Data Requirements
+        lines.append("## 二、数据要求")
+        lines.append("")
+
+        if analysis.data_requirements:
+            for i, req in enumerate(analysis.data_requirements, 1):
+                lines.append(f"{i}. {req}")
+            lines.append("")
+
+        # Section 3: Quality Constraints
+        lines.append("## 三、质量约束")
+        lines.append("")
+
+        if analysis.forbidden_items:
+            lines.append("### 禁止项")
+            lines.append("")
+            for item in analysis.forbidden_items:
+                lines.append(f"- {item}")
+            lines.append("")
+
+        if analysis.quality_constraints:
+            lines.append("### 质量标准")
+            lines.append("")
+            for constraint in analysis.quality_constraints:
+                lines.append(f"- {constraint}")
+            lines.append("")
+
+        if analysis.difficulty_criteria:
+            lines.append("### 难度验证")
+            lines.append("")
+            lines.append(f"{analysis.difficulty_criteria}")
+            lines.append("")
+
+        # Section 4: Data Structure
+        lines.append("## 四、数据结构")
+        lines.append("")
+
+        if analysis.fields:
+            lines.append("| 字段名 | 类型 | 必填 | 说明 |")
+            lines.append("|--------|------|------|------|")
+            for f in analysis.fields:
+                name = f.get("name", "")
+                ftype = f.get("type", "string")
+                required = "是" if f.get("required", True) else "否"
+                desc = f.get("description", "")
+                lines.append(f"| {name} | {ftype} | {required} | {desc} |")
+            lines.append("")
+
+        if analysis.field_requirements:
+            lines.append("### 字段详细要求")
+            lines.append("")
+            for fname, freq in analysis.field_requirements.items():
+                lines.append(f"**{fname}**: {freq}")
+                lines.append("")
+
+        # Section 5: Examples
+        lines.append("## 五、示例")
+        lines.append("")
+
+        if analysis.examples:
+            for i, example in enumerate(analysis.examples[:3], 1):
+                lines.append(f"### 示例 {i}")
+                lines.append("")
+
+                if example.get("has_image"):
+                    lines.append("**[包含图片]**")
+                    lines.append("")
+
+                if example.get("question"):
+                    lines.append("**题目**:")
+                    lines.append("")
+                    lines.append(f"> {example['question']}")
+                    lines.append("")
+
+                if example.get("answer"):
+                    lines.append(f"**答案**: {example['answer']}")
+                    lines.append("")
+
+                if example.get("scoring_rubric"):
+                    lines.append("**打分标准**:")
+                    lines.append("")
+                    lines.append(f"{example['scoring_rubric']}")
+                    lines.append("")
+
+                lines.append("---")
+                lines.append("")
+        else:
+            lines.append("（以下为基于字段定义的数据模板，请参考此格式制作实际数据）")
+            lines.append("")
+            if analysis.fields:
+                lines.append("```json")
+                lines.append("{")
+                for j, f in enumerate(analysis.fields):
+                    name = f.get("name", "field")
+                    desc = f.get("description", "")
+                    comma = "," if j < len(analysis.fields) - 1 else ""
+                    lines.append(f'  "{name}": "<{desc}>"{comma}')
+                lines.append("}")
+                lines.append("```")
+                lines.append("")
+            lines.append("---")
+            lines.append("")
+
+        # Section 6: Scoring Rubric
+        if analysis.scoring_rubric:
+            lines.append("## 六、打分标准")
+            lines.append("")
+            lines.append("| 分数 | 标准 |")
+            lines.append("|------|------|")
+            for rubric in analysis.scoring_rubric:
+                score = rubric.get("score", "")
+                criteria = rubric.get("criteria", "")
+                lines.append(f"| {score} | {criteria} |")
+            lines.append("")
+
+        # Section 7: Domain-specific guidance (LLM enhanced)
+        ec = enhanced_context
+        if ec and ec.generated and ec.domain_specific_guidelines:
+            lines.append("## 七、领域标注指导")
+            lines.append("")
+            lines.append(ec.domain_specific_guidelines)
+            lines.append("")
+
+            if ec.quality_pitfalls:
+                lines.append("### 常见错误")
+                lines.append("")
+                for i, pitfall in enumerate(ec.quality_pitfalls, 1):
+                    lines.append(f"{i}. {pitfall}")
+                lines.append("")
+
+            if ec.example_analysis:
+                lines.append("### 样本分析")
+                lines.append("")
+                for ex in ec.example_analysis:
+                    idx = ex.get("sample_index", "?")
+                    lines.append(f"**样本 {idx}**")
+                    lines.append(f"- 优点: {ex.get('strengths', '')}")
+                    lines.append(f"- 改进: {ex.get('weaknesses', '')}")
+                    lines.append(f"- 建议: {ex.get('annotation_tips', '')}")
+                    lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("> 本规范由 DataRecipe 从需求文档自动生成")
+
+        return "\n".join(lines)
+
+    def spec_to_dict(self, analysis: Any) -> dict:
+        """Convert SpecificationAnalysis to JSON-serializable dict."""
+        return {
+            "project_name": analysis.project_name,
+            "dataset_type": analysis.dataset_type,
+            "task_type": analysis.task_type,
+            "task_description": analysis.task_description,
+            "cognitive_requirements": analysis.cognitive_requirements,
+            "reasoning_chain": analysis.reasoning_chain,
+            "data_requirements": analysis.data_requirements,
+            "quality_constraints": analysis.quality_constraints,
+            "forbidden_items": analysis.forbidden_items,
+            "difficulty_criteria": analysis.difficulty_criteria,
+            "fields": analysis.fields,
+            "field_requirements": analysis.field_requirements,
+            "examples": analysis.examples,
+            "scoring_rubric": analysis.scoring_rubric,
         }

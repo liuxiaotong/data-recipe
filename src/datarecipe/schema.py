@@ -494,36 +494,8 @@ class EnhancedCost:
 
 
 @dataclass
-class DataRecipe:
-    """Complete data recipe - V2 version with all modules integrated."""
-
-    # === Core fields (from Recipe) ===
-    name: str
-    version: Optional[str] = None
-    source_type: SourceType = SourceType.UNKNOWN
-    source_id: Optional[str] = None
-
-    size: Optional[int] = None
-    num_examples: Optional[int] = None
-    languages: list[str] = field(default_factory=list)
-    license: Optional[str] = None
-    description: Optional[str] = None
-
-    generation_type: GenerationType = GenerationType.UNKNOWN
-    synthetic_ratio: Optional[float] = None
-    human_ratio: Optional[float] = None
-    generation_methods: list[GenerationMethod] = field(default_factory=list)
-    teacher_models: list[str] = field(default_factory=list)
-
-    cost: Optional[Cost] = None
-    reproducibility: Optional[Reproducibility] = None
-    quality_metrics: Optional[dict] = None
-
-    tags: list[str] = field(default_factory=list)
-    created_date: Optional[str] = None
-    authors: list[str] = field(default_factory=list)
-    paper_url: Optional[str] = None
-    homepage_url: Optional[str] = None
+class DataRecipe(Recipe):
+    """Complete data recipe - V2 version extending Recipe with production modules."""
 
     # === V2 extended fields ===
     annotator_profile: Optional[AnnotatorProfile] = None
@@ -561,79 +533,18 @@ class DataRecipe:
         )
 
     def to_dict(self) -> dict:
-        """转换为字典"""
-        result = {
-            "name": self.name,
-            "source": {
-                "type": self.source_type.value,
-                "id": self.source_id,
-            },
-        }
+        """Convert to dictionary, extending Recipe.to_dict() with V2 fields."""
+        result = super().to_dict()
 
-        if self.version:
-            result["version"] = self.version
-
-        # Generation info
-        generation = {}
-        if self.synthetic_ratio is not None:
-            generation["synthetic_ratio"] = self.synthetic_ratio
-        if self.human_ratio is not None:
-            generation["human_ratio"] = self.human_ratio
-        if self.generation_methods:
-            generation["methods"] = [m.to_dict() for m in self.generation_methods]
-        if self.teacher_models:
-            generation["teacher_models"] = self.teacher_models
-        if generation:
-            result["generation"] = generation
-
-        # Cost
-        if self.cost:
-            result["cost"] = self.cost.to_dict()
-
-        # Enhanced cost
+        # V2 extended fields
         if self.enhanced_cost:
             result["enhanced_cost"] = self.enhanced_cost.to_dict()
-
-        # Reproducibility
-        if self.reproducibility:
-            result["reproducibility"] = self.reproducibility.to_dict()
-
-        # Annotator profile
         if self.annotator_profile:
             result["annotator_profile"] = self.annotator_profile.to_dict()
-
-        # Production config
         if self.production_config:
             result["production_config"] = self.production_config.to_dict()
 
-        # Metadata
-        metadata = {}
-        if self.size:
-            metadata["size_bytes"] = self.size
-        if self.num_examples:
-            metadata["num_examples"] = self.num_examples
-        if self.languages:
-            metadata["languages"] = self.languages
-        if self.license:
-            metadata["license"] = self.license
-        if self.tags:
-            metadata["tags"] = self.tags
-        if self.authors:
-            metadata["authors"] = self.authors
-        if self.paper_url:
-            metadata["paper_url"] = self.paper_url
-        if metadata:
-            result["metadata"] = metadata
-
         return result
-
-    def to_yaml(self) -> str:
-        """Export as YAML string."""
-        import yaml
-
-        return yaml.dump(
-            self.to_dict(), default_flow_style=False, sort_keys=False, allow_unicode=True
-        )
 
 
 # =============================================================================

@@ -43,6 +43,9 @@ class AnalysisResult:
     # Warnings collected during analysis (non-fatal issues)
     warnings: list[str] = field(default_factory=list)
 
+    # LLM enhancement prompt (for MCP two-step workflow)
+    enhancement_prompt: str = ""
+
     def to_dict(self) -> dict:
         return {
             "dataset_id": self.dataset_id,
@@ -71,12 +74,14 @@ class DeepAnalyzerCore:
         use_llm: bool = False,
         llm_provider: str = "anthropic",
         enhance_mode: str = "auto",
+        pre_enhanced_context=None,
     ):
         self.output_dir = output_dir
         self.region = region
         self.use_llm = use_llm
         self.llm_provider = llm_provider
         self.enhance_mode = enhance_mode
+        self.pre_enhanced_context = pre_enhanced_context
 
     def analyze(
         self,
@@ -114,23 +119,42 @@ class DeepAnalyzerCore:
             )
             result.output_dir = dataset_output_dir
 
-            # Auto-detect split
+            # Auto-detect config and split
+            def _try_load(ds_id, config=None, split_name=None):
+                kwargs = {"streaming": True}
+                if config:
+                    kwargs["name"] = config
+                if split_name:
+                    kwargs["split"] = split_name
+                return load_dataset(ds_id, **kwargs)
+
+            # Detect available configs
+            detected_config = None
+            try:
+                from datasets import get_dataset_config_names
+                configs = get_dataset_config_names(dataset_id)
+                if configs and len(configs) > 0:
+                    # Prefer 'default' or the first config
+                    detected_config = "default" if "default" in configs else configs[0]
+            except Exception:
+                pass
+
             if split is None:
                 try:
-                    ds = load_dataset(dataset_id, split="train", streaming=True)
+                    ds = _try_load(dataset_id, config=detected_config, split_name="train")
                     split = "train"
-                except ValueError:
+                except (ValueError, Exception):
                     for try_split in ["test", "validation", "dev"]:
                         try:
-                            ds = load_dataset(dataset_id, split=try_split, streaming=True)
+                            ds = _try_load(dataset_id, config=detected_config, split_name=try_split)
                             split = try_split
                             break
-                        except ValueError:
+                        except (ValueError, Exception):
                             continue
                     else:
                         raise ValueError("Cannot find available split")
             else:
-                ds = load_dataset(dataset_id, split=split, streaming=True)
+                ds = _try_load(dataset_id, config=detected_config, split_name=split)
 
             # Initialize collectors
             schema_info = {}
@@ -645,7 +669,30 @@ class DeepAnalyzerCore:
 
             # LLM Enhancement Layer (optional, generates rich context for all reports)
             enhanced_context = None
-            if self.use_llm:
+
+            # Priority 1: Use pre-loaded enhanced context (from MCP two-step workflow)
+            if self.pre_enhanced_context is not None:
+                enhanced_context = self.pre_enhanced_context
+                try:
+                    enhanced_dict = {
+                        k: v
+                        for k, v in enhanced_context.__dict__.items()
+                        if k not in ("raw_response",)
+                    }
+                    with open(
+                        output_mgr.get_path("data", "enhanced_context.json"),
+                        "w",
+                        encoding="utf-8",
+                    ) as f:
+                        json.dump(enhanced_dict, f, indent=2, ensure_ascii=False, default=str)
+                    result.files_generated.append(
+                        output_mgr.get_relative_path("data", "enhanced_context.json")
+                    )
+                except Exception as e:
+                    result.warnings.append(f"保存 enhanced_context 失败: {e}")
+
+            # Priority 2: Call LLM enhancer directly (CLI with API key)
+            elif self.use_llm:
                 try:
                     from datarecipe.generators.llm_enhancer import LLMEnhancer
 
@@ -678,6 +725,25 @@ class DeepAnalyzerCore:
                         )
                 except Exception as e:
                     result.warnings.append(f"LLM 增强跳过: {e}")
+
+            # Always generate enhancement prompt (for MCP two-step workflow)
+            try:
+                from datarecipe.generators.llm_enhancer import LLMEnhancer
+
+                _enhancer = LLMEnhancer()
+                result.enhancement_prompt = _enhancer.get_prompt(
+                    dataset_id=dataset_id,
+                    dataset_type=detected_type or "unknown",
+                    schema_info=schema_info,
+                    sample_items=sample_items,
+                    sample_count=sample_count,
+                    complexity_metrics=complexity_metrics,
+                    allocation=allocation,
+                    rubrics_result=rubrics_result,
+                    llm_analysis=llm_analysis,
+                )
+            except Exception:
+                pass  # enhancement prompt is optional
 
             # Generate reports to guide/
             report = self._generate_analysis_report(
@@ -931,6 +997,24 @@ class DeepAnalyzerCore:
                 )
             except Exception as e:
                 result.warnings.append(f"AI Agent 层生成失败: {e}")
+
+            # Save enhancement state (for MCP enhance_analysis_reports tool)
+            try:
+                _state = {
+                    "dataset_id": dataset_id,
+                    "sample_size": sample_size,
+                    "target_size": target_size,
+                    "split": split,
+                    "region": self.region,
+                }
+                with open(
+                    os.path.join(dataset_output_dir, "_enhancement_state.json"),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    json.dump(_state, f, indent=2, ensure_ascii=False)
+            except Exception:
+                pass  # enhancement state is optional
 
             # Update knowledge base
             try:

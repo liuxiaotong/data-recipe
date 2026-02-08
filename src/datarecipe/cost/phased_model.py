@@ -9,6 +9,8 @@ Separates costs into three phases:
 from dataclasses import dataclass, field
 from enum import Enum
 
+from datarecipe.constants import REGION_COST_MULTIPLIERS
+
 
 class ProjectScale(Enum):
     """Project scale categories."""
@@ -200,13 +202,7 @@ class PhasedCostModel:
         """
         self.region = region
 
-        # Regional labor multipliers
-        self.labor_multipliers = {
-            "us": 1.0,
-            "china": 0.4,
-            "india": 0.25,
-            "europe": 0.85,
-        }
+        self.labor_multipliers = REGION_COST_MULTIPLIERS
         self.labor_mult = self.labor_multipliers.get(region, 1.0)
 
     def calculate(

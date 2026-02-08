@@ -14,6 +14,9 @@ from datarecipe.core.project_layout import (
     ProjectManifest,
 )
 from datarecipe.core.project_layout import safe_name as _safe_name
+from datarecipe.generators.annotation_spec import AnnotationSpecGenerator
+from datarecipe.generators.executive_summary import ExecutiveSummaryGenerator
+from datarecipe.generators.milestone_plan import MilestonePlanGenerator
 from datarecipe.task_profiles import get_task_profile
 
 
@@ -169,210 +172,18 @@ class SpecOutputGenerator:
         result: SpecOutputResult,
         enhanced_context=None,
     ):
-        """Generate ANNOTATION_SPEC.md."""
-        lines = []
+        """Generate ANNOTATION_SPEC.md — delegates to AnnotationSpecGenerator."""
+        gen = AnnotationSpecGenerator()
 
-        lines.append(f"# {analysis.project_name} 标注规范")
-        lines.append("")
-        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        lines.append(f"> 数据类型: {analysis.dataset_type}")
-        if analysis.has_images:
-            lines.append(f"> 包含图片: 是 ({analysis.image_count} 张)")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        # Section 1: Task Type Description
-        lines.append("## 一、题目类型描述")
-        lines.append("")
-        lines.append(f"**任务名称**: {analysis.task_type}")
-        lines.append("")
-        lines.append(f"**任务说明**: {analysis.task_description}")
-        lines.append("")
-
-        if analysis.cognitive_requirements:
-            lines.append("**认知要求**:")
-            for req in analysis.cognitive_requirements:
-                lines.append(f"- {req}")
-            lines.append("")
-
-        if analysis.reasoning_chain:
-            lines.append("**推理链**:")
-            lines.append("")
-            lines.append("```")
-            lines.append(" → ".join(analysis.reasoning_chain))
-            lines.append("```")
-            lines.append("")
-
-        # Section 2: Data Requirements
-        lines.append("## 二、数据要求")
-        lines.append("")
-
-        if analysis.data_requirements:
-            for i, req in enumerate(analysis.data_requirements, 1):
-                lines.append(f"{i}. {req}")
-            lines.append("")
-
-        # Section 3: Quality Constraints
-        lines.append("## 三、质量约束")
-        lines.append("")
-
-        if analysis.forbidden_items:
-            lines.append("### 禁止项 ⚠️")
-            lines.append("")
-            for item in analysis.forbidden_items:
-                lines.append(f"- ❌ {item}")
-            lines.append("")
-
-        if analysis.quality_constraints:
-            lines.append("### 质量标准")
-            lines.append("")
-            for constraint in analysis.quality_constraints:
-                lines.append(f"- {constraint}")
-            lines.append("")
-
-        if analysis.difficulty_criteria:
-            lines.append("### 难度验证")
-            lines.append("")
-            lines.append(f"{analysis.difficulty_criteria}")
-            lines.append("")
-
-        # Section 4: Data Structure
-        lines.append("## 四、数据结构")
-        lines.append("")
-
-        if analysis.fields:
-            lines.append("| 字段名 | 类型 | 必填 | 说明 |")
-            lines.append("|--------|------|------|------|")
-            for f in analysis.fields:
-                name = f.get("name", "")
-                ftype = f.get("type", "string")
-                required = "是" if f.get("required", True) else "否"
-                desc = f.get("description", "")
-                lines.append(f"| {name} | {ftype} | {required} | {desc} |")
-            lines.append("")
-
-        if analysis.field_requirements:
-            lines.append("### 字段详细要求")
-            lines.append("")
-            for fname, freq in analysis.field_requirements.items():
-                lines.append(f"**{fname}**: {freq}")
-                lines.append("")
-
-        # Section 5: Examples
-        lines.append("## 五、示例")
-        lines.append("")
-
-        if analysis.examples:
-            for i, example in enumerate(analysis.examples[:3], 1):
-                lines.append(f"### 示例 {i}")
-                lines.append("")
-
-                if example.get("has_image"):
-                    lines.append("**[包含图片]**")
-                    lines.append("")
-
-                if example.get("question"):
-                    lines.append("**题目**:")
-                    lines.append("")
-                    lines.append(f"> {example['question']}")
-                    lines.append("")
-
-                if example.get("answer"):
-                    lines.append(f"**答案**: {example['answer']}")
-                    lines.append("")
-
-                if example.get("scoring_rubric"):
-                    lines.append("**打分标准**:")
-                    lines.append("")
-                    lines.append(f"{example['scoring_rubric']}")
-                    lines.append("")
-
-                lines.append("---")
-                lines.append("")
-        else:
-            # Generate example structure from fields
-            lines.append("（以下为基于字段定义的数据模板，请参考此格式制作实际数据）")
-            lines.append("")
-            if analysis.fields:
-                lines.append("```json")
-                lines.append("{")
-                for j, f in enumerate(analysis.fields):
-                    name = f.get("name", "field")
-                    desc = f.get("description", "")
-                    comma = "," if j < len(analysis.fields) - 1 else ""
-                    lines.append(f'  "{name}": "<{desc}>"{comma}')
-                lines.append("}")
-                lines.append("```")
-                lines.append("")
-            lines.append("---")
-            lines.append("")
-
-        # Section 6: Scoring Rubric
-        if analysis.scoring_rubric:
-            lines.append("## 六、打分标准")
-            lines.append("")
-            lines.append("| 分数 | 标准 |")
-            lines.append("|------|------|")
-            for rubric in analysis.scoring_rubric:
-                score = rubric.get("score", "")
-                criteria = rubric.get("criteria", "")
-                lines.append(f"| {score} | {criteria} |")
-            lines.append("")
-
-        # Section 7: Domain-specific guidance (LLM enhanced)
-        ec = enhanced_context
-        if ec and ec.generated and ec.domain_specific_guidelines:
-            lines.append("## 七、领域标注指导")
-            lines.append("")
-            lines.append(ec.domain_specific_guidelines)
-            lines.append("")
-
-            if ec.quality_pitfalls:
-                lines.append("### 常见错误")
-                lines.append("")
-                for i, pitfall in enumerate(ec.quality_pitfalls, 1):
-                    lines.append(f"{i}. {pitfall}")
-                lines.append("")
-
-            if ec.example_analysis:
-                lines.append("### 样本分析")
-                lines.append("")
-                for ex in ec.example_analysis:
-                    idx = ex.get("sample_index", "?")
-                    lines.append(f"**样本 {idx}**")
-                    lines.append(f"- 优点: {ex.get('strengths', '')}")
-                    lines.append(f"- 改进: {ex.get('weaknesses', '')}")
-                    lines.append(f"- 建议: {ex.get('annotation_tips', '')}")
-                    lines.append("")
-
-        lines.append("---")
-        lines.append("")
-        lines.append("> 本规范由 DataRecipe 从需求文档自动生成")
-
-        # Write file
+        # Markdown
+        md = gen.spec_to_markdown(analysis, enhanced_context=enhanced_context)
         spec_path = os.path.join(output_dir, subdirs["annotation"], "ANNOTATION_SPEC.md")
         with open(spec_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+            f.write(md)
         result.files_generated.append(f"{subdirs['annotation']}/ANNOTATION_SPEC.md")
 
-        # Also save as JSON
-        spec_dict = {
-            "project_name": analysis.project_name,
-            "dataset_type": analysis.dataset_type,
-            "task_type": analysis.task_type,
-            "task_description": analysis.task_description,
-            "cognitive_requirements": analysis.cognitive_requirements,
-            "reasoning_chain": analysis.reasoning_chain,
-            "data_requirements": analysis.data_requirements,
-            "quality_constraints": analysis.quality_constraints,
-            "forbidden_items": analysis.forbidden_items,
-            "difficulty_criteria": analysis.difficulty_criteria,
-            "fields": analysis.fields,
-            "field_requirements": analysis.field_requirements,
-            "examples": analysis.examples,
-            "scoring_rubric": analysis.scoring_rubric,
-        }
+        # JSON
+        spec_dict = gen.spec_to_dict(analysis)
         json_path = os.path.join(output_dir, subdirs["annotation"], "annotation_spec.json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(spec_dict, f, indent=2, ensure_ascii=False)
@@ -388,154 +199,22 @@ class SpecOutputGenerator:
         result: SpecOutputResult,
         enhanced_context=None,
     ):
-        """Generate EXECUTIVE_SUMMARY.md."""
-        # Calculate cost estimates
+        """Generate EXECUTIVE_SUMMARY.md — delegates to ExecutiveSummaryGenerator."""
+        gen = ExecutiveSummaryGenerator()
         cost_per_item = self._estimate_cost_per_item(analysis, region)
-        total_cost = cost_per_item * target_size
-        human_cost = total_cost * (analysis.estimated_human_percentage / 100)
-        api_cost = total_cost - human_cost
 
-        # Determine recommendation
-        if analysis.estimated_difficulty == "expert":
-            recommendation = "有条件推荐"
-            rec_icon = "🟡"
-            score = 5.5
-        elif analysis.estimated_difficulty == "hard":
-            recommendation = "推荐"
-            rec_icon = "🟢"
-            score = 6.5
-        else:
-            recommendation = "强烈推荐"
-            rec_icon = "🟢"
-            score = 7.5
-
-        lines = []
-        lines.append(f"# {analysis.project_name} 执行摘要")
-        lines.append("")
-        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        lines.append(f"> 数据集类型: {analysis.dataset_type}")
-        lines.append(f"> 目标规模: {target_size} 条")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        # Decision box
-        lines.append(f"## {rec_icon} 决策建议: {recommendation}")
-        lines.append("")
-        lines.append(f"**评分**: {score}/10")
-        lines.append("")
-        lines.append(f"**理由**: 数据集价值良好 (评分 {score}/10)，{recommendation}")
-        lines.append("")
-
-        # Key metrics
-        lines.append("### 关键指标")
-        lines.append("")
-        lines.append("| 指标 | 数值 |")
-        lines.append("|------|------|")
-        lines.append(f"| 总成本 | ${total_cost:,.0f} |")
-        lines.append(
-            f"| 人工成本 | ${human_cost:,.0f} ({analysis.estimated_human_percentage:.0f}%) |"
+        # Markdown
+        md = gen.spec_to_markdown(
+            analysis, target_size, region, cost_per_item,
+            enhanced_context=enhanced_context,
         )
-        lines.append(f"| 难度 | {analysis.estimated_difficulty} |")
-        lines.append(f"| 领域 | {analysis.estimated_domain} |")
-        lines.append("")
-
-        # Use cases
-        ec = enhanced_context
-        lines.append("---")
-        lines.append("")
-        lines.append("## 用途与价值")
-        lines.append("")
-        if ec and ec.generated and ec.dataset_purpose_summary:
-            lines.append(f"**主要用途**: {ec.dataset_purpose_summary}")
-        else:
-            lines.append(f"**主要用途**: {analysis.description or analysis.task_description}")
-        lines.append("")
-
-        if ec and ec.generated and ec.tailored_use_cases:
-            lines.append("### 具体应用场景")
-            lines.append("")
-            for i, uc in enumerate(ec.tailored_use_cases, 1):
-                lines.append(f"{i}. {uc}")
-            lines.append("")
-
-        if ec and ec.generated and ec.tailored_roi_scenarios:
-            lines.append("### 投资回报分析")
-            lines.append("")
-            for i, roi in enumerate(ec.tailored_roi_scenarios, 1):
-                lines.append(f"{i}. {roi}")
-            lines.append("")
-
-        if ec and ec.generated and ec.competitive_positioning:
-            lines.append("### 竞争定位")
-            lines.append("")
-            lines.append(ec.competitive_positioning)
-            lines.append("")
-
-        # Risks
-        lines.append("---")
-        lines.append("")
-        lines.append("## 风险评估")
-        lines.append("")
-        lines.append("| 风险等级 | 描述 | 缓解措施 |")
-        lines.append("|----------|------|----------|")
-
-        if ec and ec.generated and ec.tailored_risks:
-            for risk in ec.tailored_risks:
-                level = risk.get("level", "中")
-                desc = risk.get("description", "")
-                mit = risk.get("mitigation", "")
-                lines.append(f"| {level} | {desc} | {mit} |")
-        else:
-            if (
-                "AI" in str(analysis.forbidden_items)
-                or "ai" in str(analysis.forbidden_items).lower()
-            ):
-                lines.append(
-                    "| 高 | 禁止使用AI生成内容，全人工成本高 | 严格审核流程，确保数据原创性 |"
-                )
-
-            if analysis.estimated_difficulty in ["hard", "expert"]:
-                lines.append("| 中 | 难度较高，需要专业人员 | 提前储备人才，加强培训 |")
-
-            if analysis.has_images:
-                lines.append("| 中 | 包含图片，制作成本较高 | 建立图片素材库，规范制作流程 |")
-
-            lines.append("| 低 | 标注质量可能波动 | 建立QA流程，定期校准 |")
-        lines.append("")
-
-        # Similar datasets
-        if analysis.similar_datasets:
-            lines.append("---")
-            lines.append("")
-            lines.append("## 类似数据集")
-            lines.append("")
-            for ds in analysis.similar_datasets:
-                lines.append(f"- {ds}")
-            lines.append("")
-
-        lines.append("---")
-        lines.append("")
-        lines.append("> 本摘要由 DataRecipe 从需求文档自动生成")
-
-        # Write file
         path = os.path.join(output_dir, subdirs["decision"], "EXECUTIVE_SUMMARY.md")
         with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+            f.write(md)
         result.files_generated.append(f"{subdirs['decision']}/EXECUTIVE_SUMMARY.md")
 
-        # Save JSON
-        summary_dict = {
-            "project_name": analysis.project_name,
-            "recommendation": recommendation,
-            "score": score,
-            "total_cost": total_cost,
-            "human_cost": human_cost,
-            "api_cost": api_cost,
-            "human_percentage": analysis.estimated_human_percentage,
-            "difficulty": analysis.estimated_difficulty,
-            "domain": analysis.estimated_domain,
-        }
+        # JSON
+        summary_dict = gen.spec_to_dict(analysis, target_size, cost_per_item)
         json_path = os.path.join(output_dir, subdirs["decision"], "executive_summary.json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(summary_dict, f, indent=2, ensure_ascii=False)
@@ -551,171 +230,20 @@ class SpecOutputGenerator:
         result: SpecOutputResult,
         enhanced_context=None,
     ):
-        """Generate MILESTONE_PLAN.md."""
-        # Estimate duration based on difficulty
-        difficulty_days = {
-            "easy": 14,
-            "medium": 21,
-            "hard": 30,
-            "expert": 45,
-        }
-        total_days = difficulty_days.get(analysis.estimated_difficulty, 30)
+        """Generate MILESTONE_PLAN.md — delegates to MilestonePlanGenerator."""
+        gen = MilestonePlanGenerator()
 
-        lines = []
-        lines.append(f"# {analysis.project_name} 里程碑计划")
-        lines.append("")
-        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        lines.append(f"> 数据集类型: {analysis.dataset_type}")
-        lines.append(f"> 目标规模: {target_size} 条")
-        lines.append(f"> 预估工期: {total_days} 工作日")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-
-        # Progress visualization
-        lines.append("## 项目概览")
-        lines.append("")
-        lines.append("```")
-        lines.append("阶段进度:")
-        lines.append("M1 项目启动与规范制定    ███                  15%")
-        lines.append("M2 试点标注与标准校准    ██                   10%")
-        lines.append("M3 主体标注 - 第一批次  ██████               30%")
-        lines.append("M4 主体标注 - 第二批次  ██████               30%")
-        lines.append("M5 质量审核与交付      ███                  15%")
-        lines.append("```")
-        lines.append("")
-
-        # Team composition
-        lines.append("### 团队配置")
-        lines.append("")
-        lines.append("| 角色 | 人数 | 说明 |")
-        lines.append("|------|------|------|")
-        lines.append("| 项目经理 | 1 | 整体协调 |")
-
-        if analysis.estimated_difficulty in ["hard", "expert"]:
-            lines.append("| 领域专家 | 2-3 | 规则设计、质量把控 |")
-        else:
-            lines.append("| 领域专家 | 1-2 | 规则设计、质量把控 |")
-
-        lines.append("| QA | 1-2 | 质量抽检 |")
-
-        if analysis.has_images:
-            lines.append("| 图片制作 | 2-3 | 原创图片设计 |")
-
-        annotator_count = max(2, target_size // 50)
-        lines.append(f"| 标注员 | {annotator_count}-{annotator_count + 2} | 数据生产 |")
-        lines.append("")
-
-        # Milestones
-        lines.append("---")
-        lines.append("")
-        lines.append("## 里程碑详情")
-        lines.append("")
-
-        milestones = [
-            (
-                "M1",
-                "项目启动与规范制定",
-                "完成项目初始化、制定标注规范和质量标准",
-                ["标注指南文档 v1.0", "Schema 定义与示例", "标注工具配置完成", "团队培训材料"],
-            ),
-            (
-                "M2",
-                "试点标注与标准校准",
-                "完成试点批次，验证标注流程和质量标准",
-                [
-                    f"试点数据 ({max(5, target_size // 20)} 条)",
-                    "标注一致性报告",
-                    "流程问题清单与解决方案",
-                ],
-            ),
-            (
-                "M3",
-                "主体标注 - 第一批次",
-                "完成 40% 的标注量",
-                [f"已标注数据 ({int(target_size * 0.4)} 条)", "质量周报"],
-            ),
-            (
-                "M4",
-                "主体标注 - 第二批次",
-                "完成剩余 60% 的标注量",
-                [f"已标注数据 ({target_size} 条)", "质量周报"],
-            ),
-            (
-                "M5",
-                "质量审核与交付",
-                "完成最终质量审核和数据交付",
-                ["最终数据集", "质量报告", "数据文档"],
-            ),
-        ]
-
-        for mid, name, desc, deliverables in milestones:
-            lines.append(f"### {mid}: {name}")
-            lines.append("")
-            lines.append(f"**描述**: {desc}")
-            lines.append("")
-            lines.append("**交付物**:")
-            for d in deliverables:
-                lines.append(f"- [ ] {d}")
-            lines.append("")
-
-        # Acceptance criteria
-        lines.append("---")
-        lines.append("")
-        lines.append("## 验收标准")
-        lines.append("")
-        lines.append("| 类别 | 指标 | 阈值 |")
-        lines.append("|------|------|------|")
-        lines.append("| 一致性 | Cohen's Kappa | ≥ 0.7 |")
-        lines.append("| 准确性 | 专家审核通过率 | ≥ 95% |")
-        lines.append("| 完整性 | 空值率 | = 0% |")
-
-        if analysis.difficulty_criteria:
-            lines.append(f"| 难度 | {analysis.difficulty_criteria[:30]}... | 通过验证 |")
-
-        lines.append("")
-
-        # Risks
-        lines.append("---")
-        lines.append("")
-        lines.append("## 风险管理")
-        lines.append("")
-
-        if analysis.forbidden_items:
-            lines.append("### R1: 数据合规性风险")
-            lines.append("")
-            lines.append("- **概率**: 🟡 中")
-            lines.append("- **影响**: 🔴 高")
-            lines.append("- **缓解措施**: 严格审核流程，确保不含AI内容")
-            lines.append("")
-
-        lines.append("### R2: 质量不稳定风险")
-        lines.append("")
-        lines.append("- **概率**: 🟡 中")
-        lines.append("- **影响**: 🟡 中")
-        lines.append("- **缓解措施**: 加强培训，定期校准，建立QA流程")
-        lines.append("")
-
-        lines.append("---")
-        lines.append("")
-        lines.append("> 本计划由 DataRecipe 从需求文档自动生成")
-
-        # Write file
+        # Markdown
+        md = gen.spec_to_markdown(
+            analysis, target_size, region, enhanced_context=enhanced_context,
+        )
         path = os.path.join(output_dir, subdirs["project"], "MILESTONE_PLAN.md")
         with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+            f.write(md)
         result.files_generated.append(f"{subdirs['project']}/MILESTONE_PLAN.md")
 
-        # Save JSON
-        plan_dict = {
-            "project_name": analysis.project_name,
-            "target_size": target_size,
-            "total_days": total_days,
-            "milestones": [
-                {"id": mid, "name": name, "description": desc, "deliverables": deliverables}
-                for mid, name, desc, deliverables in milestones
-            ],
-        }
+        # JSON
+        plan_dict = gen.spec_to_dict(analysis, target_size)
         json_path = os.path.join(output_dir, subdirs["project"], "milestone_plan.json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(plan_dict, f, indent=2, ensure_ascii=False)

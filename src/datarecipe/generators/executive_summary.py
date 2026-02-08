@@ -677,3 +677,177 @@ class ExecutiveSummaryGenerator:
             "alternatives": assessment.alternatives,
             "competitive_advantage": assessment.competitive_advantage,
         }
+
+    # ------------------------------------------------------------------
+    # analyze-spec pipeline: generate from SpecificationAnalysis
+    # ------------------------------------------------------------------
+
+    def spec_to_markdown(
+        self,
+        analysis: Any,
+        target_size: int,
+        region: str,
+        cost_per_item: float,
+        enhanced_context: Any = None,
+    ) -> str:
+        """Generate EXECUTIVE_SUMMARY.md from a SpecificationAnalysis object.
+
+        Used by the analyze-spec pipeline (vs to_markdown which is for deep-analyze).
+        """
+        total_cost = cost_per_item * target_size
+        human_cost = total_cost * (analysis.estimated_human_percentage / 100)
+
+        # Determine recommendation
+        if analysis.estimated_difficulty == "expert":
+            recommendation = "有条件推荐"
+            rec_icon = "🟡"
+            score = 5.5
+        elif analysis.estimated_difficulty == "hard":
+            recommendation = "推荐"
+            rec_icon = "🟢"
+            score = 6.5
+        else:
+            recommendation = "强烈推荐"
+            rec_icon = "🟢"
+            score = 7.5
+
+        lines = []
+        lines.append(f"# {analysis.project_name} 执行摘要")
+        lines.append("")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"> 数据集类型: {analysis.dataset_type}")
+        lines.append(f"> 目标规模: {target_size} 条")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # Decision box
+        lines.append(f"## {rec_icon} 决策建议: {recommendation}")
+        lines.append("")
+        lines.append(f"**评分**: {score}/10")
+        lines.append("")
+        lines.append(f"**理由**: 数据集价值良好 (评分 {score}/10)，{recommendation}")
+        lines.append("")
+
+        # Key metrics
+        lines.append("### 关键指标")
+        lines.append("")
+        lines.append("| 指标 | 数值 |")
+        lines.append("|------|------|")
+        lines.append(f"| 总成本 | ${total_cost:,.0f} |")
+        lines.append(
+            f"| 人工成本 | ${human_cost:,.0f} ({analysis.estimated_human_percentage:.0f}%) |"
+        )
+        lines.append(f"| 难度 | {analysis.estimated_difficulty} |")
+        lines.append(f"| 领域 | {analysis.estimated_domain} |")
+        lines.append("")
+
+        # Use cases
+        ec = enhanced_context
+        lines.append("---")
+        lines.append("")
+        lines.append("## 用途与价值")
+        lines.append("")
+        if ec and ec.generated and ec.dataset_purpose_summary:
+            lines.append(f"**主要用途**: {ec.dataset_purpose_summary}")
+        else:
+            lines.append(f"**主要用途**: {analysis.description or analysis.task_description}")
+        lines.append("")
+
+        if ec and ec.generated and ec.tailored_use_cases:
+            lines.append("### 具体应用场景")
+            lines.append("")
+            for i, uc in enumerate(ec.tailored_use_cases, 1):
+                lines.append(f"{i}. {uc}")
+            lines.append("")
+
+        if ec and ec.generated and ec.tailored_roi_scenarios:
+            lines.append("### 投资回报分析")
+            lines.append("")
+            for i, roi in enumerate(ec.tailored_roi_scenarios, 1):
+                lines.append(f"{i}. {roi}")
+            lines.append("")
+
+        if ec and ec.generated and ec.competitive_positioning:
+            lines.append("### 竞争定位")
+            lines.append("")
+            lines.append(ec.competitive_positioning)
+            lines.append("")
+
+        # Risks
+        lines.append("---")
+        lines.append("")
+        lines.append("## 风险评估")
+        lines.append("")
+        lines.append("| 风险等级 | 描述 | 缓解措施 |")
+        lines.append("|----------|------|----------|")
+
+        if ec and ec.generated and ec.tailored_risks:
+            for risk in ec.tailored_risks:
+                level = risk.get("level", "中")
+                desc = risk.get("description", "")
+                mit = risk.get("mitigation", "")
+                lines.append(f"| {level} | {desc} | {mit} |")
+        else:
+            if (
+                "AI" in str(analysis.forbidden_items)
+                or "ai" in str(analysis.forbidden_items).lower()
+            ):
+                lines.append(
+                    "| 高 | 禁止使用AI生成内容，全人工成本高 | 严格审核流程，确保数据原创性 |"
+                )
+
+            if analysis.estimated_difficulty in ["hard", "expert"]:
+                lines.append("| 中 | 难度较高，需要专业人员 | 提前储备人才，加强培训 |")
+
+            if analysis.has_images:
+                lines.append("| 中 | 包含图片，制作成本较高 | 建立图片素材库，规范制作流程 |")
+
+            lines.append("| 低 | 标注质量可能波动 | 建立QA流程，定期校准 |")
+        lines.append("")
+
+        # Similar datasets
+        if analysis.similar_datasets:
+            lines.append("---")
+            lines.append("")
+            lines.append("## 类似数据集")
+            lines.append("")
+            for ds in analysis.similar_datasets:
+                lines.append(f"- {ds}")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+        lines.append("> 本摘要由 DataRecipe 从需求文档自动生成")
+
+        return "\n".join(lines)
+
+    def spec_to_dict(
+        self,
+        analysis: Any,
+        target_size: int,
+        cost_per_item: float,
+    ) -> dict:
+        """Convert SpecificationAnalysis to executive summary dict."""
+        total_cost = cost_per_item * target_size
+        human_cost = total_cost * (analysis.estimated_human_percentage / 100)
+        api_cost = total_cost - human_cost
+
+        if analysis.estimated_difficulty == "expert":
+            recommendation, score = "有条件推荐", 5.5
+        elif analysis.estimated_difficulty == "hard":
+            recommendation, score = "推荐", 6.5
+        else:
+            recommendation, score = "强烈推荐", 7.5
+
+        return {
+            "project_name": analysis.project_name,
+            "recommendation": recommendation,
+            "score": score,
+            "total_cost": total_cost,
+            "human_cost": human_cost,
+            "api_cost": api_cost,
+            "human_percentage": analysis.estimated_human_percentage,
+            "difficulty": analysis.estimated_difficulty,
+            "domain": analysis.estimated_domain,
+        }
