@@ -753,7 +753,7 @@ class AnnotationSpecGenerator:
 
         return "\n".join(lines)
 
-    def to_dict(self, spec: AnnotationSpec) -> dict:
+    def to_dict(self, spec: AnnotationSpec) -> dict[str, Any]:
         """Convert specification to dictionary."""
         return {
             "dataset_id": spec.dataset_id,

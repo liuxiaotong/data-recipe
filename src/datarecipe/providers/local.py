@@ -591,7 +591,26 @@ def main():
     # 加载种子数据或创建初始数据
     seeds = []
 
-    # TODO: 在此添加种子数据加载逻辑
+    # 从 data/ 目录下的 JSON/JSONL 文件加载已有数据作为种子
+    import glob
+    for pattern in ["../data/*.jsonl", "../data/*.json"]:
+        for fpath in glob.glob(pattern):
+            try:
+                with open(fpath, "r", encoding="utf-8") as sf:
+                    if fpath.endswith(".jsonl"):
+                        for line in sf:
+                            if line.strip():
+                                seeds.append(json.loads(line))
+                    else:
+                        data = json.load(sf)
+                        if isinstance(data, list):
+                            seeds.extend(data)
+            except (json.JSONDecodeError, OSError):
+                pass
+
+    if not seeds:
+        # 如果没有已有数据，创建占位种子
+        seeds = [{{"id": i, "content": f"种子样本 {{i}}"}} for i in range(10)]
 
     # 保存种子数据
     with open(OUTPUT_DIR / "seed_data.jsonl", "w", encoding="utf-8") as f:
@@ -648,15 +667,12 @@ def generate_single(client, seed):
     """生成单条数据"""
     prompt = PROMPT_TEMPLATE.format(seed=json.dumps(seed, ensure_ascii=False))
 
-    # TODO: 根据实际使用的 API 修改
-    # response = client.chat.completions.create(
-    #     model=MODEL,
-    #     messages=[{{"role": "user", "content": prompt}}],
-    #     temperature=0.7,
-    # )
-    # return response.choices[0].message.content
-
-    return None
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[{{"role": "user", "content": prompt}}],
+        temperature=0.7,
+    )
+    return response.choices[0].message.content
 
 
 def main():
@@ -671,16 +687,18 @@ def main():
 
     print(f"加载了 {{len(seeds)}} 条种子数据")
 
-    # TODO: 初始化 API 客户端
-    # from openai import OpenAI
-    # client = OpenAI()
+    # 初始化 API 客户端（需要设置 OPENAI_API_KEY 环境变量）
+    from openai import OpenAI
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
 
     generated = []
     for seed in tqdm(seeds, desc="生成中"):
-        # result = generate_single(client, seed)
-        # if result:
-        #     generated.append({{"seed": seed, "generated": result}})
-        pass
+        try:
+            result = generate_single(client, seed)
+            if result:
+                generated.append({{"seed": seed, "generated": result}})
+        except Exception as e:
+            print(f"生成失败: {{e}}")
 
     # 保存结果
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:

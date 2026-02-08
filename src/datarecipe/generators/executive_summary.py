@@ -306,7 +306,7 @@ class ExecutiveSummaryGenerator:
         score: float,
         reproduction_cost: dict[str, float],
         dataset_type: str,
-    ) -> tuple:
+    ) -> tuple[Recommendation, str]:
         """Determine recommendation based on score and factors."""
         total_cost = reproduction_cost.get("total", 0)
 
@@ -340,7 +340,7 @@ class ExecutiveSummaryGenerator:
         reproduction_cost: dict[str, float],
         sample_count: int,
         config: dict,
-    ) -> tuple:
+    ) -> tuple[float, str]:
         """Calculate ROI ratio and explanation."""
         total_cost = reproduction_cost.get("total", 0)
         if total_cost == 0:
@@ -661,7 +661,7 @@ class ExecutiveSummaryGenerator:
 
         return "\n".join(lines)
 
-    def to_dict(self, assessment: ValueAssessment) -> dict:
+    def to_dict(self, assessment: ValueAssessment) -> dict[str, Any]:
         """Convert assessment to dictionary."""
         return {
             "score": assessment.score,

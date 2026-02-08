@@ -1,4 +1,12 @@
-"""Deep analyzer for extracting detailed dataset information from papers and web pages."""
+"""Deep analyzer for extracting detailed dataset information from papers and web pages.
+
+.. deprecated::
+    This module handles URL/paper analysis. For HuggingFace dataset analysis,
+    use :class:`datarecipe.core.deep_analyzer.DeepAnalyzerCore` instead.
+    This module is retained because :mod:`datarecipe.llm_analyzer` depends on
+    :class:`DeepAnalyzer` for web content extraction. A future release will
+    migrate URL analysis into ``datarecipe.core`` and remove this file.
+"""
 
 import re
 from dataclasses import dataclass, field

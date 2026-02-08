@@ -46,7 +46,7 @@ class AnalysisCache:
 
     def __init__(
         self,
-        cache_dir: str = None,
+        cache_dir: Optional[str] = None,
         default_ttl_days: int = 7,
     ):
         """Initialize cache manager.

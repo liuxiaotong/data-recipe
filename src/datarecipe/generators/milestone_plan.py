@@ -817,7 +817,7 @@ class MilestonePlanGenerator:
 
         return "\n".join(lines)
 
-    def to_dict(self, plan: MilestonePlan) -> dict:
+    def to_dict(self, plan: MilestonePlan) -> dict[str, Any]:
         """Convert plan to dictionary."""
         return {
             "dataset_id": plan.dataset_id,
