@@ -6,117 +6,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-# Output directory structure
-OUTPUT_SUBDIRS = {
-    "decision": "01_决策参考",  # Executive summary
-    "project": "02_项目管理",  # Milestone plan, industry benchmark
-    "annotation": "03_标注规范",  # Annotation spec, rubric templates
-    "guide": "04_复刻指南",  # Reproduction guide, analysis report
-    "cost": "05_成本分析",  # Cost breakdown, allocation, token analysis
-    "data": "06_原始数据",  # Raw analysis data
-    "ai_agent": "08_AI_Agent",  # AI Agent layer
-}
-
-
-class OutputManager:
-    """Manage organized output directory structure."""
-
-    def __init__(self, base_dir: str):
-        self.base_dir = base_dir
-        self.subdirs = {}
-        self._create_structure()
-
-    def _create_structure(self):
-        """Create subdirectory structure."""
-        os.makedirs(self.base_dir, exist_ok=True)
-        for key, subdir in OUTPUT_SUBDIRS.items():
-            path = os.path.join(self.base_dir, subdir)
-            os.makedirs(path, exist_ok=True)
-            self.subdirs[key] = path
-
-    def get_path(self, category: str, filename: str) -> str:
-        """Get full path for a file in a category."""
-        if category in self.subdirs:
-            return os.path.join(self.subdirs[category], filename)
-        return os.path.join(self.base_dir, filename)
-
-    def get_relative_path(self, category: str, filename: str) -> str:
-        """Get relative path for display."""
-        if category in self.subdirs:
-            return f"{OUTPUT_SUBDIRS[category]}/{filename}"
-        return filename
-
-    def generate_readme(self, dataset_id: str, dataset_type: str) -> str:
-        """Generate README.md explaining directory structure."""
-        content = f"""# {dataset_id} 分析产出
-
-> 生成时间: {datetime.now().strftime("%Y-%m-%d %H:%M")}
-> 数据类型: {dataset_type}
-
-## 目录结构
-
-```
-{os.path.basename(self.base_dir)}/
-├── README.md                    # 本文件
-├── recipe_summary.json          # 核心摘要 (Radar 兼容)
-│
-├── {OUTPUT_SUBDIRS["decision"]}/           # 👔 决策层
-│   ├── EXECUTIVE_SUMMARY.md     # 执行摘要 (价值评分、ROI)
-│   └── executive_summary.json
-│
-├── {OUTPUT_SUBDIRS["project"]}/           # 📋 项目管理
-│   ├── MILESTONE_PLAN.md        # 里程碑计划 (验收标准)
-│   ├── milestone_plan.json
-│   ├── INDUSTRY_BENCHMARK.md    # 行业基准对比
-│   └── industry_benchmark.json
-│
-├── {OUTPUT_SUBDIRS["annotation"]}/           # 📝 标注团队
-│   ├── ANNOTATION_SPEC.md       # 标注规范 (外包交付用)
-│   ├── annotation_spec.json
-│   ├── rubric_template.md       # 评分标准模板
-│   └── rubric_template.json
-│
-├── {OUTPUT_SUBDIRS["guide"]}/           # 🔧 技术团队
-│   ├── REPRODUCTION_GUIDE.md    # 复刻指南
-│   └── ANALYSIS_REPORT.md       # 分析报告
-│
-├── {OUTPUT_SUBDIRS["cost"]}/           # 💰 成本分析
-│   ├── COST_BREAKDOWN.md        # 成本明细
-│   ├── allocation.json          # 人机分配
-│   ├── phased_cost.json         # 分阶段成本
-│   ├── cost_comparison.json     # 模型成本对比
-│   ├── cost_calibration.json    # 成本校准
-│   └── token_analysis.json      # Token 分析
-│
-├── {OUTPUT_SUBDIRS["data"]}/           # 📊 原始数据
-│   ├── complexity_analysis.json # 复杂度分析
-│   ├── prompt_templates.json    # Prompt 模板
-│   └── ...                      # 其他分析数据
-│
-└── {OUTPUT_SUBDIRS["ai_agent"]}/          # 🤖 AI Agent
-    ├── agent_context.json       # 聚合入口
-    ├── workflow_state.json      # 工作流状态
-    ├── reasoning_traces.json    # 推理链
-    ├── pipeline.yaml            # 可执行流水线
-    └── README.md                # Agent 说明
-```
-
-## 快速导航
-
-| 目标 | 查看文件 |
-|------|----------|
-| **快速决策** | `{OUTPUT_SUBDIRS["decision"]}/EXECUTIVE_SUMMARY.md` |
-| **项目规划** | `{OUTPUT_SUBDIRS["project"]}/MILESTONE_PLAN.md` |
-| **外包标注** | `{OUTPUT_SUBDIRS["annotation"]}/ANNOTATION_SPEC.md` |
-| **技术复刻** | `{OUTPUT_SUBDIRS["guide"]}/REPRODUCTION_GUIDE.md` |
-| **成本预算** | `{OUTPUT_SUBDIRS["cost"]}/COST_BREAKDOWN.md` |
-| **AI Agent** | `{OUTPUT_SUBDIRS["ai_agent"]}/agent_context.json` |
-
----
-
-> 由 DataRecipe 自动生成
-"""
-        return content
+from datarecipe.core.project_layout import (
+    DEFAULT_PROJECTS_DIR,
+    OUTPUT_SUBDIRS,
+    OutputManager,
+    ProjectManifest,
+)
+from datarecipe.core.project_layout import safe_name as _safe_name
 
 
 @dataclass
@@ -170,7 +66,7 @@ class DeepAnalyzerCore:
 
     def __init__(
         self,
-        output_dir: str = "./analysis_output",
+        output_dir: str = DEFAULT_PROJECTS_DIR,
         region: str = "china",
         use_llm: bool = False,
         llm_provider: str = "anthropic",
@@ -211,9 +107,11 @@ class DeepAnalyzerCore:
             from datarecipe.integrations.radar import RadarIntegration
 
             # Create output directory with organized structure
-            safe_name = dataset_id.replace("/", "_").replace("\\", "_").replace(":", "_")
-            dataset_output_dir = os.path.join(self.output_dir, safe_name)
-            output_mgr = OutputManager(dataset_output_dir)
+            dataset_output_dir = os.path.join(self.output_dir, _safe_name(dataset_id))
+            output_mgr = OutputManager(
+                dataset_output_dir,
+                subdirs=["decision", "project", "annotation", "guide", "cost", "data", "ai_agent"],
+            )
             result.output_dir = dataset_output_dir
 
             # Auto-detect split
@@ -1006,7 +904,9 @@ class DeepAnalyzerCore:
             RadarIntegration.save_summary(summary, dataset_output_dir)
             result.files_generated.append("recipe_summary.json")
 
-            # Generate README.md for directory navigation
+            # Update project manifest and generate README
+            manifest = ProjectManifest(dataset_output_dir)
+            manifest.record_command("deep-analyze")
             readme_content = output_mgr.generate_readme(dataset_id, detected_type or "unknown")
             with open(os.path.join(dataset_output_dir, "README.md"), "w", encoding="utf-8") as f:
                 f.write(readme_content)

@@ -57,7 +57,7 @@ class RadarWatcher:
     def __init__(
         self,
         watch_dir: str,
-        output_dir: str = "./analysis_output",
+        output_dir: str = "./projects",
         config: TriggerConfig = None,
         callback: Callable[[str, dict], None] = None,
     ):

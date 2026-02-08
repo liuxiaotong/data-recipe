@@ -63,7 +63,7 @@ class IntegratedReportGenerator:
     def __init__(
         self,
         radar_reports_dir: str = None,
-        recipe_output_dir: str = "./analysis_output",
+        recipe_output_dir: str = "./projects",
     ):
         """Initialize generator.
 

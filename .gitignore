@@ -165,8 +165,10 @@ recipes/
 projects/
 examples/
 
-# Generated analysis output
-analysis_output/
+# Legacy output directories (统一到 projects/ 后保留忽略)
+/analysis_output/
+/spec_output/
+/reports/
 
 # ===================
 # Supplemented common patterns

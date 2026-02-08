@@ -50,20 +50,20 @@ pip install knowlyr-datarecipe[all]      # 全部
 
 ```bash
 # 基础分析 (纯本地，无需 API key)
-knowlyr-datarecipe deep-analyze tencent/CL-bench -o ./output
+knowlyr-datarecipe deep-analyze tencent/CL-bench
 
 # 启用 LLM 增强 (在 Claude Code/App 中运行，自动利用宿主 LLM)
-knowlyr-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm
+knowlyr-datarecipe deep-analyze tencent/CL-bench --use-llm
 
 # 独立运行时用 API
-knowlyr-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm --enhance-mode api
+knowlyr-datarecipe deep-analyze tencent/CL-bench --use-llm --enhance-mode api
 ```
 
 ### 分析需求文档
 
 ```bash
 # API 模式 (需要 ANTHROPIC_API_KEY)
-knowlyr-datarecipe analyze-spec requirements.pdf -o ./output
+knowlyr-datarecipe analyze-spec requirements.pdf
 
 # 交互模式 (在 Claude Code 中使用，无需 API key)
 knowlyr-datarecipe analyze-spec requirements.pdf --interactive
@@ -87,6 +87,7 @@ knowlyr-datarecipe analyze-spec requirements.pdf --from-json analysis.json
 ✓ 人机分配: 人工 84%, 机器 16%
 ✓ LLM 增强完成
 
+输出目录: ./projects/tencent_CL-bench/
 生成文件: 29 个
   📄 01_决策参考/EXECUTIVE_SUMMARY.md
   📋 02_项目管理/MILESTONE_PLAN.md
@@ -149,37 +150,52 @@ ctx = enhancer.enhance_from_json("enhanced_context.json")
 
 ## 输出结构
 
+所有命令（`deep-analyze`、`analyze-spec`、`deploy`、`integrate-report`）的产出统一到 `projects/` 下，一个数据集 = 一个项目文件夹：
+
 ```
-output/项目名/
-├── 01_决策参考/
-│   └── EXECUTIVE_SUMMARY.md        # 评分 + ROI + 风险 + 竞争定位
-├── 02_项目管理/
-│   ├── MILESTONE_PLAN.md           # 里程碑 + 验收标准 + 风险管理
-│   └── INDUSTRY_BENCHMARK.md       # 行业基准对比
-├── 03_标注规范/
-│   ├── ANNOTATION_SPEC.md          # 标注规范 + 领域指导
-│   ├── TRAINING_GUIDE.md           # 标注员培训手册
-│   └── QA_CHECKLIST.md             # 质检清单
-├── 04_复刻指南/
-│   ├── REPRODUCTION_GUIDE.md       # 复刻策略 + 团队配置
-│   ├── PRODUCTION_SOP.md           # 生产 SOP
-│   ├── ANALYSIS_REPORT.md          # 分析报告
-│   └── DATA_SCHEMA.json            # 数据格式定义
-├── 05_成本分析/
-│   └── COST_BREAKDOWN.md           # 分阶段成本明细
-├── 06_原始数据/
-│   ├── enhanced_context.json       # LLM 增强上下文 (可复用)
-│   └── *.json                      # 分析原始数据
-├── 07_模板/
-│   └── data_template.json          # 数据录入模板
-├── 08_AI_Agent/
-│   ├── agent_context.json          # 聚合上下文入口
-│   ├── workflow_state.json         # 工作流状态
-│   ├── reasoning_traces.json       # 推理链
-│   └── pipeline.yaml               # 可执行流水线
-└── 09_样例数据/
-    ├── samples.json                # 样例数据 (最多50条)
-    └── SAMPLE_GUIDE.md             # 样例指南 + 自动化评估
+projects/{数据集名}/
+├── README.md                        # 自动生成的导航枢纽
+├── recipe_summary.json              # 核心摘要 (Radar 兼容)
+├── .project_manifest.json           # 记录已执行的命令和时间戳
+│
+├── 01_决策参考/                      # deep-analyze / analyze-spec
+│   └── EXECUTIVE_SUMMARY.md         # 评分 + ROI + 风险 + 竞争定位
+├── 02_项目管理/                      # deep-analyze / analyze-spec
+│   ├── MILESTONE_PLAN.md            # 里程碑 + 验收标准 + 风险管理
+│   └── INDUSTRY_BENCHMARK.md        # 行业基准对比
+├── 03_标注规范/                      # deep-analyze / analyze-spec
+│   ├── ANNOTATION_SPEC.md           # 标注规范 + 领域指导
+│   ├── TRAINING_GUIDE.md            # 标注员培训手册
+│   └── QA_CHECKLIST.md              # 质检清单
+├── 04_复刻指南/                      # deep-analyze / analyze-spec
+│   ├── REPRODUCTION_GUIDE.md        # 复刻策略 + 团队配置
+│   ├── PRODUCTION_SOP.md            # 生产 SOP
+│   ├── ANALYSIS_REPORT.md           # 分析报告
+│   └── DATA_SCHEMA.json             # 数据格式定义
+├── 05_成本分析/                      # deep-analyze / analyze-spec
+│   └── COST_BREAKDOWN.md            # 分阶段成本明细
+├── 06_原始数据/                      # deep-analyze / analyze-spec
+│   ├── enhanced_context.json        # LLM 增强上下文 (可复用)
+│   └── *.json                       # 分析原始数据
+├── 07_模板/                          # analyze-spec
+│   └── data_template.json           # 数据录入模板
+├── 08_AI_Agent/                      # deep-analyze / analyze-spec
+│   ├── agent_context.json           # 聚合上下文入口
+│   ├── workflow_state.json          # 工作流状态
+│   ├── reasoning_traces.json        # 推理链
+│   └── pipeline.yaml                # 可执行流水线
+├── 09_样例数据/                      # analyze-spec
+│   ├── samples.json                 # 样例数据 (最多50条)
+│   └── SAMPLE_GUIDE.md              # 样例指南 + 自动化评估
+├── 10_生产部署/                      # deploy
+│   ├── recipe.yaml                  # 数据配方
+│   ├── annotation_guide.md          # 标注指南
+│   ├── quality_rules.yaml/.md       # 质检规则
+│   ├── acceptance_criteria.yaml/.md # 验收标准
+│   ├── timeline.md                  # 项目时间线
+│   └── scripts/                     # 自动化脚本
+└── 11_综合报告/                      # integrate-report
+    └── weekly_report_*.md           # Radar + Recipe 综合报告
 ```
 
 ### 双重格式输出
@@ -251,10 +267,10 @@ DataRecipe (分析) → DataLabel (标注) → DataSynth (合成) → DataCheck 
 
 ```bash
 # 端到端工作流
-knowlyr-datarecipe deep-analyze tencent/CL-bench -o ./output --use-llm  # 分析
-knowlyr-datalabel generate ./output/tencent_CL-bench/                    # 标注
-knowlyr-datasynth generate ./output/tencent_CL-bench/ -n 1000            # 合成
-knowlyr-datacheck validate ./output/tencent_CL-bench/                    # 质检
+knowlyr-datarecipe deep-analyze tencent/CL-bench --use-llm      # 分析
+knowlyr-datalabel generate ./projects/tencent_CL-bench/          # 标注
+knowlyr-datasynth generate ./projects/tencent_CL-bench/ -n 1000  # 合成
+knowlyr-datacheck validate ./projects/tencent_CL-bench/          # 质检
 ```
 
 ---
@@ -272,6 +288,8 @@ knowlyr-datacheck validate ./output/tencent_CL-bench/                    # 质�
 | `analyze <dataset>` | 快速分析 |
 | `profile <dataset>` | 标注员画像 + 成本估算 |
 | `extract-rubrics <dataset>` | 提取评分标准 |
+| `deploy <dataset>` | 生成生产部署配置 |
+| `integrate-report` | 生成 Radar + Recipe 综合报告 |
 | `batch-from-radar <report>` | 从 Radar 报告批量分析 |
 
 ---
@@ -281,7 +299,8 @@ knowlyr-datacheck validate ./output/tencent_CL-bench/                    # 质�
 ```
 src/datarecipe/
 ├── core/
-│   └── deep_analyzer.py            # 深度分析引擎
+│   ├── deep_analyzer.py            # 深度分析引擎
+│   └── project_layout.py           # 统一输出目录布局
 ├── analyzers/
 │   ├── spec_analyzer.py            # 需求文档分析 (LLM 提取)
 │   └── llm_dataset_analyzer.py     # 数据集智能分析

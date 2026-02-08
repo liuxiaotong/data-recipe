@@ -7,6 +7,13 @@ from datetime import datetime
 from typing import Any, Optional
 
 from datarecipe.analyzers.spec_analyzer import FieldDefinition, SpecificationAnalysis
+from datarecipe.core.project_layout import (
+    DEFAULT_PROJECTS_DIR,
+    OUTPUT_SUBDIRS,
+    OutputManager,
+    ProjectManifest,
+)
+from datarecipe.core.project_layout import safe_name as _safe_name
 from datarecipe.task_profiles import get_task_profile
 
 
@@ -23,7 +30,7 @@ class SpecOutputResult:
 class SpecOutputGenerator:
     """Generate all output documents from specification analysis."""
 
-    def __init__(self, output_dir: str = "./spec_output"):
+    def __init__(self, output_dir: str = DEFAULT_PROJECTS_DIR):
         self.output_dir = output_dir
 
     def generate(
@@ -51,23 +58,15 @@ class SpecOutputGenerator:
 
             # Create output directory with structure
             project_name = analysis.project_name or "spec_analysis"
-            safe_name = project_name.replace("/", "_").replace(" ", "_")
-            output_dir = os.path.join(self.output_dir, safe_name)
+            output_dir = os.path.join(self.output_dir, _safe_name(project_name))
 
-            # Create subdirectories
-            subdirs = {
-                "decision": "01_决策参考",
-                "project": "02_项目管理",
-                "annotation": "03_标注规范",
-                "guide": "04_复刻指南",
-                "cost": "05_成本分析",
-                "data": "06_原始数据",
-                "templates": "07_模板",
-                "ai_agent": "08_AI_Agent",
-                "samples": "09_样例数据",
-            }
-            for _key, subdir in subdirs.items():
-                os.makedirs(os.path.join(output_dir, subdir), exist_ok=True)
+            # Create subdirectories (analyze-spec uses these categories)
+            spec_keys = [
+                "decision", "project", "annotation", "guide",
+                "cost", "data", "templates", "ai_agent", "samples",
+            ]
+            output_mgr = OutputManager(output_dir, subdirs=spec_keys)
+            subdirs = OUTPUT_SUBDIRS
 
             result.output_dir = output_dir
 
@@ -125,7 +124,15 @@ class SpecOutputGenerator:
             # Generate sample data
             self._generate_think_po_samples(analysis, output_dir, subdirs, target_size, result)
 
-            self._generate_readme(analysis, output_dir, subdirs, result)
+            # Update project manifest and generate README
+            manifest = ProjectManifest(output_dir)
+            manifest.record_command("analyze-spec")
+            readme_content = output_mgr.generate_readme(
+                project_name, analysis.dataset_type or ""
+            )
+            with open(os.path.join(output_dir, "README.md"), "w", encoding="utf-8") as f:
+                f.write(readme_content)
+            result.files_generated.append("README.md")
 
         except Exception as e:
             result.success = False
@@ -913,88 +920,6 @@ class SpecOutputGenerator:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(analysis.to_dict(), f, indent=2, ensure_ascii=False)
         result.files_generated.append(f"{subdirs['data']}/spec_analysis.json")
-
-    def _generate_readme(
-        self,
-        analysis: SpecificationAnalysis,
-        output_dir: str,
-        subdirs: dict,
-        result: SpecOutputResult,
-    ):
-        """Generate README.md."""
-        lines = []
-        lines.append(f"# {analysis.project_name} 分析产出")
-        lines.append("")
-        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-        lines.append(f"> 数据类型: {analysis.dataset_type}")
-        lines.append("> 来源: 需求文档分析")
-        lines.append("")
-        lines.append("## 目录结构")
-        lines.append("")
-        lines.append("```")
-        lines.append(f"{os.path.basename(output_dir)}/")
-        lines.append("├── README.md                    # 本文件")
-        lines.append("│")
-        lines.append(f"├── {subdirs['decision']}/           # 👔 决策层")
-        lines.append("│   └── EXECUTIVE_SUMMARY.md     # 执行摘要")
-        lines.append("│")
-        lines.append(f"├── {subdirs['project']}/           # 📋 项目管理")
-        lines.append("│   ├── MILESTONE_PLAN.md        # 里程碑计划")
-        lines.append("│   └── INDUSTRY_BENCHMARK.md    # 行业基准")
-        lines.append("│")
-        lines.append(f"├── {subdirs['annotation']}/           # 📝 标注团队")
-        lines.append("│   ├── ANNOTATION_SPEC.md       # 标注规范")
-        lines.append("│   ├── TRAINING_GUIDE.md        # 培训手册")
-        lines.append("│   └── QA_CHECKLIST.md          # 质检清单")
-        lines.append("│")
-        lines.append(f"├── {subdirs['guide']}/           # 📖 复刻指南")
-        lines.append("│   ├── PRODUCTION_SOP.md        # 生产流程")
-        lines.append("│   ├── DATA_SCHEMA.json         # 数据格式")
-        if analysis.has_difficulty_validation():
-            lines.append("│   └── DIFFICULTY_VALIDATION.md # 难度验证")
-        lines.append("│")
-        lines.append(f"├── {subdirs['cost']}/           # 💰 成本分析")
-        lines.append("│   └── COST_BREAKDOWN.md        # 成本明细")
-        lines.append("│")
-        lines.append(f"├── {subdirs['templates']}/              # 📋 模板")
-        lines.append("│   └── data_template.json       # 数据模板")
-        lines.append("│")
-        lines.append(f"├── {subdirs['data']}/           # 📊 原始数据")
-        lines.append("│   └── spec_analysis.json       # 分析数据")
-        lines.append("│")
-        lines.append(f"├── {subdirs['ai_agent']}/            # 🤖 AI Agent")
-        lines.append("│   ├── agent_context.json       # 聚合入口")
-        lines.append("│   ├── workflow_state.json      # 工作流状态")
-        lines.append("│   ├── reasoning_traces.json    # 推理链")
-        lines.append("│   └── pipeline.yaml            # 可执行流水线")
-        lines.append("│")
-        lines.append(f"└── {subdirs['samples']}/           # 🧪 样例数据")
-        lines.append("    ├── samples.json             # 样例数据")
-        lines.append("    └── SAMPLE_GUIDE.md          # 样例指南")
-        lines.append("```")
-        lines.append("")
-        lines.append("## 快速导航")
-        lines.append("")
-        lines.append("| 目标 | 查看文件 |")
-        lines.append("|------|----------|")
-        lines.append(f"| **快速决策** | `{subdirs['decision']}/EXECUTIVE_SUMMARY.md` |")
-        lines.append(f"| **项目规划** | `{subdirs['project']}/MILESTONE_PLAN.md` |")
-        lines.append(f"| **标注外包** | `{subdirs['annotation']}/ANNOTATION_SPEC.md` |")
-        lines.append(f"| **标注培训** | `{subdirs['annotation']}/TRAINING_GUIDE.md` |")
-        lines.append(f"| **生产流程** | `{subdirs['guide']}/PRODUCTION_SOP.md` |")
-        lines.append(f"| **数据模板** | `{subdirs['templates']}/data_template.json` |")
-        lines.append(f"| **成本预算** | `{subdirs['cost']}/COST_BREAKDOWN.md` |")
-        lines.append(f"| **AI Agent** | `{subdirs['ai_agent']}/agent_context.json` |")
-        lines.append(f"| **样例数据** | `{subdirs['samples']}/SAMPLE_GUIDE.md` |")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-        lines.append("> 由 DataRecipe analyze-spec 命令生成")
-
-        path = os.path.join(output_dir, "README.md")
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
-        result.files_generated.append("README.md")
 
     def _generate_training_guide(
         self,

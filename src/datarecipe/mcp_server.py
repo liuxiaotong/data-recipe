@@ -72,7 +72,7 @@ def create_server() -> "Server":
                         "output_dir": {
                             "type": "string",
                             "description": "Output directory path",
-                            "default": "./spec_output",
+                            "default": "./projects",
                         },
                         "target_size": {
                             "type": "integer",
@@ -105,7 +105,7 @@ def create_server() -> "Server":
                         "output_dir": {
                             "type": "string",
                             "description": "Output directory path",
-                            "default": "./analysis_output",
+                            "default": "./projects",
                         },
                         "sample_size": {
                             "type": "integer",
@@ -296,7 +296,7 @@ async def _generate_spec_output(arguments: dict[str, Any]) -> list[TextContent]:
     if not analysis_json:
         return [TextContent(type="text", text="Error: analysis_json is required")]
 
-    output_dir = arguments.get("output_dir", "./spec_output")
+    output_dir = arguments.get("output_dir", "./projects")
     target_size = arguments.get("target_size", 100)
     region = arguments.get("region", "china")
     file_path = arguments.get("file_path")
@@ -353,7 +353,7 @@ async def _analyze_huggingface_dataset(arguments: dict[str, Any]) -> list[TextCo
     if not dataset_id:
         return [TextContent(type="text", text="Error: dataset_id is required")]
 
-    output_dir = arguments.get("output_dir", "./analysis_output")
+    output_dir = arguments.get("output_dir", "./projects")
     sample_size = arguments.get("sample_size", 500)
     target_size = arguments.get("target_size")
     region = arguments.get("region", "china")

@@ -9,6 +9,11 @@ from typing import Optional
 
 import yaml
 
+from datarecipe.core.project_layout import (
+    OUTPUT_SUBDIRS,
+    OutputManager,
+    ProjectManifest,
+)
 from datarecipe.schema import (
     AnnotatorMatch,
     AnnotatorProfile,
@@ -76,7 +81,11 @@ class LocalFilesProvider:
         Returns:
             ProjectHandle 项目句柄
         """
-        output_path = Path(output_dir)
+        project_root = Path(output_dir)
+        project_root.mkdir(parents=True, exist_ok=True)
+
+        # Write deploy files into 10_生产部署/ subdirectory
+        output_path = project_root / OUTPUT_SUBDIRS["deploy"]
         output_path.mkdir(parents=True, exist_ok=True)
 
         files_created = []
@@ -165,13 +174,20 @@ class LocalFilesProvider:
         script_files = self._generate_scripts(recipe, scripts_dir)
         files_created.extend(script_files)
 
+        # Update project manifest and regenerate root README
+        manifest = ProjectManifest(str(project_root))
+        manifest.record_command("deploy")
+        output_mgr = OutputManager(str(project_root), subdirs=[])
+        readme_content = output_mgr.generate_readme(project_root.name)
+        (project_root / "README.md").write_text(readme_content, encoding="utf-8")
+
         return ProjectHandle(
             project_id=f"local_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             provider="local",
             created_at=datetime.now().isoformat(),
             status="created",
             metadata={
-                "output_dir": str(output_path),
+                "output_dir": str(project_root),
                 "files_created": files_created,
             },
         )

@@ -1152,7 +1152,7 @@ def deploy(dataset_id: str, output: str, provider: str, region: str, submit: boo
 
     DATASET_ID is the identifier of the dataset to analyze.
 
-    If --output is not specified, files are saved to ./projects/<dataset_name>/
+    If --output is not specified, files are saved to ./projects/<dataset_name>/10_生产部署/
     """
     from datarecipe.deployer import ProductionDeployer
     from datarecipe.profiler import AnnotatorProfiler
@@ -1727,7 +1727,7 @@ def generate(gen_type: str, count: int, context: str, output: str):
 
 @main.command("deep-analyze")
 @click.argument("dataset_id")
-@click.option("--output-dir", "-o", default="./analysis_output", help="Output directory")
+@click.option("--output-dir", "-o", default="./projects", help="Output directory")
 @click.option("--sample-size", "-n", default=500, help="Number of samples to analyze")
 @click.option(
     "--size", "-s", default=None, type=int, help="Target dataset size (for cost estimation)"
@@ -2797,7 +2797,7 @@ def _generate_reproduction_guide(
 
 @main.command("batch-from-radar")
 @click.argument("radar_report")
-@click.option("--output-dir", "-o", default="./analysis_output", help="Output directory")
+@click.option("--output-dir", "-o", default="./projects", help="Output directory")
 @click.option("--sample-size", "-n", default=200, help="Number of samples per dataset")
 @click.option("--limit", "-l", default=0, type=int, help="Max datasets to analyze (0 = all)")
 @click.option("--orgs", help="Filter by orgs (comma-separated)")
@@ -3112,7 +3112,7 @@ def batch_from_radar(
 @main.command("integrate-report")
 @click.option("--radar-report", "-r", help="Path to Radar intel report JSON")
 @click.option("--output-dir", "-o", default="./reports", help="Output directory")
-@click.option("--recipe-dir", default="./analysis_output", help="Recipe analysis directory")
+@click.option("--recipe-dir", default="./projects", help="Recipe analysis directory")
 @click.option("--start-date", help="Period start date (YYYY-MM-DD)")
 @click.option("--end-date", help="Period end date (YYYY-MM-DD)")
 @click.option(
@@ -3131,7 +3131,7 @@ def integrate_report(
 
     Example:
         datarecipe integrate-report -r ./intel_report.json -o ./reports
-        datarecipe integrate-report --recipe-dir ./analysis_output
+        datarecipe integrate-report --recipe-dir ./projects
     """
     from datarecipe.reports import IntegratedReportGenerator
 
@@ -3171,7 +3171,7 @@ def integrate_report(
 
 @main.command("watch")
 @click.argument("watch_dir")
-@click.option("--output-dir", "-o", default="./analysis_output", help="Output directory")
+@click.option("--output-dir", "-o", default="./projects", help="Output directory")
 @click.option("--interval", "-i", default=60, type=int, help="Check interval in seconds")
 @click.option("--config", "-c", help="Path to trigger config YAML")
 @click.option("--orgs", help="Filter by orgs (comma-separated)")
@@ -3447,7 +3447,7 @@ def knowledge_cmd(
 
 @main.command("analyze-spec")
 @click.argument("file_path", type=click.Path(exists=True), required=False)
-@click.option("--output-dir", "-o", default="./spec_output", help="Output directory")
+@click.option("--output-dir", "-o", default="./projects", help="Output directory")
 @click.option(
     "--size", "-s", default=100, type=int, help="Target dataset size (for cost estimation)"
 )

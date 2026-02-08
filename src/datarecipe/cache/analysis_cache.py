@@ -340,7 +340,9 @@ class AnalysisCache:
         for fname in os.listdir(entry.output_dir):
             src = os.path.join(entry.output_dir, fname)
             dst = os.path.join(output_dir, fname)
-            if os.path.isfile(src):
+            if os.path.isdir(src):
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+            elif os.path.isfile(src):
                 shutil.copy2(src, dst)
 
         return True
