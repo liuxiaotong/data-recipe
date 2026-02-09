@@ -959,6 +959,7 @@ class TestAnalyzeOrchestrator(unittest.TestCase):
             "datasets": MagicMock(
                 load_dataset=MagicMock(side_effect=ValueError("Cannot load")),
                 get_dataset_config_names=MagicMock(side_effect=Exception("Not found")),
+                get_dataset_split_names=MagicMock(side_effect=Exception("Not found")),
             ),
         }):
             result = self.core.analyze("nonexistent/dataset")
@@ -1044,6 +1045,7 @@ class TestAnalyzeOrchestratorSimplified(unittest.TestCase):
             "datasets": MagicMock(
                 load_dataset=mock_load,
                 get_dataset_config_names=MagicMock(return_value=[]),
+                get_dataset_split_names=MagicMock(return_value=[]),
             ),
         }):
             result = core.analyze("test/dataset")

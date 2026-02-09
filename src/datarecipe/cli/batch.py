@@ -146,16 +146,52 @@ def batch_from_radar(
             dataset_output_dir = os.path.join(output_dir, safe_name)
             os.makedirs(dataset_output_dir, exist_ok=True)
 
-            # Load dataset
+            # Load dataset with config detection and multi-split fallback
             console.print("[dim]  📥 加载数据...[/dim]")
+
+            def _try_load(ds_id, config=None, split_name=None):
+                kwargs = {"streaming": True}
+                if config:
+                    kwargs["name"] = config
+                if split_name:
+                    kwargs["split"] = split_name
+                return load_dataset(ds_id, **kwargs)
+
+            # Detect available configs
+            detected_config = None
             try:
-                dataset = load_dataset(ds.id, split="train", streaming=True)
-            except ValueError:
-                # Try test split
+                from datasets import get_dataset_config_names
+                configs = get_dataset_config_names(ds.id)
+                if configs and len(configs) > 0:
+                    detected_config = "default" if "default" in configs else configs[0]
+            except Exception:
+                pass
+
+            # Try splits: train → test → validation → dev → auto-discover
+            dataset = None
+            for try_split in ["train", "test", "validation", "dev"]:
                 try:
-                    dataset = load_dataset(ds.id, split="test", streaming=True)
+                    dataset = _try_load(ds.id, config=detected_config, split_name=try_split)
+                    break
+                except (ValueError, Exception):
+                    continue
+
+            # Fallback: discover available splits and use the first one
+            if dataset is None:
+                try:
+                    from datasets import get_dataset_split_names
+                    available = get_dataset_split_names(
+                        ds.id, config_name=detected_config,
+                    )
+                    if available:
+                        dataset = _try_load(
+                            ds.id, config=detected_config, split_name=available[0],
+                        )
                 except Exception:
-                    raise ValueError("无法找到可用的 split")
+                    pass
+
+            if dataset is None:
+                raise ValueError("无法找到可用的 split")
 
             # Collect samples
             schema_info = {}

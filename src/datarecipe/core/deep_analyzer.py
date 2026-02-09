@@ -170,7 +170,19 @@ class DeepAnalyzerCore:
                             except (ValueError, Exception):
                                 continue
                         else:
-                            raise ValueError("Cannot find available split")
+                            # Fallback: discover available splits and use the first one
+                            try:
+                                from datasets import get_dataset_split_names
+                                available = get_dataset_split_names(
+                                    dataset_id, config_name=detected_config,
+                                )
+                                if available:
+                                    ds = _try_load(dataset_id, config=detected_config, split_name=available[0])
+                                    split = available[0]
+                                else:
+                                    raise ValueError("Cannot find available split")
+                            except Exception:
+                                raise ValueError("Cannot find available split")
                 else:
                     ds = _try_load(dataset_id, config=detected_config, split_name=split)
 
