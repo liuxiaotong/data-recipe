@@ -400,11 +400,27 @@ def batch(dataset_ids: tuple, file: str, parallel: int, output: str, fmt: str):
     help="Output format",
 )
 @click.option("--include-quality", is_flag=True, help="Include quality analysis (slower)")
+@click.option("--similarity", is_flag=True, help="Include pairwise similarity scoring")
+@click.option("--schema", "include_schema", is_flag=True, help="Include schema comparison")
 @click.option("--output", "-o", type=click.Path(), help="Output file")
-def compare(dataset_ids: tuple, fmt: str, include_quality: bool, output: str):
+def compare(
+    dataset_ids: tuple,
+    fmt: str,
+    include_quality: bool,
+    similarity: bool,
+    include_schema: bool,
+    output: str,
+):
     """Compare multiple datasets side by side.
 
     DATASET_IDS are 2 or more dataset identifiers to compare.
+    Supports HuggingFace IDs and local file paths.
+
+    Examples:
+        datarecipe compare ds1 ds2
+        datarecipe compare ds1 ds2 --similarity
+        datarecipe compare ./a.csv ./b.csv --schema
+        datarecipe compare ds1 ds2 --similarity --schema --format markdown
     """
     from datarecipe.comparator import DatasetComparator
 
@@ -412,7 +428,11 @@ def compare(dataset_ids: tuple, fmt: str, include_quality: bool, output: str):
         console.print("[red]Error:[/red] Please provide at least 2 datasets to compare")
         sys.exit(1)
 
-    comparator = DatasetComparator(include_quality=include_quality)
+    comparator = DatasetComparator(
+        include_quality=include_quality,
+        include_similarity=similarity,
+        include_schema=include_schema,
+    )
 
     with console.status(f"[cyan]Comparing {len(dataset_ids)} datasets...[/cyan]"):
         try:
@@ -433,6 +453,12 @@ def compare(dataset_ids: tuple, fmt: str, include_quality: bool, output: str):
         console.print(f"[green]Report saved to {output}[/green]")
     else:
         print(content)
+
+    # Show similarity summary
+    if similarity and report.similarity_results and fmt == "table":
+        console.print("\n[bold cyan]Similarity Scores:[/bold cyan]")
+        for sr in report.similarity_results:
+            console.print(f"  {sr.dataset_a} vs {sr.dataset_b}: {sr.overall_score:.2f}")
 
     # Show recommendations
     if report.recommendations and fmt == "table":

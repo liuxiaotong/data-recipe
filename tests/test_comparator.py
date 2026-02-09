@@ -1093,5 +1093,550 @@ class TestEdgeCases(unittest.TestCase):
         self.assertIn("N/A", md)
 
 
+# ==================== Similarity scoring tests ====================
+
+
+from datarecipe.comparator import (
+    FieldDiff,
+    SchemaComparison,
+    SimilarityBreakdown,
+    SimilarityResult,
+    SimilarityWeights,
+)
+
+
+class TestSimilarityWeights(unittest.TestCase):
+
+    def test_default_weights_sum_to_one(self):
+        w = SimilarityWeights()
+        total = (w.schema_overlap + w.size_ratio + w.generation_type
+                 + w.quality_profile + w.tag_overlap + w.cost_ratio)
+        self.assertAlmostEqual(total, 1.0, places=2)
+
+    def test_validate_success(self):
+        w = SimilarityWeights()
+        w.validate()  # should not raise
+
+    def test_validate_failure(self):
+        w = SimilarityWeights(schema_overlap=0.5)  # sum > 1
+        with self.assertRaises(ValueError):
+            w.validate()
+
+
+class TestSimilarityScore(unittest.TestCase):
+
+    def _make_comparator(self):
+        with patch.object(DatasetComparator, "__init__", lambda s, **kw: None):
+            comp = DatasetComparator()
+        return comp
+
+    def test_identical_datasets_score_near_1(self):
+        comp = self._make_comparator()
+        r = _make_recipe("ds", num_examples=10000, synthetic_ratio=0.5)
+        q = _make_quality(overall=75)
+        c = _make_cost()
+        m = _make_metric("ds", recipe=r, cost=c, quality=q)
+        m.data_schema = {"text": "str", "label": "str"}
+        result = comp.compute_similarity(m, m)
+        self.assertAlmostEqual(result.overall_score, 1.0, places=2)
+
+    def test_schema_jaccard_identical(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {"text": "str", "label": "str"}
+        m2.data_schema = {"text": "str", "label": "str"}
+        self.assertAlmostEqual(comp._schema_jaccard(m1, m2), 1.0)
+
+    def test_schema_jaccard_disjoint(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {"a": "str"}
+        m2.data_schema = {"b": "str"}
+        self.assertAlmostEqual(comp._schema_jaccard(m1, m2), 0.0)
+
+    def test_schema_jaccard_partial(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {"text": "str", "label": "str"}
+        m2.data_schema = {"text": "str", "other": "int"}
+        # intersection=1, union=3 → 1/3
+        self.assertAlmostEqual(comp._schema_jaccard(m1, m2), 1 / 3, places=4)
+
+    def test_schema_jaccard_none_returns_neutral(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = None
+        m2.data_schema = {"text": "str"}
+        self.assertAlmostEqual(comp._schema_jaccard(m1, m2), 0.5)
+
+    def test_size_similarity_identical(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a", recipe=_make_recipe(num_examples=10000))
+        m2 = _make_metric("b", recipe=_make_recipe(num_examples=10000))
+        self.assertAlmostEqual(comp._size_similarity(m1, m2), 1.0)
+
+    def test_size_similarity_100x_difference(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a", recipe=_make_recipe(num_examples=100))
+        m2 = _make_metric("b", recipe=_make_recipe(num_examples=10000))
+        self.assertAlmostEqual(comp._size_similarity(m1, m2), 0.0, places=2)
+
+    def test_size_similarity_none_returns_neutral(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a", recipe=_make_recipe(num_examples=None))
+        m2 = _make_metric("b", recipe=_make_recipe(num_examples=10000))
+        self.assertAlmostEqual(comp._size_similarity(m1, m2), 0.5)
+
+    def test_generation_type_same(self):
+        comp = self._make_comparator()
+        from datarecipe.schema import GenerationType
+        r1 = _make_recipe()
+        r2 = _make_recipe()
+        r1.generation_type = GenerationType.SYNTHETIC
+        r2.generation_type = GenerationType.SYNTHETIC
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        self.assertAlmostEqual(comp._generation_type_similarity(m1, m2), 1.0)
+
+    def test_generation_type_different(self):
+        comp = self._make_comparator()
+        from datarecipe.schema import GenerationType
+        r1 = _make_recipe()
+        r2 = _make_recipe()
+        r1.generation_type = GenerationType.SYNTHETIC
+        r2.generation_type = GenerationType.HUMAN
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        self.assertAlmostEqual(comp._generation_type_similarity(m1, m2), 0.0)
+
+    def test_generation_type_unknown(self):
+        comp = self._make_comparator()
+        from datarecipe.schema import GenerationType
+        r1 = _make_recipe()
+        r2 = _make_recipe()
+        r1.generation_type = GenerationType.SYNTHETIC
+        r2.generation_type = GenerationType.UNKNOWN
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        self.assertAlmostEqual(comp._generation_type_similarity(m1, m2), 0.5)
+
+    def test_quality_similarity_identical(self):
+        comp = self._make_comparator()
+        q = _make_quality(overall=75)
+        m1 = _make_metric("a", quality=q)
+        m2 = _make_metric("b", quality=q)
+        self.assertAlmostEqual(comp._quality_similarity(m1, m2), 1.0)
+
+    def test_quality_similarity_none_returns_neutral(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a", quality=_make_quality())
+        m2 = _make_metric("b")  # no quality
+        self.assertAlmostEqual(comp._quality_similarity(m1, m2), 0.5)
+
+    def test_tag_jaccard_empty_tags(self):
+        comp = self._make_comparator()
+        r1 = _make_recipe()
+        r2 = _make_recipe()
+        r1.tags = []
+        r2.tags = []
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        self.assertAlmostEqual(comp._tag_jaccard(m1, m2), 1.0)
+
+    def test_cost_similarity_identical(self):
+        comp = self._make_comparator()
+        c = _make_cost()
+        m1 = _make_metric("a", cost=c)
+        m2 = _make_metric("b", cost=c)
+        self.assertAlmostEqual(comp._cost_similarity(m1, m2), 1.0)
+
+    def test_cost_similarity_none_returns_neutral(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a", cost=_make_cost())
+        m2 = _make_metric("b")  # no cost
+        self.assertAlmostEqual(comp._cost_similarity(m1, m2), 0.5)
+
+    def test_custom_weights_affect_score(self):
+        comp = self._make_comparator()
+        from datarecipe.schema import GenerationType
+        r1 = _make_recipe()
+        r2 = _make_recipe()
+        r1.generation_type = GenerationType.SYNTHETIC
+        r2.generation_type = GenerationType.HUMAN
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        m1.data_schema = {"text": "str"}
+        m2.data_schema = {"text": "str"}
+
+        # High weight on generation_type (where they differ = 0.0)
+        w1 = SimilarityWeights(
+            schema_overlap=0.0, size_ratio=0.0, generation_type=1.0,
+            quality_profile=0.0, tag_overlap=0.0, cost_ratio=0.0,
+        )
+        # High weight on schema_overlap (where they match = 1.0)
+        w2 = SimilarityWeights(
+            schema_overlap=1.0, size_ratio=0.0, generation_type=0.0,
+            quality_profile=0.0, tag_overlap=0.0, cost_ratio=0.0,
+        )
+        r1_result = comp.compute_similarity(m1, m2, weights=w1)
+        r2_result = comp.compute_similarity(m1, m2, weights=w2)
+        self.assertLess(r1_result.overall_score, r2_result.overall_score)
+
+    def test_similarity_result_to_dict(self):
+        result = SimilarityResult(
+            dataset_a="a", dataset_b="b", overall_score=0.75,
+            breakdown=SimilarityBreakdown(0.8, 0.9, 1.0, 0.5, 0.6, 0.7),
+            weights=SimilarityWeights(),
+        )
+        d = result.to_dict()
+        self.assertEqual(d["dataset_a"], "a")
+        self.assertAlmostEqual(d["overall_score"], 0.75, places=4)
+        self.assertIn("breakdown", d)
+
+
+# ==================== Field diff tests ====================
+
+
+class TestFieldDiff(unittest.TestCase):
+
+    def _make_comparator(self):
+        with patch.object(DatasetComparator, "__init__", lambda s, **kw: None):
+            comp = DatasetComparator()
+        return comp
+
+    def test_identical_recipes(self):
+        comp = self._make_comparator()
+        r = _make_recipe("ds", num_examples=10000)
+        m = _make_metric("ds", recipe=r)
+        diffs = comp.compute_field_diff(m, m)
+        match_count = sum(1 for d in diffs if d.delta == "match")
+        self.assertGreater(match_count, 0)
+
+    def test_size_difference_positive(self):
+        comp = self._make_comparator()
+        r1 = _make_recipe(num_examples=10000)
+        r2 = _make_recipe(num_examples=15000)
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        diffs = comp.compute_field_diff(m1, m2)
+        num_diff = next(d for d in diffs if d.field_name == "num_examples")
+        self.assertIn("+", num_diff.delta)
+
+    def test_size_difference_negative(self):
+        comp = self._make_comparator()
+        r1 = _make_recipe(num_examples=15000)
+        r2 = _make_recipe(num_examples=10000)
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        diffs = comp.compute_field_diff(m1, m2)
+        num_diff = next(d for d in diffs if d.field_name == "num_examples")
+        self.assertIn("-", num_diff.delta)
+
+    def test_generation_type_match(self):
+        comp = self._make_comparator()
+        r = _make_recipe()
+        m = _make_metric("a", recipe=r)
+        diffs = comp.compute_field_diff(m, m)
+        gt_diff = next(d for d in diffs if d.field_name == "generation_type")
+        self.assertEqual(gt_diff.delta, "match")
+        self.assertEqual(gt_diff.indicator, "=")
+
+    def test_generation_type_different(self):
+        comp = self._make_comparator()
+        from datarecipe.schema import GenerationType
+        r1 = _make_recipe()
+        r2 = _make_recipe()
+        r1.generation_type = GenerationType.SYNTHETIC
+        r2.generation_type = GenerationType.HUMAN
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        diffs = comp.compute_field_diff(m1, m2)
+        gt_diff = next(d for d in diffs if d.field_name == "generation_type")
+        self.assertEqual(gt_diff.delta, "different")
+
+    def test_tags_overlap(self):
+        comp = self._make_comparator()
+        r1 = _make_recipe()
+        r2 = _make_recipe()
+        r1.tags = ["nlp", "en", "test"]
+        r2.tags = ["nlp", "en", "prod"]
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        diffs = comp.compute_field_diff(m1, m2)
+        tag_diff = next(d for d in diffs if d.field_name == "tags")
+        self.assertIn("overlap", tag_diff.delta)
+
+    def test_missing_values_handled(self):
+        comp = self._make_comparator()
+        r1 = _make_recipe(num_examples=None)
+        r2 = _make_recipe(num_examples=10000)
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        diffs = comp.compute_field_diff(m1, m2)
+        num_diff = next(d for d in diffs if d.field_name == "num_examples")
+        self.assertEqual(num_diff.delta, "N/A")
+
+    def test_quality_diff(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a", quality=_make_quality(overall=60))
+        m2 = _make_metric("b", quality=_make_quality(overall=75))
+        diffs = comp.compute_field_diff(m1, m2)
+        q_diff = next(d for d in diffs if d.field_name == "quality_score")
+        self.assertEqual(q_diff.delta, "+15")
+
+    def test_cost_diff(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a", cost=_make_cost(total=100))
+        m2 = _make_metric("b", cost=_make_cost(total=200))
+        diffs = comp.compute_field_diff(m1, m2)
+        c_diff = next(d for d in diffs if d.field_name == "cost_total")
+        self.assertIn("+", c_diff.delta)
+
+    def test_reproducibility_diff(self):
+        comp = self._make_comparator()
+        r1 = _make_recipe(repro_score=5)
+        r2 = _make_recipe(repro_score=8)
+        m1 = _make_metric("a", recipe=r1)
+        m2 = _make_metric("b", recipe=r2)
+        diffs = comp.compute_field_diff(m1, m2)
+        rp_diff = next(d for d in diffs if d.field_name == "reproducibility")
+        self.assertEqual(rp_diff.delta, "+3")
+
+    def test_field_diff_to_dict(self):
+        d = FieldDiff("size", "10MB", "20MB", "+100%", "+")
+        dd = d.to_dict()
+        self.assertEqual(dd["field"], "size")
+        self.assertEqual(dd["delta"], "+100%")
+
+
+# ==================== Schema comparison tests ====================
+
+
+class TestSchemaComparison(unittest.TestCase):
+
+    def _make_comparator(self):
+        with patch.object(DatasetComparator, "__init__", lambda s, **kw: None):
+            comp = DatasetComparator()
+        return comp
+
+    def test_identical_schemas(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {"text": "str", "label": "str"}
+        m2.data_schema = {"text": "str", "label": "str"}
+        sc = comp.compare_schemas(m1, m2)
+        self.assertAlmostEqual(sc.jaccard_similarity, 1.0)
+        self.assertEqual(sc.only_in_a, [])
+        self.assertEqual(sc.only_in_b, [])
+        self.assertEqual(sc.type_mismatches, {})
+
+    def test_disjoint_schemas(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {"text": "str"}
+        m2.data_schema = {"label": "int"}
+        sc = comp.compare_schemas(m1, m2)
+        self.assertAlmostEqual(sc.jaccard_similarity, 0.0)
+        self.assertEqual(sc.only_in_a, ["text"])
+        self.assertEqual(sc.only_in_b, ["label"])
+
+    def test_partial_overlap(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {"text": "str", "label": "str", "extra": "int"}
+        m2.data_schema = {"text": "str", "label": "str"}
+        sc = comp.compare_schemas(m1, m2)
+        self.assertAlmostEqual(sc.jaccard_similarity, 2 / 3, places=4)
+        self.assertEqual(sc.only_in_a, ["extra"])
+        self.assertEqual(sc.only_in_b, [])
+
+    def test_type_mismatches_detected(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {"value": "str"}
+        m2.data_schema = {"value": "int"}
+        sc = comp.compare_schemas(m1, m2)
+        self.assertIn("value", sc.type_mismatches)
+        self.assertEqual(sc.type_mismatches["value"], ("str", "int"))
+
+    def test_none_schema_a(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = None
+        m2.data_schema = {"text": "str"}
+        sc = comp.compare_schemas(m1, m2)
+        self.assertAlmostEqual(sc.jaccard_similarity, 0.0)
+
+    def test_both_none_schemas(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = None
+        m2.data_schema = None
+        sc = comp.compare_schemas(m1, m2)
+        self.assertAlmostEqual(sc.jaccard_similarity, 1.0)
+
+    def test_empty_schemas(self):
+        comp = self._make_comparator()
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {}
+        m2.data_schema = {}
+        sc = comp.compare_schemas(m1, m2)
+        self.assertAlmostEqual(sc.jaccard_similarity, 1.0)
+
+    def test_schema_comparison_to_dict(self):
+        sc = SchemaComparison(
+            dataset_a="a", dataset_b="b",
+            common_fields=["text"], only_in_a=["extra"], only_in_b=[],
+            type_mismatches={"text": ("str", "int")},
+            jaccard_similarity=0.5,
+        )
+        d = sc.to_dict()
+        self.assertEqual(d["common_fields"], ["text"])
+        self.assertIn("text", d["type_mismatches"])
+
+
+# ==================== Integration & rendering tests ====================
+
+
+class TestSimilarityIntegration(unittest.TestCase):
+
+    def _make_comparator(self, **kwargs):
+        with patch.object(DatasetComparator, "__init__", lambda s, **kw: None):
+            comp = DatasetComparator()
+        for k, v in kwargs.items():
+            setattr(comp, k, v)
+        return comp
+
+    def test_build_report_with_similarity(self):
+        comp = self._make_comparator(
+            include_cost=False, include_quality=False,
+            include_similarity=True, include_schema=False,
+        )
+        m1 = _make_metric("a", recipe=_make_recipe("a", num_examples=10000))
+        m2 = _make_metric("b", recipe=_make_recipe("b", num_examples=15000))
+        report = comp._build_report([m1, m2])
+        self.assertEqual(len(report.similarity_results), 1)
+        self.assertEqual(len(report.field_diffs), 1)
+        self.assertEqual(len(report.schema_comparisons), 0)
+
+    def test_build_report_without_similarity(self):
+        comp = self._make_comparator(
+            include_cost=False, include_quality=False,
+            include_similarity=False, include_schema=False,
+        )
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        report = comp._build_report([m1, m2])
+        self.assertEqual(report.similarity_results, [])
+        self.assertEqual(report.field_diffs, [])
+
+    def test_build_report_with_schema(self):
+        comp = self._make_comparator(
+            include_cost=False, include_quality=False,
+            include_similarity=False, include_schema=True,
+        )
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m1.data_schema = {"text": "str"}
+        m2.data_schema = {"label": "int"}
+        report = comp._build_report([m1, m2])
+        self.assertEqual(len(report.schema_comparisons), 1)
+
+    def test_build_report_three_datasets_pairwise(self):
+        comp = self._make_comparator(
+            include_cost=False, include_quality=False,
+            include_similarity=True, include_schema=True,
+        )
+        m1 = _make_metric("a")
+        m2 = _make_metric("b")
+        m3 = _make_metric("c")
+        report = comp._build_report([m1, m2, m3])
+        # 3 choose 2 = 3 pairs
+        self.assertEqual(len(report.similarity_results), 3)
+        self.assertEqual(len(report.field_diffs), 3)
+        self.assertEqual(len(report.schema_comparisons), 3)
+
+
+class TestSimilarityRendering(unittest.TestCase):
+
+    def test_to_markdown_includes_similarity_section(self):
+        sr = SimilarityResult(
+            dataset_a="a", dataset_b="b", overall_score=0.72,
+            breakdown=SimilarityBreakdown(0.8, 0.9, 1.0, 0.5, 0.6, 0.7),
+            weights=SimilarityWeights(),
+        )
+        report = ComparisonReport(
+            datasets=["a", "b"],
+            similarity_results=[sr],
+        )
+        md = report.to_markdown()
+        self.assertIn("## Similarity Matrix", md)
+        self.assertIn("a vs b", md)
+        self.assertIn("0.72", md)
+
+    def test_to_markdown_includes_field_diff_section(self):
+        diffs = [FieldDiff("size", "10MB", "20MB", "+100%", "+")]
+        sr = SimilarityResult(
+            dataset_a="a", dataset_b="b", overall_score=0.5,
+            breakdown=SimilarityBreakdown(0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+            weights=SimilarityWeights(),
+        )
+        report = ComparisonReport(
+            datasets=["a", "b"],
+            similarity_results=[sr],
+            field_diffs=[diffs],
+        )
+        md = report.to_markdown()
+        self.assertIn("## Field Comparison: a vs b", md)
+        self.assertIn("10MB", md)
+
+    def test_to_markdown_includes_schema_section(self):
+        sc = SchemaComparison(
+            dataset_a="a", dataset_b="b",
+            common_fields=["text"], only_in_a=["extra"], only_in_b=[],
+            type_mismatches={}, jaccard_similarity=0.5,
+        )
+        report = ComparisonReport(
+            datasets=["a", "b"],
+            schema_comparisons=[sc],
+        )
+        md = report.to_markdown()
+        self.assertIn("## Schema Comparison: a vs b", md)
+        self.assertIn("Jaccard similarity", md)
+        self.assertIn("Common fields", md)
+
+    def test_to_markdown_empty_similarity_no_section(self):
+        report = ComparisonReport(datasets=["a", "b"])
+        md = report.to_markdown()
+        self.assertNotIn("Similarity Matrix", md)
+        self.assertNotIn("Field Comparison", md)
+        self.assertNotIn("Schema Comparison", md)
+
+    def test_to_table_with_similarity(self):
+        sr = SimilarityResult(
+            dataset_a="a", dataset_b="b", overall_score=0.72,
+            breakdown=SimilarityBreakdown(0.8, 0.9, 1.0, 0.5, 0.6, 0.7),
+            weights=SimilarityWeights(),
+        )
+        report = ComparisonReport(
+            datasets=["a", "b"],
+            similarity_results=[sr],
+        )
+        table = report.to_table()
+        self.assertIn("Similarity:", table)
+        self.assertIn("a vs b = 0.72", table)
+
+
 if __name__ == "__main__":
     unittest.main()
