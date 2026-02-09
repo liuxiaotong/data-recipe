@@ -1,15 +1,18 @@
 <div align="center">
 
-# DataRecipe
+<h1>🔬 DataRecipe</h1>
 
-**AI 数据集逆向工程框架 — 从样本或需求文档提取标注规范、成本模型与可复现方案**
-**Reverse-engineering framework for AI datasets — extract annotation specs, cost models & reproducibility**
+<p><strong>AI 数据集逆向工程框架 — 从样本或需求文档提取标注规范、成本模型与可复现方案</strong><br/>
+<em>Reverse-engineering framework for AI datasets — extract annotation specs, cost models & reproducibility</em></p>
 
-[![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue&v=3)](https://pypi.org/project/knowlyr-datarecipe/)
+[![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue)](https://pypi.org/project/knowlyr-datarecipe/)
+[![Downloads](https://img.shields.io/pypi/dm/knowlyr-datarecipe?color=green)](https://pypi.org/project/knowlyr-datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+<br/>
+[![CI](https://github.com/liuxiaotong/data-recipe/actions/workflows/ci.yml/badge.svg)](https://github.com/liuxiaotong/data-recipe/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-3399_passed-brightgreen.svg)](#开发)
 [![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen.svg)](#开发)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-10_Tools-purple.svg)](#mcp-server)
 
 [快速开始](#快速开始) · [LLM 增强](#llm-增强层) · [需求文档分析](#需求文档分析) · [MCP Server](#mcp-server) · [Data Pipeline 生态](#data-pipeline-生态)
@@ -18,9 +21,9 @@
 
 ---
 
-**GitHub Topics**: `reverse-engineering`, `dataset-analysis`, `annotation-spec`, `mcp`, `ai-data-pipeline`
-
-从数据集样本或需求文档中自动提取构建范式，生成 **23+ 生产级文档**，覆盖决策、项目管理、标注规范、成本分析全链路。
+> 🎯 **一键逆向** 从数据集样本或需求文档自动提取构建范式，生成 **23+ 生产级文档**
+> ⚡ **LLM 增强** 插入增强层，一次调用生成 EnhancedContext，文档质量指数级提升
+> 📊 **全角色覆盖** 决策层 · 项目经理 · 标注团队 · 技术团队 · 财务 · AI Agent 六类用户
 
 ```
 数据集 / 需求文档 → 逆向分析 → [LLM 增强层] → 23+ 结构化文档 (人类可读 + 机器可解析)
@@ -41,13 +44,19 @@
 
 ```bash
 pip install knowlyr-datarecipe
+```
 
-# 可选依赖
+<details>
+<summary>📦 可选依赖</summary>
+
+```bash
 pip install knowlyr-datarecipe[llm]      # LLM 分析 (Anthropic/OpenAI)
 pip install knowlyr-datarecipe[pdf]      # PDF 解析
 pip install knowlyr-datarecipe[mcp]      # MCP 服务器
 pip install knowlyr-datarecipe[all]      # 全部
 ```
+
+</details>
 
 ## 快速开始
 
@@ -78,7 +87,7 @@ knowlyr-datarecipe analyze-spec requirements.pdf --from-json analysis.json
 ```
 
 <details>
-<summary>输出示例 (deep-analyze)</summary>
+<summary>📋 输出示例 (deep-analyze)</summary>
 
 ```
 ============================================================
@@ -130,7 +139,8 @@ knowlyr-datarecipe analyze-spec requirements.pdf --from-json analysis.json
 | **MILESTONE_PLAN** | 套话风险 | 分阶段具体风险 + 缓解措施 |
 | **ANALYSIS_REPORT** | 几乎空白 | 方法学洞察、竞争分析、领域建议 |
 
-### MCP 两步式增强（推荐）
+<details>
+<summary>🔌 MCP 两步式增强（推荐）</summary>
 
 通过 MCP Server 调用时，Claude Agent 自身作为 LLM 处理增强 prompt，无需 API key：
 
@@ -144,7 +154,10 @@ knowlyr-datarecipe analyze-spec requirements.pdf --from-json analysis.json
    → 报告从模板占位符 → 针对性的具体分析内容
 ```
 
-### 编程接口
+</details>
+
+<details>
+<summary>🐍 编程接口</summary>
 
 在 Claude Code 等 LLM 环境中，也可通过 `get_prompt()` + `enhance_from_response()` 模式集成：
 
@@ -165,11 +178,16 @@ ctx = enhancer.enhance_from_json("enhanced_context.json")
 
 `EnhancedContext` 包含 14 个增强字段：用途摘要、方法学洞察、复刻策略、ROI 场景、风险评估、领域标注指导、质量陷阱、样本分析、团队建议等。
 
+</details>
+
 ---
 
 ## 输出结构
 
 所有命令（`deep-analyze`、`analyze-spec`、`deploy`、`integrate-report`）的产出统一到 `projects/` 下，一个数据集 = 一个项目文件夹：
+
+<details>
+<summary>📁 完整目录结构</summary>
 
 ```
 projects/{数据集名}/
@@ -217,6 +235,8 @@ projects/{数据集名}/
     └── weekly_report_*.md           # Radar + Recipe 综合报告
 ```
 
+</details>
+
 ### 双重格式输出
 
 所有文档同时生成人类可读 (Markdown) 和机器可解析 (JSON/YAML) 格式：
@@ -243,6 +263,9 @@ projects/{数据集名}/
 
 在 Claude Desktop / Claude Code 中直接使用，10 个工具覆盖完整工作流。
 
+<details>
+<summary>⚙️ 配置</summary>
+
 ```json
 {
   "mcpServers": {
@@ -253,6 +276,8 @@ projects/{数据集名}/
   }
 }
 ```
+
+</details>
 
 | 工具 | 功能 |
 |------|------|
@@ -269,46 +294,8 @@ projects/{数据集名}/
 
 ---
 
-## Data Pipeline 生态
-
-DataRecipe 是 Data Pipeline 生态的分析引擎，与标注、合成、质检工具协同：
-
-```mermaid
-graph LR
-    Radar["🔍 Radar<br/>情报发现"] --> Recipe["📋 Recipe<br/>逆向分析"]
-    Recipe --> Synth["🔄 Synth<br/>数据合成"]
-    Recipe --> Label["🏷️ Label<br/>数据标注"]
-    Synth --> Check["✅ Check<br/>数据质检"]
-    Label --> Check
-    Check --> Audit["🔬 Audit<br/>模型审计"]
-    Audit --> Hub["🎯 Hub<br/>编排层"]
-    Hub --> Sandbox["📦 Sandbox<br/>执行沙箱"]
-    Sandbox --> Recorder["📹 Recorder<br/>轨迹录制"]
-    Recorder --> Reward["⭐ Reward<br/>过程打分"]
-    style Recipe fill:#0969da,color:#fff,stroke:#0969da
-```
-
-| 层 | 项目 | PyPI 包 | 说明 | 仓库 |
-|---|---|---|---|---|
-| 情报 | **AI Dataset Radar** | knowlyr-radar | 数据集竞争情报、趋势分析 | [GitHub](https://github.com/liuxiaotong/ai-dataset-radar) |
-| 分析 | **DataRecipe** | knowlyr-datarecipe | 逆向分析、Schema 提取、成本估算 | You are here |
-| 生产 | **DataSynth** | knowlyr-datasynth | LLM 批量合成、种子数据扩充 | [GitHub](https://github.com/liuxiaotong/data-synth) |
-| 生产 | **DataLabel** | knowlyr-datalabel | 轻量标注工具、多标注员合并 | [GitHub](https://github.com/liuxiaotong/data-label) |
-| 质检 | **DataCheck** | knowlyr-datacheck | 规则验证、重复检测、分布分析 | [GitHub](https://github.com/liuxiaotong/data-check) |
-| 质检 | **ModelAudit** | knowlyr-modelaudit | 蒸馏检测、模型指纹、身份验证 | [GitHub](https://github.com/liuxiaotong/model-audit) |
-| Agent | **knowlyr-agent** | knowlyr-sandbox / recorder / reward / hub | 沙箱 + 轨迹录制 + Reward + 编排 | [GitHub](https://github.com/liuxiaotong/knowlyr-agent) |
-
-```bash
-# 端到端工作流
-knowlyr-datarecipe deep-analyze tencent/CL-bench --use-llm      # 分析
-knowlyr-datalabel generate ./projects/tencent_CL-bench/          # 标注
-knowlyr-datasynth generate ./projects/tencent_CL-bench/ -n 1000  # 合成
-knowlyr-datacheck validate ./projects/tencent_CL-bench/          # 质检
-```
-
----
-
-## 命令参考
+<details>
+<summary>📖 命令参考</summary>
 
 | 命令 | 功能 |
 |------|------|
@@ -325,9 +312,10 @@ knowlyr-datacheck validate ./projects/tencent_CL-bench/          # 质检
 | `integrate-report` | 生成 Radar + Recipe 综合报告 |
 | `batch-from-radar <report>` | 从 Radar 报告批量分析 |
 
----
+</details>
 
-## 项目架构
+<details>
+<summary>🏗️ 项目架构</summary>
 
 ```
 src/datarecipe/
@@ -384,6 +372,52 @@ src/datarecipe/
     ├── batch.py                    # batch, batch-from-radar, integrate-report
     ├── tools.py                    # cost, quality, deploy, workflow 等
     └── infra.py                    # watch, cache, knowledge
+```
+
+</details>
+
+---
+
+## Data Pipeline 生态
+
+DataRecipe 是 Data Pipeline 生态的分析引擎，与标注、合成、质检工具协同：
+
+<details>
+<summary>🗺️ 生态架构图</summary>
+
+```mermaid
+graph LR
+    Radar["🔍 Radar<br/>情报发现"] --> Recipe["📋 Recipe<br/>逆向分析"]
+    Recipe --> Synth["🔄 Synth<br/>数据合成"]
+    Recipe --> Label["🏷️ Label<br/>数据标注"]
+    Synth --> Check["✅ Check<br/>数据质检"]
+    Label --> Check
+    Check --> Audit["🔬 Audit<br/>模型审计"]
+    Audit --> Hub["🎯 Hub<br/>编排层"]
+    Hub --> Sandbox["📦 Sandbox<br/>执行沙箱"]
+    Sandbox --> Recorder["📹 Recorder<br/>轨迹录制"]
+    Recorder --> Reward["⭐ Reward<br/>过程打分"]
+    style Recipe fill:#0969da,color:#fff,stroke:#0969da
+```
+
+</details>
+
+| 层 | 项目 | PyPI 包 | 说明 | 仓库 |
+|---|---|---|---|---|
+| 情报 | **AI Dataset Radar** | knowlyr-radar | 数据集竞争情报、趋势分析 | [GitHub](https://github.com/liuxiaotong/ai-dataset-radar) |
+| 分析 | **DataRecipe** | knowlyr-datarecipe | 逆向分析、Schema 提取、成本估算 | You are here |
+| 生产 | **DataSynth** | knowlyr-datasynth | LLM 批量合成、种子数据扩充 | [GitHub](https://github.com/liuxiaotong/data-synth) |
+| 生产 | **DataLabel** | knowlyr-datalabel | 轻量标注工具、多标注员合并 | [GitHub](https://github.com/liuxiaotong/data-label) |
+| 质检 | **DataCheck** | knowlyr-datacheck | 规则验证、重复检测、分布分析 | [GitHub](https://github.com/liuxiaotong/data-check) |
+| 质检 | **ModelAudit** | knowlyr-modelaudit | 蒸馏检测、模型指纹、身份验证 | [GitHub](https://github.com/liuxiaotong/model-audit) |
+| Agent | **knowlyr-agent** | knowlyr-sandbox / recorder / reward / hub | 沙箱 + 轨迹录制 + Reward + 编排 | [GitHub](https://github.com/liuxiaotong/knowlyr-agent) |
+
+```bash
+# 端到端工作流
+knowlyr-datarecipe deep-analyze tencent/CL-bench --use-llm      # 分析
+knowlyr-datalabel generate ./projects/tencent_CL-bench/          # 标注
+knowlyr-datasynth generate ./projects/tencent_CL-bench/ -n 1000  # 合成
+knowlyr-datacheck validate ./projects/tencent_CL-bench/          # 质检
 ```
 
 ---
