@@ -2,7 +2,8 @@
 
 # DataRecipe
 
-**AI 数据集逆向工程框架**
+**AI 数据集逆向工程框架 — 从样本或需求文档提取标注规范、成本模型与可复现方案**
+**Reverse-engineering framework for AI datasets — extract annotation specs, cost models & reproducibility**
 
 [![PyPI](https://img.shields.io/pypi/v/knowlyr-datarecipe?color=blue&v=3)](https://pypi.org/project/knowlyr-datarecipe/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%E2%80%933.13-blue.svg)](https://www.python.org/downloads/)
