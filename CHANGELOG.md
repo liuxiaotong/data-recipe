@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-09
+
+### Added
+- 数据集相似度对比：SimilarityWeights/SimilarityBreakdown/SimilarityResult 评分体系
+- 逐字段 FieldDiff 对比（12 个 Recipe 字段）
+- SchemaComparison 列名/类型重叠分析（Jaccard 系数）
+- compare 命令 --similarity 和 --schema 选项
+- 本地文件分析支持：CSV、Parquet、JSONL
+- LocalFileExtractor + detect_format() + 数据集类型自动检测
+- analyze/deep-analyze/quality 命令均支持本地文件路径
+- QualityAnalyzer.analyze_from_file() 方法
+
+### Changed
+- 迁移 deep_analyzer.py → analyzers/url_analyzer.py
+- 迁移 llm_analyzer.py → analyzers/llm_url_analyzer.py
+- 旧模块保留为 __getattr__ 兼容 shim（v0.5.0 移除）
+- 消除所有 DeprecationWarning（3478 tests 零警告）
+
+### Documentation
+- 统一 knowlyr 生态表格格式
+- 同步 README 副标题与 GitHub about
+- 添加 GitHub Topics 行
+- 统一尾部品牌标语
+
+## [0.3.3] - 2026-02-08
+
+### Changed
+- 并行化分析器和生成器
+- HuggingFace 元数据 TTL 缓存
+
+## [0.3.2] - 2026-02-08
+
+### Changed
+- 测试覆盖率 97%
+- CI 自动发布
+- 添加 CONTRIBUTING.md
+
+## [0.3.1] - 2026-02-08
+
+### Changed
+- 覆盖率 96%
+- py.typed marker
+- target-version 修复
+
 ## [0.3.0] - 2026-02-08
 
 ### Added
