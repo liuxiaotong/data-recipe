@@ -132,6 +132,8 @@ ignore_missing_imports = true
 omit = [
     "src/datarecipe/deep_analyzer.py",
     "src/datarecipe/llm_analyzer.py",
+    "src/datarecipe/analyzers/url_analyzer.py",
+    "src/datarecipe/analyzers/llm_url_analyzer.py",
     "src/datarecipe/mcp_server.py",
     "src/datarecipe/triggers/watcher.py",
 ]

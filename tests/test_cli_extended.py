@@ -1853,8 +1853,8 @@ class TestDeepGuideCommand(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
-    @patch("datarecipe.deep_analyzer.deep_analysis_to_markdown")
-    @patch("datarecipe.llm_analyzer.LLMAnalyzer")
+    @patch("datarecipe.analyzers.url_analyzer.deep_analysis_to_markdown")
+    @patch("datarecipe.analyzers.llm_url_analyzer.LLMAnalyzer")
     def test_deep_guide_without_llm(self, MockLLMAnalyzer, MockToMd):
         mock_result = MagicMock()
         mock_result.name = "TestDataset"
@@ -1877,8 +1877,8 @@ class TestDeepGuideCommand(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("TestDataset", result.output)
 
-    @patch("datarecipe.deep_analyzer.deep_analysis_to_markdown")
-    @patch("datarecipe.llm_analyzer.LLMAnalyzer")
+    @patch("datarecipe.analyzers.url_analyzer.deep_analysis_to_markdown")
+    @patch("datarecipe.analyzers.llm_url_analyzer.LLMAnalyzer")
     def test_deep_guide_with_output(self, MockLLMAnalyzer, MockToMd):
         mock_result = MagicMock()
         mock_result.name = "Test"
@@ -1904,20 +1904,20 @@ class TestDeepGuideCommand(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
-    @patch("datarecipe.llm_analyzer.LLMAnalyzer")
+    @patch("datarecipe.analyzers.llm_url_analyzer.LLMAnalyzer")
     def test_deep_guide_value_error(self, MockLLMAnalyzer):
         MockLLMAnalyzer.return_value.analyze.side_effect = ValueError("Invalid URL")
         result = self.runner.invoke(main, ["deep-guide", "https://bad.url"])
         self.assertNotEqual(result.exit_code, 0)
 
-    @patch("datarecipe.llm_analyzer.LLMAnalyzer")
+    @patch("datarecipe.analyzers.llm_url_analyzer.LLMAnalyzer")
     def test_deep_guide_generic_error(self, MockLLMAnalyzer):
         MockLLMAnalyzer.return_value.analyze.side_effect = RuntimeError("Connection error")
         result = self.runner.invoke(main, ["deep-guide", "https://bad.url"])
         self.assertNotEqual(result.exit_code, 0)
 
-    @patch("datarecipe.deep_analyzer.deep_analysis_to_markdown")
-    @patch("datarecipe.llm_analyzer.LLMAnalyzer")
+    @patch("datarecipe.analyzers.url_analyzer.deep_analysis_to_markdown")
+    @patch("datarecipe.analyzers.llm_url_analyzer.LLMAnalyzer")
     def test_deep_guide_with_llm_flag(self, MockLLMAnalyzer, MockToMd):
         """Test deep-guide with --llm flag."""
         mock_result = MagicMock()

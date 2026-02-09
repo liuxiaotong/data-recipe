@@ -251,11 +251,11 @@ def deep_guide(url: str, output: str, llm: bool, provider: str):
         datarecipe deep-guide https://arxiv.org/abs/2506.07982
         datarecipe deep-guide https://arcprize.org/arc-agi/2/ --llm
     """
-    from datarecipe.deep_analyzer import deep_analysis_to_markdown
+    from datarecipe.analyzers.url_analyzer import deep_analysis_to_markdown
 
     # Try to use LLMAnalyzer with PDF parsing (even without LLM)
     try:
-        from datarecipe.llm_analyzer import LLMAnalyzer
+        from datarecipe.analyzers.llm_url_analyzer import LLMAnalyzer
 
         if llm:
             console.print(f"[cyan]使用 LLM 增强分析 (provider: {provider})...[/cyan]")
@@ -267,7 +267,7 @@ def deep_guide(url: str, output: str, llm: bool, provider: str):
         if llm:
             console.print(f"[yellow]Warning:[/yellow] {e}")
         console.print("[yellow]使用基础模式匹配分析...[/yellow]")
-        from datarecipe.deep_analyzer import DeepAnalyzer
+        from datarecipe.analyzers.url_analyzer import DeepAnalyzer
 
         analyzer = DeepAnalyzer()
 
