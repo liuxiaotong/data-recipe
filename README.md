@@ -17,6 +17,8 @@
 
 ---
 
+**GitHub Topics**: `reverse-engineering`, `dataset-analysis`, `annotation-spec`, `mcp`, `ai-data-pipeline`
+
 从数据集样本或需求文档中自动提取构建范式，生成 **23+ 生产级文档**，覆盖决策、项目管理、标注规范、成本分析全链路。
 
 ```
