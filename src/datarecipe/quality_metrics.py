@@ -338,6 +338,68 @@ class QualityAnalyzer:
                 warnings=[f"Dataset loading error: {str(e)}"],
             )
 
+    def analyze_from_file(
+        self,
+        file_path: str,
+        text_field: str = "text",
+        sample_size: int = 1000,
+        detect_ai: bool = False,
+    ) -> QualityReport:
+        """Analyze quality metrics from a local file (CSV, Parquet, JSONL).
+
+        Args:
+            file_path: Path to a local data file
+            text_field: Field name containing the text
+            sample_size: Number of examples to sample
+            detect_ai: Whether to run AI detection
+
+        Returns:
+            QualityReport with analysis results
+        """
+        try:
+            from datasets import load_dataset
+
+            from datarecipe.sources.local import detect_format
+        except ImportError:
+            return QualityReport(
+                diversity=DiversityMetrics(0, 0, 0),
+                consistency=ConsistencyMetrics(0, 0, 0, 0),
+                complexity=ComplexityMetrics(0, 0, 0, 0, 0),
+                overall_score=0,
+                recommendations=["Install 'datasets' package: pip install datasets"],
+                sample_size=0,
+                warnings=["datasets package not installed"],
+            )
+
+        try:
+            from pathlib import Path
+
+            path = Path(file_path)
+            fmt = detect_format(path)
+            dataset = load_dataset(fmt, data_files=str(path), split="train", streaming=True)
+
+            data = []
+            for i, example in enumerate(dataset):
+                if i >= sample_size:
+                    break
+                data.append(example)
+
+            if data and text_field not in data[0]:
+                text_field = self._detect_text_field(data[0])
+
+            return self.analyze_sample(data, text_field, detect_ai)
+
+        except Exception as e:
+            return QualityReport(
+                diversity=DiversityMetrics(0, 0, 0),
+                consistency=ConsistencyMetrics(0, 0, 0, 0),
+                complexity=ComplexityMetrics(0, 0, 0, 0, 0),
+                overall_score=0,
+                recommendations=[f"Failed to load file: {str(e)}"],
+                sample_size=0,
+                warnings=[f"File loading error: {str(e)}"],
+            )
+
     def _extract_texts(self, data: list[dict], text_field: str) -> list[str]:
         """Extract text content from data."""
         texts = []

@@ -8,6 +8,7 @@ import yaml
 from datarecipe.schema import Recipe, SourceType
 from datarecipe.sources.github import GitHubExtractor
 from datarecipe.sources.huggingface import HuggingFaceExtractor
+from datarecipe.sources.local import LocalFileExtractor
 from datarecipe.sources.web import WebExtractor
 
 
@@ -20,6 +21,7 @@ class DatasetAnalyzer:
             SourceType.HUGGINGFACE: HuggingFaceExtractor(),
             SourceType.GITHUB: GitHubExtractor(),
             SourceType.WEB: WebExtractor(),
+            SourceType.LOCAL: LocalFileExtractor(),
         }
 
     def analyze(
@@ -86,7 +88,18 @@ class DatasetAnalyzer:
         if dataset_input.startswith("http://") or dataset_input.startswith("https://"):
             return dataset_input, SourceType.WEB
 
-        # Not a URL, return as-is
+        # Local file path detection
+        from datarecipe.sources.local import SUPPORTED_EXTENSIONS
+
+        p = Path(dataset_input)
+        if p.suffix.lower() in SUPPORTED_EXTENSIONS:
+            if p.exists():
+                return str(p.resolve()), SourceType.LOCAL
+            raise FileNotFoundError(f"File not found: {dataset_input}")
+        if p.exists() and p.is_file():
+            return str(p.resolve()), SourceType.LOCAL
+
+        # Not a URL or local file, return as-is (assume HuggingFace ID)
         return dataset_input, None
 
     def analyze_from_yaml(self, yaml_path: str | Path) -> Recipe:
@@ -122,6 +135,10 @@ class DatasetAnalyzer:
 
     def _detect_source_type(self, dataset_id: str) -> SourceType:
         """Auto-detect the source type from the dataset ID."""
+        # Check for local file paths
+        if Path(dataset_id).exists():
+            return SourceType.LOCAL
+
         # Check if it looks like a HuggingFace dataset ID (org/name format)
         if "/" in dataset_id and not dataset_id.startswith("http"):
             return SourceType.HUGGINGFACE
@@ -130,7 +147,7 @@ class DatasetAnalyzer:
         if "huggingface.co" in dataset_id:
             return SourceType.HUGGINGFACE
 
-        # Default to HuggingFace for now
+        # Default to HuggingFace
         return SourceType.HUGGINGFACE
 
     def _recipe_from_dict(self, data: dict) -> Recipe:

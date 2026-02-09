@@ -105,6 +105,8 @@ class DeepAnalyzerCore:
         result = AnalysisResult(dataset_id=dataset_id)
 
         try:
+            from pathlib import Path as _Path
+
             from datasets import load_dataset
 
             from datarecipe.analyzers import ContextStrategyDetector
@@ -112,50 +114,65 @@ class DeepAnalyzerCore:
             from datarecipe.generators import HumanMachineSplitter, TaskType
             from datarecipe.integrations.radar import RadarIntegration
 
+            # Detect local file vs HuggingFace dataset
+            _local_path = _Path(dataset_id)
+            _is_local = _local_path.exists() and _local_path.is_file()
+
             # Create output directory with organized structure
-            dataset_output_dir = os.path.join(self.output_dir, _safe_name(dataset_id))
+            _safe_id = _local_path.stem if _is_local else dataset_id
+            dataset_output_dir = os.path.join(self.output_dir, _safe_name(_safe_id))
             output_mgr = OutputManager(
                 dataset_output_dir,
                 subdirs=["decision", "project", "annotation", "guide", "cost", "data", "ai_agent"],
             )
             result.output_dir = dataset_output_dir
 
-            # Auto-detect config and split
-            def _try_load(ds_id, config=None, split_name=None):
-                kwargs = {"streaming": True}
-                if config:
-                    kwargs["name"] = config
-                if split_name:
-                    kwargs["split"] = split_name
-                return load_dataset(ds_id, **kwargs)
+            if _is_local:
+                # Local file: load directly with datasets library
+                from datarecipe.sources.local import detect_format
 
-            # Detect available configs
-            detected_config = None
-            try:
-                from datasets import get_dataset_config_names
-                configs = get_dataset_config_names(dataset_id)
-                if configs and len(configs) > 0:
-                    # Prefer 'default' or the first config
-                    detected_config = "default" if "default" in configs else configs[0]
-            except Exception:
-                pass
-
-            if split is None:
-                try:
-                    ds = _try_load(dataset_id, config=detected_config, split_name="train")
-                    split = "train"
-                except (ValueError, Exception):
-                    for try_split in ["test", "validation", "dev"]:
-                        try:
-                            ds = _try_load(dataset_id, config=detected_config, split_name=try_split)
-                            split = try_split
-                            break
-                        except (ValueError, Exception):
-                            continue
-                    else:
-                        raise ValueError("Cannot find available split")
+                _fmt = detect_format(_local_path)
+                ds = load_dataset(
+                    _fmt, data_files=str(_local_path), split="train", streaming=True
+                )
+                split = "train"
             else:
-                ds = _try_load(dataset_id, config=detected_config, split_name=split)
+                # HuggingFace dataset: auto-detect config and split
+                def _try_load(ds_id, config=None, split_name=None):
+                    kwargs = {"streaming": True}
+                    if config:
+                        kwargs["name"] = config
+                    if split_name:
+                        kwargs["split"] = split_name
+                    return load_dataset(ds_id, **kwargs)
+
+                # Detect available configs
+                detected_config = None
+                try:
+                    from datasets import get_dataset_config_names
+                    configs = get_dataset_config_names(dataset_id)
+                    if configs and len(configs) > 0:
+                        # Prefer 'default' or the first config
+                        detected_config = "default" if "default" in configs else configs[0]
+                except Exception:
+                    pass
+
+                if split is None:
+                    try:
+                        ds = _try_load(dataset_id, config=detected_config, split_name="train")
+                        split = "train"
+                    except (ValueError, Exception):
+                        for try_split in ["test", "validation", "dev"]:
+                            try:
+                                ds = _try_load(dataset_id, config=detected_config, split_name=try_split)
+                                split = try_split
+                                break
+                            except (ValueError, Exception):
+                                continue
+                        else:
+                            raise ValueError("Cannot find available split")
+                else:
+                    ds = _try_load(dataset_id, config=detected_config, split_name=split)
 
             # Initialize collectors
             schema_info = {}

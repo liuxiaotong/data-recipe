@@ -29,6 +29,12 @@ def analyze(dataset_id: str, output: str, as_json: bool, as_yaml: bool, as_markd
     """Analyze a dataset and display its recipe.
 
     DATASET_ID is the identifier of the dataset to analyze.
+    Supports HuggingFace dataset IDs and local files (CSV, Parquet, JSONL).
+
+    Examples:
+        datarecipe analyze org/dataset-name
+        datarecipe analyze ./data/train.csv
+        datarecipe analyze ./data/train.parquet
     For HuggingFace datasets, use the format: org/dataset-name
     """
     analyzer = DatasetAnalyzer()

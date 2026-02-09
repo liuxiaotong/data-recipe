@@ -53,9 +53,12 @@ def deep_analyze(
     Run comprehensive deep analysis on a dataset.
 
     Generates both JSON data files and a human-readable Markdown report.
+    Supports HuggingFace dataset IDs and local files (CSV, Parquet, JSONL).
 
-    Example:
+    Examples:
         datarecipe deep-analyze tencent/CL-bench -o ./output
+        datarecipe deep-analyze ./data/train.csv -n 100
+        datarecipe deep-analyze ./data/train.jsonl
     """
     import os
 

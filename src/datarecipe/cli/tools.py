@@ -234,19 +234,39 @@ def quality(dataset_id: str, sample_size: int, text_field: str, detect_ai: bool,
     """Analyze quality metrics for a dataset.
 
     DATASET_ID is the identifier of the dataset to analyze.
+    Supports HuggingFace dataset IDs and local files (CSV, Parquet, JSONL).
+
+    Examples:
+        datarecipe quality org/dataset-name
+        datarecipe quality ./data/train.csv
+        datarecipe quality ./data/train.jsonl --detect-ai
     """
+    from pathlib import Path
+
     from datarecipe.quality_metrics import QualityAnalyzer
 
     quality_analyzer = QualityAnalyzer()
 
+    # Detect local file vs HuggingFace dataset
+    local_path = Path(dataset_id)
+    is_local = local_path.exists() and local_path.is_file()
+
     with console.status(f"[cyan]Analyzing quality of {dataset_id}...[/cyan]"):
         try:
-            report = quality_analyzer.analyze_from_huggingface(
-                dataset_id,
-                text_field=text_field,
-                sample_size=sample_size,
-                detect_ai=detect_ai,
-            )
+            if is_local:
+                report = quality_analyzer.analyze_from_file(
+                    str(local_path.resolve()),
+                    text_field=text_field,
+                    sample_size=sample_size,
+                    detect_ai=detect_ai,
+                )
+            else:
+                report = quality_analyzer.analyze_from_huggingface(
+                    dataset_id,
+                    text_field=text_field,
+                    sample_size=sample_size,
+                    detect_ai=detect_ai,
+                )
         except Exception as e:
             console.print(f"[red]Error:[/red] {e}")
             sys.exit(1)
