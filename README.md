@@ -423,5 +423,5 @@ make hooks
 [MIT](LICENSE)
 
 <div align="center">
-<sub>为数据工程团队、标注服务商及 AI 数据集研究者提供可复用的逆向工程方法论</sub>
+<sub><a href="https://github.com/liuxiaotong">knowlyr</a> 数据工程生态 · 数据集逆向分析</sub>
 </div>
