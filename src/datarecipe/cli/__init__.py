@@ -50,6 +50,7 @@ from datarecipe.cli.tools import (  # noqa: E402
     extract_prompts,
     extract_rubrics,
     generate,
+    ira,
     pii,
     profile,
     providers,
@@ -73,6 +74,7 @@ main.add_command(allocate)
 main.add_command(enhanced_guide)
 main.add_command(generate)
 main.add_command(pii)
+main.add_command(ira)
 
 # deep.py
 from datarecipe.cli.deep import deep_analyze  # noqa: E402

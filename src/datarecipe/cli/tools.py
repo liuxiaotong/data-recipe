@@ -1283,3 +1283,147 @@ def pii(dataset_id: str, sample_size: int, pii_types: tuple, as_json: bool, outp
             encoding="utf-8",
         )
         console.print(f"\n[green]Report saved to {output}[/green]")
+
+
+@click.command()
+@click.argument("dataset_id")
+@click.option("--sample-size", "-n", type=int, default=1000, help="Number of rows to load")
+@click.option("--item-field", "-i", default="item_id", help="Item ID field name (long format)")
+@click.option("--annotator-field", "-a", default="annotator_id", help="Annotator ID field name (long format)")
+@click.option("--label-field", "-l", default="label", help="Label field name (long format)")
+@click.option(
+    "--format",
+    "data_format",
+    type=click.Choice(["auto", "long", "wide"]),
+    default="auto",
+    help="Data format: auto-detect, long (one row per annotation), or wide (one row per item)",
+)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--output", "-o", type=click.Path(), help="Output file")
+def ira(
+    dataset_id: str,
+    sample_size: int,
+    item_field: str,
+    annotator_field: str,
+    label_field: str,
+    data_format: str,
+    as_json: bool,
+    output: str,
+):
+    """Analyze inter-rater agreement (IRA) in annotation datasets.
+
+    DATASET_ID is a local file path or HuggingFace dataset ID.
+
+    Examples:
+        datarecipe ira annotations.csv
+        datarecipe ira annotations.jsonl --format long
+        datarecipe ira annotations.csv -i text_id -a rater -l category
+    """
+    from datarecipe.ira_analyzer import IRAAnalyzer
+
+    analyzer = IRAAnalyzer()
+
+    local_path = Path(dataset_id)
+    is_local = local_path.exists() and local_path.is_file()
+
+    with console.status(f"[cyan]Analyzing agreement in {dataset_id}...[/cyan]"):
+        try:
+            kwargs = dict(
+                item_field=item_field,
+                annotator_field=annotator_field,
+                label_field=label_field,
+                data_format=data_format,
+            )
+            if is_local:
+                report = analyzer.analyze_from_file(
+                    str(local_path.resolve()), sample_size=sample_size, **kwargs,
+                )
+            else:
+                report = analyzer.analyze_from_huggingface(
+                    dataset_id, sample_size=sample_size, **kwargs,
+                )
+        except FileNotFoundError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        except Exception as e:
+            console.print(f"[red]Error during IRA analysis:[/red] {e}")
+            sys.exit(1)
+
+    # JSON output
+    if as_json:
+        import json
+
+        content = json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
+        if output:
+            Path(output).parent.mkdir(parents=True, exist_ok=True)
+            Path(output).write_text(content, encoding="utf-8")
+            console.print(f"[green]Report saved to {output}[/green]")
+        else:
+            click.echo(content)
+        return
+
+    # Rich output
+    quality_colors = {
+        "excellent": "green",
+        "good": "green",
+        "moderate": "yellow",
+        "fair": "yellow",
+        "poor": "red",
+    }
+    color = quality_colors.get(report.quality_level, "white")
+
+    console.print(f"\n[bold]Inter-Rater Agreement Report[/bold]")
+    console.print(f"  Items analyzed: {report.total_items}")
+    console.print(f"  Total annotations: {report.total_annotations}")
+    console.print(f"  Annotators: {report.n_annotators}")
+    console.print(f"  Labels: {', '.join(report.labels)}")
+    console.print(f"  Quality: [{color}]{report.quality_level.upper()}[/{color}]")
+    console.print(f"  Avg Cohen's Kappa: {report.avg_pairwise_kappa:.4f}")
+    console.print(f"  Fleiss' Kappa: {report.fleiss_kappa:.4f}")
+    console.print(f"  Krippendorff's Alpha: {report.krippendorff_alpha:.4f}")
+    console.print(f"  Percent Agreement: {report.percent_agreement * 100:.1f}%")
+
+    if report.pairwise_agreements:
+        table = Table(title="Pairwise Agreement")
+        table.add_column("Annotator A", style="cyan")
+        table.add_column("Annotator B", style="cyan")
+        table.add_column("Cohen's κ", justify="right")
+        table.add_column("Agreement %", justify="right")
+        table.add_column("Items", justify="right")
+
+        for p in report.pairwise_agreements:
+            table.add_row(
+                p.annotator_a,
+                p.annotator_b,
+                f"{p.cohen_kappa:.4f}",
+                f"{p.percent_agreement * 100:.1f}%",
+                str(p.n_items),
+            )
+        console.print("")
+        console.print(table)
+
+    if report.disagreement_patterns:
+        table = Table(title="Top Disagreement Patterns")
+        table.add_column("Label A", style="cyan")
+        table.add_column("Label B", style="cyan")
+        table.add_column("Count", justify="right")
+
+        for d in report.disagreement_patterns[:5]:
+            table.add_row(d.label_a, d.label_b, str(d.count))
+        console.print("")
+        console.print(table)
+
+    if report.recommendations:
+        console.print(f"\n[bold cyan]Recommendations:[/bold cyan]")
+        for rec in report.recommendations:
+            console.print(f"  - {rec}")
+
+    if output:
+        import json
+
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        Path(output).write_text(
+            json.dumps(report.to_dict(), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        console.print(f"\n[green]Report saved to {output}[/green]")
