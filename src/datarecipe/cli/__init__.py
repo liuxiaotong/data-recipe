@@ -12,7 +12,7 @@ from datarecipe.cli._helpers import (  # noqa: F401
 
 # Main CLI group
 @click.group()
-@click.version_option(version="0.3.3", prog_name="datarecipe")
+@click.version_option(version="0.4.0", prog_name="datarecipe")
 def main():
     """DataRecipe - Analyze AI dataset ingredients, estimate costs, and generate workflows."""
     pass
@@ -50,6 +50,7 @@ from datarecipe.cli.tools import (  # noqa: E402
     extract_prompts,
     extract_rubrics,
     generate,
+    pii,
     profile,
     providers,
     quality,
@@ -71,6 +72,7 @@ main.add_command(detect_strategy)
 main.add_command(allocate)
 main.add_command(enhanced_guide)
 main.add_command(generate)
+main.add_command(pii)
 
 # deep.py
 from datarecipe.cli.deep import deep_analyze  # noqa: E402

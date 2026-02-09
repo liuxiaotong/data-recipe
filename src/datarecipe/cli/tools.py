@@ -1172,3 +1172,114 @@ def generate(gen_type: str, count: int, context: str, output: str):
     if output:
         generator.export_jsonl(result, output)
         console.print(f"\n[green]Exported to {output}[/green]")
+
+
+@click.command()
+@click.argument("dataset_id")
+@click.option("--sample-size", "-n", type=int, default=1000, help="Number of examples to sample")
+@click.option(
+    "--pii-types",
+    "-t",
+    multiple=True,
+    help="PII types to detect (default: all). Available: email, phone_cn, phone_intl, "
+    "id_card_cn, credit_card, ip_address, url_with_credentials, ssn_us",
+)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--output", "-o", type=click.Path(), help="Output file")
+def pii(dataset_id: str, sample_size: int, pii_types: tuple, as_json: bool, output: str):
+    """Detect PII (personally identifiable information) in datasets.
+
+    DATASET_ID is a HuggingFace dataset ID or local file path.
+
+    Examples:
+        datarecipe pii org/dataset-name
+        datarecipe pii ./data/train.csv
+        datarecipe pii ./data/train.jsonl -t email -t phone_cn
+    """
+    from datarecipe.pii_detector import PIIDetector
+
+    types_list = list(pii_types) if pii_types else None
+
+    try:
+        detector = PIIDetector(pii_types=types_list)
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    # Detect source: local file or HuggingFace
+    local_path = Path(dataset_id)
+    is_local = local_path.exists() and local_path.is_file()
+
+    with console.status(f"[cyan]Scanning {dataset_id} for PII...[/cyan]"):
+        try:
+            if is_local:
+                report = detector.analyze_from_file(
+                    str(local_path.resolve()), sample_size=sample_size,
+                )
+            else:
+                report = detector.analyze_from_huggingface(
+                    dataset_id, sample_size=sample_size,
+                )
+        except FileNotFoundError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        except Exception as e:
+            console.print(f"[red]Error during PII scan:[/red] {e}")
+            sys.exit(1)
+
+    # Output
+    if as_json:
+        import json
+
+        content = json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
+        if output:
+            Path(output).parent.mkdir(parents=True, exist_ok=True)
+            Path(output).write_text(content, encoding="utf-8")
+            console.print(f"[green]Report saved to {output}[/green]")
+        else:
+            click.echo(content)
+        return
+
+    # Rich table output
+    risk_colors = {"high": "red", "medium": "yellow", "low": "green", "none": "green"}
+    color = risk_colors.get(report.risk_level, "white")
+
+    console.print(f"\n[bold]PII Detection Report[/bold]")
+    console.print(f"  Samples scanned: {report.total_samples}")
+    console.print(f"  Samples with PII: {report.samples_with_pii}")
+    console.print(f"  PII ratio: {report.pii_ratio * 100:.1f}%")
+    console.print(f"  Risk level: [{color}]{report.risk_level.upper()}[/{color}]")
+
+    if report.type_summaries:
+        from rich.table import Table
+
+        table = Table(title="PII Types Detected")
+        table.add_column("Type", style="cyan")
+        table.add_column("Count", justify="right")
+        table.add_column("Fields")
+        table.add_column("Examples")
+
+        for s in report.type_summaries:
+            table.add_row(
+                s.pii_type,
+                str(s.count),
+                ", ".join(s.affected_fields),
+                " | ".join(s.examples[:2]),
+            )
+        console.print("")
+        console.print(table)
+
+    if report.recommendations:
+        console.print(f"\n[bold cyan]Recommendations:[/bold cyan]")
+        for rec in report.recommendations:
+            console.print(f"  - {rec}")
+
+    if output:
+        import json
+
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        Path(output).write_text(
+            json.dumps(report.to_dict(), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        console.print(f"\n[green]Report saved to {output}[/green]")
