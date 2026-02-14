@@ -245,6 +245,57 @@ def create_server() -> "Server":
                     "required": ["output_dir", "enhanced_context"],
                 },
             ),
+            Tool(
+                name="recipe_template",
+                description="从分析结果生成标注模板（接 data-label）。读取 DATA_SCHEMA.json 和 ANNOTATION_SPEC.md，生成 data-label 兼容的 HTML 标注模板。",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "analysis_dir": {
+                            "type": "string",
+                            "description": "DataRecipe 分析输出目录",
+                        },
+                        "template_type": {
+                            "type": "string",
+                            "enum": ["classification", "ranking", "qa", "preference", "auto"],
+                            "description": "标注模板类型，auto 自动推断（默认 auto）",
+                            "default": "auto",
+                        },
+                        "output_path": {
+                            "type": "string",
+                            "description": "保存模板文件的路径（可选）",
+                        },
+                    },
+                    "required": ["analysis_dir"],
+                },
+            ),
+            Tool(
+                name="recipe_diff",
+                description="对比两次分析结果的差异。比较 schema 字段、统计数据、评分规范等。",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "analysis_dir_a": {
+                            "type": "string",
+                            "description": "第一个分析输出目录",
+                        },
+                        "analysis_dir_b": {
+                            "type": "string",
+                            "description": "第二个分析输出目录",
+                        },
+                        "sections": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": ["schema", "stats", "rubrics", "cost", "all"],
+                            },
+                            "description": "要比较的板块（默认 all）",
+                            "default": ["all"],
+                        },
+                    },
+                    "required": ["analysis_dir_a", "analysis_dir_b"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -271,6 +322,10 @@ def create_server() -> "Server":
             return await _get_agent_context(arguments)
         elif name == "enhance_analysis_reports":
             return await _enhance_analysis_reports(arguments)
+        elif name == "recipe_template":
+            return await _recipe_template(arguments)
+        elif name == "recipe_diff":
+            return await _recipe_diff(arguments)
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -833,6 +888,136 @@ async def _enhance_analysis_reports(arguments: dict[str, Any]) -> list[TextConte
                 text=f"Error enhancing reports: {e}\n{traceback.format_exc()}",
             )
         ]
+
+
+async def _recipe_template(arguments: dict[str, Any]) -> list[TextContent]:
+    """Generate annotation template from analysis results."""
+    import os
+
+    analysis_dir = arguments.get("analysis_dir", "")
+    template_type = arguments.get("template_type", "auto")
+    output_path = arguments.get("output_path")
+
+    schema_path = os.path.join(analysis_dir, "02_数据结构", "DATA_SCHEMA.json")
+    if not os.path.exists(schema_path):
+        # Try flat layout
+        schema_path = os.path.join(analysis_dir, "DATA_SCHEMA.json")
+    if not os.path.exists(schema_path):
+        return [TextContent(type="text", text=f"Error: DATA_SCHEMA.json not found in {analysis_dir}")]
+
+    try:
+        with open(schema_path, encoding="utf-8") as f:
+            schema = json.load(f)
+
+        fields = schema.get("fields", {})
+        if not fields and "schema" in schema:
+            fields = schema["schema"].get("fields", {})
+
+        # Auto-detect template type
+        if template_type == "auto":
+            field_names = " ".join(fields.keys()).lower()
+            if "chosen" in field_names or "rejected" in field_names or "preference" in field_names:
+                template_type = "preference"
+            elif "rank" in field_names or "score" in field_names:
+                template_type = "ranking"
+            elif "question" in field_names and "answer" in field_names:
+                template_type = "qa"
+            else:
+                template_type = "classification"
+
+        # Generate template
+        lines = [
+            f"## 标注模板 (类型: {template_type})",
+            "",
+            f"从 `{os.path.basename(analysis_dir)}` 的 schema 自动生成",
+            "",
+            "### 字段定义",
+            "",
+            "| 字段 | 类型 | 必填 | 说明 |",
+            "|------|------|------|------|",
+        ]
+        for fname, fdef in fields.items():
+            ftype = fdef.get("type", "-") if isinstance(fdef, dict) else str(fdef)
+            req = "是" if (isinstance(fdef, dict) and fdef.get("required")) else "否"
+            desc = fdef.get("description", "-") if isinstance(fdef, dict) else "-"
+            lines.append(f"| {fname} | {ftype} | {req} | {desc} |")
+
+        lines.extend(["", f"### 推荐模板类型: `{template_type}`", ""])
+
+        # Generate a minimal data-label compatible config
+        label_config = {
+            "template_type": template_type,
+            "fields": {k: {"type": v.get("type", "text") if isinstance(v, dict) else "text"} for k, v in fields.items()},
+        }
+        lines.extend(["### data-label 配置", "", "```json", json.dumps(label_config, ensure_ascii=False, indent=2), "```"])
+
+        text = "\n".join(lines)
+        if output_path:
+            os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(text)
+            return [TextContent(type="text", text=f"模板已保存到 {output_path}\n\n{text}")]
+        return [TextContent(type="text", text=text)]
+
+    except Exception as e:
+        return [TextContent(type="text", text=f"Error generating template: {e}")]
+
+
+async def _recipe_diff(arguments: dict[str, Any]) -> list[TextContent]:
+    """Compare two analysis outputs."""
+    import os
+
+    dir_a = arguments["analysis_dir_a"]
+    dir_b = arguments["analysis_dir_b"]
+    sections = arguments.get("sections", ["all"])
+    if "all" in sections:
+        sections = ["schema", "stats", "rubrics", "cost"]
+
+    lines = [f"## 分析对比", "", f"- A: `{os.path.basename(dir_a)}`", f"- B: `{os.path.basename(dir_b)}`", ""]
+
+    def _load_json(base_dir: str, *paths: str) -> dict | None:
+        for p in paths:
+            fp = os.path.join(base_dir, p)
+            if os.path.exists(fp):
+                with open(fp, encoding="utf-8") as f:
+                    return json.load(f)
+        return None
+
+    if "schema" in sections:
+        schema_a = _load_json(dir_a, "02_数据结构/DATA_SCHEMA.json", "DATA_SCHEMA.json")
+        schema_b = _load_json(dir_b, "02_数据结构/DATA_SCHEMA.json", "DATA_SCHEMA.json")
+        lines.append("### Schema 对比")
+        if schema_a and schema_b:
+            fields_a = set((schema_a.get("fields") or schema_a.get("schema", {}).get("fields", {})).keys())
+            fields_b = set((schema_b.get("fields") or schema_b.get("schema", {}).get("fields", {})).keys())
+            added = fields_b - fields_a
+            removed = fields_a - fields_b
+            shared = fields_a & fields_b
+            lines.append(f"- 共有字段: {len(shared)}")
+            if added:
+                lines.append(f"- B 新增: {', '.join(sorted(added))}")
+            if removed:
+                lines.append(f"- B 移除: {', '.join(sorted(removed))}")
+            if not added and not removed:
+                lines.append("- 字段完全一致")
+        else:
+            lines.append("- 无法加载 schema（至少一个目录缺少 DATA_SCHEMA.json）")
+        lines.append("")
+
+    if "stats" in sections:
+        ctx_a = _load_json(dir_a, "08_AI_Agent/agent_context.json", "agent_context.json")
+        ctx_b = _load_json(dir_b, "08_AI_Agent/agent_context.json", "agent_context.json")
+        lines.append("### 统计对比")
+        if ctx_a and ctx_b:
+            for key in ["sample_count", "estimated_difficulty", "estimated_domain"]:
+                va = ctx_a.get(key, ctx_a.get("dataset", {}).get(key, "-"))
+                vb = ctx_b.get(key, ctx_b.get("dataset", {}).get(key, "-"))
+                lines.append(f"- {key}: {va} → {vb}")
+        else:
+            lines.append("- 无法加载 agent_context.json")
+        lines.append("")
+
+    return [TextContent(type="text", text="\n".join(lines))]
 
 
 async def main():
