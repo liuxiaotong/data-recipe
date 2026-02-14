@@ -13,7 +13,7 @@
 [![CI](https://github.com/liuxiaotong/data-recipe/actions/workflows/ci.yml/badge.svg)](https://github.com/liuxiaotong/data-recipe/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-3399_passed-brightgreen.svg)](#开发)
 [![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen.svg)](#开发)
-[![MCP](https://img.shields.io/badge/MCP-10_Tools-purple.svg)](#mcp-server)
+[![MCP](https://img.shields.io/badge/MCP-12_Tools-purple.svg)](#mcp-server)
 
 [快速开始](#快速开始) · [LLM 增强](#llm-增强层) · [需求文档分析](#需求文档分析) · [MCP Server](#mcp-server) · [Data Pipeline 生态](#data-pipeline-生态)
 
@@ -261,7 +261,7 @@ projects/{数据集名}/
 
 ## MCP Server
 
-在 Claude Desktop / Claude Code 中直接使用，10 个工具覆盖完整工作流。
+在 Claude Desktop / Claude Code 中直接使用，12 个工具覆盖完整工作流。
 
 <details>
 <summary>⚙️ 配置</summary>
@@ -291,6 +291,8 @@ projects/{数据集名}/
 | `compare_datasets` | 对比多个数据集 |
 | `profile_dataset` | 数据集画像 + 成本估算 |
 | `get_agent_context` | 获取 AI Agent 上下文 |
+| `recipe_template` | 生成标注模板（自动检测类型，输出 data-label 兼容配置） |
+| `recipe_diff` | 对比两个分析结果（Schema 字段差异 + 统计差异） |
 
 ---
 
@@ -362,7 +364,7 @@ src/datarecipe/
 ├── workflow.py                     # 生产工作流生成
 ├── quality_metrics.py              # 质量评估指标
 ├── pipeline.py                     # 多阶段流水线模板
-├── mcp_server.py                   # MCP Server (10 工具)
+├── mcp_server.py                   # MCP Server (12 工具)
 └── cli/                            # CLI 命令包
     ├── __init__.py                 # 命令注册
     ├── _helpers.py                 # 共享工具函数
