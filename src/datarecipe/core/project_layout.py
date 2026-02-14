@@ -130,8 +130,8 @@ class OutputManager:
         ),
         "guide": (
             "技术指南",
-            "复刻指南、分析报告",
-            ["REPRODUCTION_GUIDE.md", "ANALYSIS_REPORT.md"],
+            "复刻指南、分析报告、数据 Schema",
+            ["REPRODUCTION_GUIDE.md", "ANALYSIS_REPORT.md", "DATA_SCHEMA.json"],
         ),
         "cost": (
             "成本分析",
@@ -155,8 +155,8 @@ class OutputManager:
         ),
         "samples": (
             "样例数据",
-            "Think-PO 样例等示范数据",
-            [],
+            "原始数据样例（可直接用于 datalabel）",
+            ["samples.json"],
         ),
         "deploy": (
             "生产部署",

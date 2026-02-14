@@ -123,7 +123,7 @@ class DeepAnalyzerCore:
             dataset_output_dir = os.path.join(self.output_dir, _safe_name(_safe_id))
             output_mgr = OutputManager(
                 dataset_output_dir,
-                subdirs=["decision", "project", "annotation", "guide", "cost", "data", "ai_agent"],
+                subdirs=["decision", "project", "annotation", "guide", "cost", "data", "ai_agent", "samples"],
             )
             result.output_dir = dataset_output_dir
 
@@ -887,10 +887,71 @@ class DeepAnalyzerCore:
                     warnings.append(f"行业基准对比生成失败: {e}")
                 return files, warnings
 
+            def _gen_data_schema():
+                """Generate DATA_SCHEMA.json for knowlyr-datalabel integration."""
+                files, warnings = [], []
+                try:
+                    fields = []
+                    for fld, info in schema_info.items():
+                        field_type = info.get("type", "str")
+                        type_map = {"str": "string", "int": "integer", "float": "number",
+                                    "bool": "boolean", "list": "array", "dict": "object",
+                                    "NoneType": "string"}
+                        json_type = type_map.get(field_type, "string")
+                        field_def = {"name": fld, "type": json_type}
+                        if info.get("examples"):
+                            field_def["examples"] = info["examples"][:2]
+                        if info.get("nested_type"):
+                            field_def["nested_type"] = info["nested_type"]
+                        fields.append(field_def)
+                    schema = {
+                        "dataset_id": dataset_id,
+                        "project_name": dataset_id.split("/")[-1] if "/" in dataset_id else dataset_id,
+                        "sample_count": sample_count,
+                        "fields": fields,
+                        "field_names": [f["name"] for f in fields],
+                    }
+                    path = output_mgr.get_path("guide", "DATA_SCHEMA.json")
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump(schema, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("guide", "DATA_SCHEMA.json"))
+                except Exception as e:
+                    warnings.append(f"DATA_SCHEMA 生成失败: {e}")
+                return files, warnings
+
+            def _gen_samples():
+                """Save sample items to 09_样例数据/samples.json for datalabel."""
+                files, warnings = [], []
+                try:
+                    # Convert sample items to serializable format
+                    serializable = []
+                    for idx, item in enumerate(sample_items):
+                        record = {"id": f"SAMPLE_{idx + 1:03d}"}
+                        data = {}
+                        for k, v in item.items():
+                            if isinstance(v, (str, int, float, bool)) or v is None:
+                                data[k] = v
+                            elif isinstance(v, list):
+                                data[k] = [str(x) if not isinstance(x, (str, int, float, bool, dict, list)) else x for x in v[:20]]
+                            elif isinstance(v, dict):
+                                data[k] = {sk: str(sv) if not isinstance(sv, (str, int, float, bool)) else sv for sk, sv in v.items()}
+                            else:
+                                data[k] = str(v)
+                        record["data"] = data
+                        serializable.append(record)
+                    path = output_mgr.get_path("samples", "samples.json")
+                    with open(path, "w", encoding="utf-8") as f:
+                        json.dump({"samples": serializable}, f, indent=2, ensure_ascii=False)
+                    files.append(output_mgr.get_relative_path("samples", "samples.json"))
+                except Exception as e:
+                    warnings.append(f"样例数据保存失败: {e}")
+                return files, warnings
+
             # Execute all generators in parallel
             generator_fns = [
                 _gen_analysis_report, _gen_reproduction_guide, _gen_annotation_spec,
                 _gen_milestone_plan, _gen_executive_summary, _gen_industry_benchmark,
+                _gen_data_schema, _gen_samples,
             ]
             with ThreadPoolExecutor(max_workers=4) as executor:
                 futures = {executor.submit(fn): fn for fn in generator_fns}
