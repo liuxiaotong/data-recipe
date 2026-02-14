@@ -891,26 +891,102 @@ class DeepAnalyzerCore:
                 """Generate DATA_SCHEMA.json for knowlyr-datalabel integration."""
                 files, warnings = [], []
                 try:
+                    # --- Field definitions ---
+                    display_names = {
+                        "messages": "对话消息", "instruction": "用户指令",
+                        "response": "模型回答", "input": "输入", "output": "输出",
+                        "question": "问题", "answer": "回答", "text": "文本内容",
+                        "chosen": "优选回答", "rejected": "劣选回答",
+                        "source_dataset": "来源数据集", "domain": "领域",
+                        "problem_statement": "问题描述", "patch": "补丁",
+                        "repo": "代码仓库", "context": "上下文",
+                    }
                     fields = []
                     for fld, info in schema_info.items():
                         field_type = info.get("type", "str")
-                        type_map = {"str": "string", "int": "integer", "float": "number",
-                                    "bool": "boolean", "list": "array", "dict": "object",
-                                    "NoneType": "string"}
+                        type_map = {
+                            "str": "string", "int": "integer", "float": "number",
+                            "bool": "boolean", "list": "array", "dict": "object",
+                            "NoneType": "string",
+                        }
                         json_type = type_map.get(field_type, "string")
                         field_def = {"name": fld, "type": json_type}
+                        if fld in display_names:
+                            field_def["display_name"] = display_names[fld]
                         if info.get("examples"):
                             field_def["examples"] = info["examples"][:2]
                         if info.get("nested_type"):
                             field_def["nested_type"] = info["nested_type"]
                         fields.append(field_def)
+
+                    # --- Annotation config based on dataset type ---
+                    dt = detected_type or "unknown"
+                    quality_req = (
+                        complexity_metrics.quality_requirement
+                        if complexity_metrics else "standard"
+                    )
+                    scoring_rubric = []
+                    annotation_config = {}
+
+                    if dt == "preference":
+                        # Preference data → ranking annotation
+                        annotation_config = {
+                            "type": "ranking",
+                            "options": [
+                                {"value": "chosen", "label": "优选回答"},
+                                {"value": "rejected", "label": "劣选回答"},
+                            ],
+                        }
+                    elif dt == "swe_bench":
+                        # Code patches → scoring
+                        scoring_rubric = [
+                            {"score": 1, "label": "通过",
+                             "description": "补丁正确解决问题，测试通过"},
+                            {"score": 0.5, "label": "部分",
+                             "description": "补丁方向正确但不完整或有副作用"},
+                            {"score": 0, "label": "失败",
+                             "description": "补丁错误或无法应用"},
+                        ]
+                    else:
+                        # SFT / evaluation / unknown → scoring with quality-based granularity
+                        if quality_req in ("high", "expert"):
+                            scoring_rubric = [
+                                {"score": 1, "label": "优秀",
+                                 "description": "回答完整准确，逻辑清晰，表达流畅"},
+                                {"score": 0.75, "label": "良好",
+                                 "description": "回答基本准确，有小瑕疵但不影响理解"},
+                                {"score": 0.5, "label": "一般",
+                                 "description": "回答部分正确但有明显遗漏或偏差"},
+                                {"score": 0.25, "label": "较差",
+                                 "description": "回答大部分错误或严重偏题"},
+                                {"score": 0, "label": "不可用",
+                                 "description": "回答完全错误、无关或有害"},
+                            ]
+                        else:
+                            scoring_rubric = [
+                                {"score": 1, "label": "优秀",
+                                 "description": "回答完整准确，逻辑清晰，表达流畅"},
+                                {"score": 0.5, "label": "一般",
+                                 "description": "回答基本正确但有遗漏或表达不够清晰"},
+                                {"score": 0, "label": "差",
+                                 "description": "回答错误、离题或无实质内容"},
+                            ]
+
                     schema = {
                         "dataset_id": dataset_id,
-                        "project_name": dataset_id.split("/")[-1] if "/" in dataset_id else dataset_id,
+                        "project_name": (
+                            dataset_id.split("/")[-1] if "/" in dataset_id
+                            else dataset_id
+                        ),
                         "sample_count": sample_count,
                         "fields": fields,
                         "field_names": [f["name"] for f in fields],
                     }
+                    if scoring_rubric:
+                        schema["scoring_rubric"] = scoring_rubric
+                    if annotation_config:
+                        schema["annotation_config"] = annotation_config
+
                     path = output_mgr.get_path("guide", "DATA_SCHEMA.json")
                     with open(path, "w", encoding="utf-8") as f:
                         json.dump(schema, f, indent=2, ensure_ascii=False)
