@@ -13,7 +13,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 <br/>
 [![CI](https://github.com/liuxiaotong/data-recipe/actions/workflows/ci.yml/badge.svg)](https://github.com/liuxiaotong/data-recipe/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-3399_passed-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-3572_passed-brightgreen.svg)](#development)
 [![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen.svg)](#development)
 [![MCP Tools](https://img.shields.io/badge/MCP_Tools-12-purple.svg)](#mcp-server)
 [![Output](https://img.shields.io/badge/Output-23+_documents-orange.svg)](#output-structure)
@@ -30,7 +30,7 @@
 
 DataRecipe 提出**自动化数据集逆向工程框架** (automated dataset reverse engineering)：从数据集样本或需求文档出发，通过**六阶段分析流水线** (6-stage analysis pipeline) 自动推断 Schema 结构、提取评分标准和 Prompt 模板、估算分阶段成本、分析人机分配比例，输出覆盖 6 类用户角色的 **23+ 生产级文档**。**LLM 增强层** (LLM Enhancement Layer) 一次调用生成 `EnhancedContext`，将模板化文档升级为具备领域洞察的专业分析。
 
-> **DataRecipe** implements an automated dataset reverse engineering framework. The system ingests HuggingFace datasets or requirement documents (PDF/Word/Image), runs a 6-stage analysis pipeline (schema inference, rubric extraction, prompt extraction, cost modeling, human-machine split, benchmark comparison), and generates 23+ production documents for 6 stakeholder roles (executive, PM, annotators, engineers, finance, AI agents). An LLM Enhancement Layer produces `EnhancedContext` in a single call, upgrading template outputs to domain-specific professional analyses. 3399 tests, 97% coverage.
+> **DataRecipe** implements an automated dataset reverse engineering framework. The system ingests HuggingFace datasets or requirement documents (PDF/Word/Image), runs a 6-stage analysis pipeline (schema inference, rubric extraction, prompt extraction, cost modeling, human-machine split, benchmark comparison), and generates 23+ production documents for 6 stakeholder roles (executive, PM, annotators, engineers, finance, AI agents). An LLM Enhancement Layer produces `EnhancedContext` in a single call, upgrading template outputs to domain-specific professional analyses. 3572 tests, 97% coverage.
 
 ---
 
@@ -358,7 +358,7 @@ knowlyr-datacheck validate ./projects/tencent_CL-bench/          # 质检
 git clone https://github.com/liuxiaotong/data-recipe.git
 cd data-recipe
 make install
-make test    # 3399 test cases, 97% coverage
+make test    # 3572 test cases, 97% coverage
 ```
 
 **CI**: GitHub Actions，Python 3.10–3.13。Tag push 自动发布 PyPI + GitHub Release。
