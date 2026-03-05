@@ -21,6 +21,13 @@ from click.testing import CliRunner
 
 from datarecipe.cli import main
 
+# Use sys.modules to get the actual module objects, bypassing the namespace
+# shadowing caused by `from datarecipe.cli.analyze import analyze` in __init__.py
+# which replaces the module with the Click Command object on Python 3.10.
+import sys
+_cli_analyze_mod = sys.modules["datarecipe.cli.analyze"]
+_cli_tools_mod = sys.modules["datarecipe.cli.tools"]
+
 # ============================================================================
 # deep.py: _generate_analysis_report
 # ============================================================================
@@ -1014,7 +1021,7 @@ class TestWorkflowCommand(unittest.TestCase):
         self.runner = CliRunner()
 
     @patch("datarecipe.workflow.WorkflowGenerator")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_workflow_success(self, MockAnalyzer, MockWFGen):
 
         recipe = MagicMock()
@@ -1035,7 +1042,7 @@ class TestWorkflowCommand(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertIn("Workflow generated", result.output)
 
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_workflow_analyze_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = ValueError("Not found")
         result = self.runner.invoke(
@@ -1057,7 +1064,7 @@ class TestDeployCommand(unittest.TestCase):
 
     @patch("datarecipe.deployer.ProductionDeployer")
     @patch("datarecipe.profiler.AnnotatorProfiler")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_deploy_success(self, MockAnalyzer, MockProfiler, MockDeployer):
         recipe = MagicMock()
         recipe.name = "test/dataset"
@@ -1095,7 +1102,7 @@ class TestDeployCommand(unittest.TestCase):
 
     @patch("datarecipe.deployer.ProductionDeployer")
     @patch("datarecipe.profiler.AnnotatorProfiler")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_deploy_failure(self, MockAnalyzer, MockProfiler, MockDeployer):
         recipe = MagicMock()
         recipe.name = "test/dataset"
@@ -1128,7 +1135,7 @@ class TestDeployCommand(unittest.TestCase):
             )
             self.assertNotEqual(result.exit_code, 0)
 
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_deploy_analyze_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = Exception("Cannot analyze")
         result = self.runner.invoke(
@@ -1250,7 +1257,7 @@ class TestProfileTableMode(unittest.TestCase):
 
     @patch("datarecipe.profiler.profile_to_markdown")
     @patch("datarecipe.profiler.AnnotatorProfiler")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_profile_table_output(self, MockAnalyzer, MockProfiler, MockToMd):
         recipe = MagicMock()
         recipe.name = "test/dataset"
@@ -1279,7 +1286,7 @@ class TestProfileTableMode(unittest.TestCase):
 
     @patch("datarecipe.profiler.profile_to_markdown")
     @patch("datarecipe.profiler.AnnotatorProfiler")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_profile_export_md(self, MockAnalyzer, MockProfiler, MockToMd):
         recipe = MagicMock()
         recipe.name = "test/dataset"
@@ -1308,7 +1315,7 @@ class TestProfileTableMode(unittest.TestCase):
 
     @patch("datarecipe.profiler.profile_to_markdown")
     @patch("datarecipe.profiler.AnnotatorProfiler")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_profile_export_json(self, MockAnalyzer, MockProfiler, MockToMd):
         recipe = MagicMock()
         recipe.name = "test/dataset"
@@ -1337,7 +1344,7 @@ class TestProfileTableMode(unittest.TestCase):
 
     @patch("datarecipe.profiler.profile_to_markdown")
     @patch("datarecipe.profiler.AnnotatorProfiler")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_profile_export_yaml(self, MockAnalyzer, MockProfiler, MockToMd):
         recipe = MagicMock()
         recipe.name = "test/dataset"
@@ -1364,7 +1371,7 @@ class TestProfileTableMode(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_profile_analyze_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = Exception("Cannot analyze")
         result = self.runner.invoke(main, ["profile", "bad/ds"])
@@ -1953,26 +1960,26 @@ class TestGuideExtended(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_guide_value_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = ValueError("Not found")
         result = self.runner.invoke(main, ["guide", "bad/ds"])
         self.assertNotEqual(result.exit_code, 0)
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_guide_generic_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = RuntimeError("Network fail")
         result = self.runner.invoke(main, ["guide", "bad/ds"])
         self.assertNotEqual(result.exit_code, 0)
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_export_generic_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = RuntimeError("Network")
         result = self.runner.invoke(main, ["export", "bad/ds", "/tmp/out.yaml"])
         self.assertNotEqual(result.exit_code, 0)
 
-    @patch("datarecipe.cli.analyze.display_recipe")
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "display_recipe")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_output_default_yaml(self, MockAnalyzer, MockDisplay):
         """Test analyze with output file that is not .json or .md (defaults to YAML export)."""
         recipe = MagicMock()
@@ -2160,14 +2167,14 @@ class TestCostExtended(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_cost_analyze_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = RuntimeError("Dataset not accessible")
         result = self.runner.invoke(main, ["cost", "bad/dataset"])
         self.assertNotEqual(result.exit_code, 0)
 
     @patch("datarecipe.cost_calculator.CostCalculator")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_cost_with_examples_option(self, MockAnalyzer, MockCalc):
         recipe = MagicMock()
         recipe.num_examples = 5000

@@ -21,6 +21,13 @@ from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 
 from datarecipe.cli import main, recipe_to_markdown, validate_output_path
+
+# Use sys.modules to get the actual module objects, bypassing the namespace
+# shadowing caused by `from datarecipe.cli.analyze import analyze` in __init__.py
+# which replaces the module with the Click Command object on Python 3.10.
+import sys
+_cli_analyze_mod = sys.modules["datarecipe.cli.analyze"]
+_cli_tools_mod = sys.modules["datarecipe.cli.tools"]
 from datarecipe.schema import (
     Cost,
     GenerationMethod,
@@ -366,7 +373,7 @@ class TestAnalyzeCommand(unittest.TestCase):
         self.runner = CliRunner()
         self.recipe = _make_recipe()
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_default_output(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.return_value = self.recipe
@@ -374,7 +381,7 @@ class TestAnalyzeCommand(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         mock_instance.analyze.assert_called_once_with("test/dataset")
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_json_flag(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.return_value = self.recipe
@@ -382,7 +389,7 @@ class TestAnalyzeCommand(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn('"name"', result.output)
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_yaml_flag(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.return_value = self.recipe
@@ -390,7 +397,7 @@ class TestAnalyzeCommand(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("name:", result.output)
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_markdown_flag(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.return_value = self.recipe
@@ -398,7 +405,7 @@ class TestAnalyzeCommand(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("test/dataset", result.output)
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_output_json_file(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.return_value = self.recipe
@@ -410,7 +417,7 @@ class TestAnalyzeCommand(unittest.TestCase):
             data = json.loads(Path(outpath).read_text())
             self.assertEqual(data["name"], "test/dataset")
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_output_md_file(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.return_value = self.recipe
@@ -422,7 +429,7 @@ class TestAnalyzeCommand(unittest.TestCase):
             content = Path(outpath).read_text()
             self.assertIn("test/dataset", content)
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_value_error(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.side_effect = ValueError("Dataset not found")
@@ -430,7 +437,7 @@ class TestAnalyzeCommand(unittest.TestCase):
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("Error", result.output)
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_analyze_generic_error(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.side_effect = RuntimeError("Network error")
@@ -463,7 +470,7 @@ class TestShowCommand(unittest.TestCase):
         result = self.runner.invoke(main, ["show", "/nonexistent/recipe.yaml"])
         self.assertNotEqual(result.exit_code, 0)
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_show_valid_file(self, MockAnalyzer):
         recipe = _make_recipe()
         mock_instance = MockAnalyzer.return_value
@@ -485,7 +492,7 @@ class TestExportCommand(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_export_success(self, MockAnalyzer):
         recipe = _make_recipe()
         mock_instance = MockAnalyzer.return_value
@@ -496,7 +503,7 @@ class TestExportCommand(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             mock_instance.export_recipe.assert_called_once()
 
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_export_analyze_error(self, MockAnalyzer):
         mock_instance = MockAnalyzer.return_value
         mock_instance.analyze.side_effect = ValueError("not found")
@@ -520,7 +527,7 @@ class TestCostCommand(unittest.TestCase):
         self.runner = CliRunner()
 
     @patch("datarecipe.cost_calculator.CostCalculator")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_cost_default(self, MockAnalyzer, MockCalc):
         recipe = _make_recipe()
         MockAnalyzer.return_value.analyze.return_value = recipe
@@ -546,7 +553,7 @@ class TestCostCommand(unittest.TestCase):
         self.assertIn("Cost", result.output)
 
     @patch("datarecipe.cost_calculator.CostCalculator")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_cost_json_flag(self, MockAnalyzer, MockCalc):
         recipe = _make_recipe()
         MockAnalyzer.return_value.analyze.return_value = recipe
@@ -896,7 +903,7 @@ class TestGuideCommand(unittest.TestCase):
 
     @patch("datarecipe.pipeline.pipeline_to_markdown")
     @patch("datarecipe.pipeline.get_pipeline_template")
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_guide_success(self, MockAnalyzer, MockTemplate, MockToMd):
         recipe = _make_recipe()
         MockAnalyzer.return_value.analyze.return_value = recipe
@@ -914,7 +921,7 @@ class TestGuideCommand(unittest.TestCase):
 
     @patch("datarecipe.pipeline.pipeline_to_markdown")
     @patch("datarecipe.pipeline.get_pipeline_template")
-    @patch("datarecipe.cli.analyze.DatasetAnalyzer")
+    @patch.object(_cli_analyze_mod, "DatasetAnalyzer")
     def test_guide_with_output(self, MockAnalyzer, MockTemplate, MockToMd):
         recipe = _make_recipe()
         MockAnalyzer.return_value.analyze.return_value = recipe
@@ -999,7 +1006,7 @@ class TestProfileCommand(unittest.TestCase):
 
     @patch("datarecipe.profiler.profile_to_markdown")
     @patch("datarecipe.profiler.AnnotatorProfiler")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_profile_json_output(self, MockAnalyzer, MockProfiler, MockToMd):
         recipe = _make_recipe()
         MockAnalyzer.return_value.analyze.return_value = recipe
@@ -1014,7 +1021,7 @@ class TestProfileCommand(unittest.TestCase):
 
     @patch("datarecipe.profiler.profile_to_markdown")
     @patch("datarecipe.profiler.AnnotatorProfiler")
-    @patch("datarecipe.cli.tools.DatasetAnalyzer")
+    @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_profile_markdown_output(self, MockAnalyzer, MockProfiler, MockToMd):
         recipe = _make_recipe()
         MockAnalyzer.return_value.analyze.return_value = recipe
