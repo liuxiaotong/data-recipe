@@ -1700,10 +1700,12 @@ class TestGenerateOrchestrator(unittest.TestCase):
 
     def test_error_handling(self):
         """Test that generate() catches exceptions and returns error result."""
+        from unittest.mock import patch
         a = _make_analysis()
-        # Use a read-only directory to trigger an error
-        gen = SpecOutputGenerator(output_dir="/nonexistent/path/that/should/not/exist")
-        result = gen.generate(a, target_size=5, region="china")
+        gen = SpecOutputGenerator(output_dir="/tmp/spec_error_test")
+        # Force an OSError during directory creation to test error handling
+        with patch("os.makedirs", side_effect=OSError("Permission denied")):
+            result = gen.generate(a, target_size=5, region="china")
         self.assertFalse(result.success)
         self.assertTrue(len(result.error) > 0)
 

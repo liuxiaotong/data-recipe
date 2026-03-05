@@ -425,7 +425,8 @@ class TestAnalysisCacheCopyToOutput(unittest.TestCase):
         self.assertFalse(result)
 
     @patch.object(AnalysisCache, "get_hf_metadata", return_value={"commit": "", "last_modified": ""})
-    def test_copy_missing_source_dir_returns_false(self, _mock_hf):
+    @patch("os.path.exists", return_value=False)
+    def test_copy_missing_source_dir_returns_false(self, _mock_exists, _mock_hf):
         self.cache.put("test/ds", "/nonexistent/path")
         result = self.cache.copy_to_output("test/ds", self.dst_dir)
         self.assertFalse(result)
