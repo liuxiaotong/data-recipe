@@ -973,7 +973,7 @@ async def _recipe_diff(arguments: dict[str, Any]) -> list[TextContent]:
     if "all" in sections:
         sections = ["schema", "stats", "rubrics", "cost"]
 
-    lines = [f"## 分析对比", "", f"- A: `{os.path.basename(dir_a)}`", f"- B: `{os.path.basename(dir_b)}`", ""]
+    lines = ["## 分析对比", "", f"- A: `{os.path.basename(dir_a)}`", f"- B: `{os.path.basename(dir_b)}`", ""]
 
     def _load_json(base_dir: str, *paths: str) -> dict | None:
         for p in paths:

@@ -1,6 +1,5 @@
 """Extract recipe information from local data files (CSV, Parquet, JSONL)."""
 
-import os
 from pathlib import Path
 
 from datarecipe.schema import (
