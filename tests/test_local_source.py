@@ -1,11 +1,14 @@
 """Tests for local file source support (CSV, Parquet, JSONL)."""
 
 import csv
+import importlib
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+
+_has_datasets = importlib.util.find_spec("datasets") is not None
 
 from click.testing import CliRunner
 
@@ -294,6 +297,7 @@ class TestLocalQualityAnalysis(unittest.TestCase):
                 writer.writerow({"text": f"This is sample text number {i} for quality analysis testing.", "label": "pos"})
         return path
 
+    @unittest.skipUnless(_has_datasets, "requires 'datasets' package (install via pip install -e '.[quality]')")
     def test_analyze_from_file(self):
         from datarecipe.quality_metrics import QualityAnalyzer
 
@@ -303,6 +307,7 @@ class TestLocalQualityAnalysis(unittest.TestCase):
 
         self.assertGreater(report.sample_size, 0)
 
+    @unittest.skipUnless(_has_datasets, "requires 'datasets' package (install via pip install -e '.[quality]')")
     def test_analyze_from_file_auto_detect_field(self):
         from datarecipe.quality_metrics import QualityAnalyzer
 
