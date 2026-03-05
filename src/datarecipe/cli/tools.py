@@ -1244,7 +1244,7 @@ def pii(dataset_id: str, sample_size: int, pii_types: tuple, as_json: bool, outp
     risk_colors = {"high": "red", "medium": "yellow", "low": "green", "none": "green"}
     color = risk_colors.get(report.risk_level, "white")
 
-    console.print(f"\n[bold]PII Detection Report[/bold]")
+    console.print("\n[bold]PII Detection Report[/bold]")
     console.print(f"  Samples scanned: {report.total_samples}")
     console.print(f"  Samples with PII: {report.samples_with_pii}")
     console.print(f"  PII ratio: {report.pii_ratio * 100:.1f}%")
@@ -1270,7 +1270,7 @@ def pii(dataset_id: str, sample_size: int, pii_types: tuple, as_json: bool, outp
         console.print(table)
 
     if report.recommendations:
-        console.print(f"\n[bold cyan]Recommendations:[/bold cyan]")
+        console.print("\n[bold cyan]Recommendations:[/bold cyan]")
         for rec in report.recommendations:
             console.print(f"  - {rec}")
 
@@ -1328,12 +1328,12 @@ def ira(
 
     with console.status(f"[cyan]Analyzing agreement in {dataset_id}...[/cyan]"):
         try:
-            kwargs = dict(
-                item_field=item_field,
-                annotator_field=annotator_field,
-                label_field=label_field,
-                data_format=data_format,
-            )
+            kwargs = {
+                "item_field": item_field,
+                "annotator_field": annotator_field,
+                "label_field": label_field,
+                "data_format": data_format,
+            }
             if is_local:
                 report = analyzer.analyze_from_file(
                     str(local_path.resolve()), sample_size=sample_size, **kwargs,
@@ -1372,7 +1372,7 @@ def ira(
     }
     color = quality_colors.get(report.quality_level, "white")
 
-    console.print(f"\n[bold]Inter-Rater Agreement Report[/bold]")
+    console.print("\n[bold]Inter-Rater Agreement Report[/bold]")
     console.print(f"  Items analyzed: {report.total_items}")
     console.print(f"  Total annotations: {report.total_annotations}")
     console.print(f"  Annotators: {report.n_annotators}")
@@ -1414,7 +1414,7 @@ def ira(
         console.print(table)
 
     if report.recommendations:
-        console.print(f"\n[bold cyan]Recommendations:[/bold cyan]")
+        console.print("\n[bold cyan]Recommendations:[/bold cyan]")
         for rec in report.recommendations:
             console.print(f"  - {rec}")
 

@@ -5,8 +5,6 @@ import json
 import os
 import tempfile
 import unittest
-from pathlib import Path
-from unittest.mock import patch
 
 from click.testing import CliRunner
 
@@ -18,7 +16,6 @@ from datarecipe.pii_detector import (
     PIITypeSummary,
     _luhn_check,
 )
-
 
 # ==================== Test data factories ====================
 

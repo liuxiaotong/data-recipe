@@ -8,7 +8,6 @@ from datarecipe.cost_calculator import CostBreakdown, CostCalculator
 from datarecipe.quality_metrics import QualityAnalyzer, QualityReport
 from datarecipe.schema import GenerationType, Recipe, SourceType
 
-
 # ==================== Similarity dataclasses ====================
 
 
@@ -599,7 +598,7 @@ class DatasetComparator:
             b.quality.complexity.vocabulary_richness,
             b.quality.overall_score / 100.0,
         ]
-        dist = math.sqrt(sum((x - y) ** 2 for x, y in zip(dims_a, dims_b)))
+        dist = math.sqrt(sum((x - y) ** 2 for x, y in zip(dims_a, dims_b, strict=False)))
         max_dist = math.sqrt(len(dims_a))
         return max(0.0, 1.0 - dist / max_dist)
 

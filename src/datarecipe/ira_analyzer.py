@@ -4,7 +4,6 @@ from collections import Counter
 from dataclasses import dataclass, field
 from itertools import combinations
 
-
 # ==================== Dataclasses ====================
 
 
@@ -389,7 +388,7 @@ class IRAAnalyzer:
         all_labels = sorted(set(labels_a) | set(labels_b))
 
         # Observed agreement
-        po = sum(1 for a, b in zip(labels_a, labels_b) if a == b) / n
+        po = sum(1 for a, b in zip(labels_a, labels_b, strict=False) if a == b) / n
 
         # Expected agreement
         pe = 0.0
@@ -538,7 +537,7 @@ class IRAAnalyzer:
 
             kappa = self._cohen_kappa(labels_a, labels_b)
             n = len(common_items)
-            agree = sum(1 for a, b in zip(labels_a, labels_b) if a == b)
+            agree = sum(1 for a, b in zip(labels_a, labels_b, strict=False) if a == b)
             pct = agree / n if n > 0 else 0.0
 
             cm = self._build_confusion_matrix(labels_a, labels_b)
@@ -558,7 +557,7 @@ class IRAAnalyzer:
     ) -> dict[tuple[str, str], int]:
         """Build confusion matrix as {(label_a, label_b): count}."""
         cm: dict[tuple[str, str], int] = {}
-        for a, b in zip(labels_a, labels_b):
+        for a, b in zip(labels_a, labels_b, strict=False):
             key = (a, b)
             cm[key] = cm.get(key, 0) + 1
         return cm

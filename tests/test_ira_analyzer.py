@@ -5,7 +5,6 @@ import json
 import os
 import tempfile
 import unittest
-from pathlib import Path
 
 from click.testing import CliRunner
 
@@ -17,7 +16,6 @@ from datarecipe.ira_analyzer import (
     IRAReport,
     PairwiseAgreement,
 )
-
 
 # ==================== Test data factories ====================
 
