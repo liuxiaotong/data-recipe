@@ -19,9 +19,15 @@ class TestValidateOutputPath(unittest.TestCase):
         self.assertTrue(result.is_absolute())
 
     def test_valid_relative_path_resolves(self):
-        result = validate_output_path("output/test")
-        self.assertIsInstance(result, Path)
-        self.assertTrue(result.is_absolute())
+        import os
+        old_cwd = os.getcwd()
+        try:
+            os.chdir("/tmp")
+            result = validate_output_path("output/test")
+            self.assertIsInstance(result, Path)
+            self.assertTrue(result.is_absolute())
+        finally:
+            os.chdir(old_cwd)
 
     def test_base_dir_within(self):
         result = validate_output_path("/tmp/output/sub", base_dir=Path("/tmp/output"))
