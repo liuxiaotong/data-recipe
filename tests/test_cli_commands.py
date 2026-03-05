@@ -13,6 +13,11 @@ Patch targets follow the rule:
 
 import json
 import os
+
+# Use sys.modules to get the actual module objects, bypassing the namespace
+# shadowing caused by `from datarecipe.cli.analyze import analyze` in __init__.py
+# which replaces the module with the Click Command object on Python 3.10.
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -22,10 +27,6 @@ from click.testing import CliRunner
 
 from datarecipe.cli import main, recipe_to_markdown, validate_output_path
 
-# Use sys.modules to get the actual module objects, bypassing the namespace
-# shadowing caused by `from datarecipe.cli.analyze import analyze` in __init__.py
-# which replaces the module with the Click Command object on Python 3.10.
-import sys
 _cli_analyze_mod = sys.modules["datarecipe.cli.analyze"]
 _cli_tools_mod = sys.modules["datarecipe.cli.tools"]
 from datarecipe.schema import (
@@ -228,6 +229,7 @@ class TestValidateOutputPath(unittest.TestCase):
 
     def test_relative_resolves_to_absolute(self):
         import os
+
         old_cwd = os.getcwd()
         try:
             os.chdir("/tmp")
@@ -318,9 +320,7 @@ class TestRecipeToMarkdown(unittest.TestCase):
         self.assertIn("test/dataset", md)
 
     def test_low_confidence_cost_range(self):
-        recipe = _make_recipe(
-            cost=Cost(estimated_total_usd=1000.0, confidence="low")
-        )
+        recipe = _make_recipe(cost=Cost(estimated_total_usd=1000.0, confidence="low"))
         md = recipe_to_markdown(recipe)
         # Low confidence shows a range: $500 - $1,500
         self.assertIn("500", md)
@@ -1073,9 +1073,7 @@ class TestWatchCommand(unittest.TestCase):
     @patch("datarecipe.triggers.RadarWatcher")
     @patch("datarecipe.triggers.TriggerConfig")
     def test_watch_once_no_reports(self, MockConfig, MockWatcher):
-        mock_config = MagicMock(
-            orgs=[], categories=[], min_downloads=0
-        )
+        mock_config = MagicMock(orgs=[], categories=[], min_downloads=0)
         MockConfig.return_value = mock_config
 
         MockWatcher.return_value.check_once.return_value = []
@@ -1136,9 +1134,7 @@ class TestRecipeToMarkdownEdgeCases(unittest.TestCase):
         self.assertIn("test/dataset", md)
 
     def test_high_confidence_cost(self):
-        recipe = _make_recipe(
-            cost=Cost(estimated_total_usd=2000.0, confidence="high")
-        )
+        recipe = _make_recipe(cost=Cost(estimated_total_usd=2000.0, confidence="high"))
         md = recipe_to_markdown(recipe)
         self.assertIn("2,000", md)
 

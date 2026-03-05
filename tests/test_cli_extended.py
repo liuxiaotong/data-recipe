@@ -12,6 +12,11 @@ Supplements tests/test_cli_commands.py with deeper path coverage:
 
 import json
 import os
+
+# Use sys.modules to get the actual module objects, bypassing the namespace
+# shadowing caused by `from datarecipe.cli.analyze import analyze` in __init__.py
+# which replaces the module with the Click Command object on Python 3.10.
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,10 +26,6 @@ from click.testing import CliRunner
 
 from datarecipe.cli import main
 
-# Use sys.modules to get the actual module objects, bypassing the namespace
-# shadowing caused by `from datarecipe.cli.analyze import analyze` in __init__.py
-# which replaces the module with the Click Command object on Python 3.10.
-import sys
 _cli_analyze_mod = sys.modules["datarecipe.cli.analyze"]
 _cli_tools_mod = sys.modules["datarecipe.cli.tools"]
 
@@ -62,7 +63,13 @@ class TestGenerateAnalysisReport(unittest.TestCase):
         r.verb_distribution = {"include": 30, "explain": 20, "provide": 15}
         r.category_distribution = {"accuracy": 40, "completeness": 30, "format": 20}
         r.structured_templates = [
-            {"category": "accuracy", "action": "include", "target": "facts", "condition": None, "frequency": 10}
+            {
+                "category": "accuracy",
+                "action": "include",
+                "target": "facts",
+                "condition": None,
+                "frequency": 10,
+            }
         ]
         return r
 
@@ -162,7 +169,10 @@ class TestGenerateReproductionGuide(unittest.TestCase):
         r.verb_distribution = {"include": 20, "explain": 10}
         return r
 
-    @patch("datarecipe.analyzers.llm_dataset_analyzer.generate_llm_guide_section", return_value="## LLM Section")
+    @patch(
+        "datarecipe.analyzers.llm_dataset_analyzer.generate_llm_guide_section",
+        return_value="## LLM Section",
+    )
     def test_guide_default(self, mock_llm_section):
         from datarecipe.cli.deep import _generate_reproduction_guide
 
@@ -184,7 +194,9 @@ class TestGenerateReproductionGuide(unittest.TestCase):
                     "metadata": {"context_category": "coding", "sub_category": "python"},
                 }
             ],
-            sample_items=[{"messages": [{"role": "user", "content": "Hello"}], "rubrics": ["Test"]}],
+            sample_items=[
+                {"messages": [{"role": "user", "content": "Hello"}], "rubrics": ["Test"]}
+            ],
             rubrics_result=self._make_rubrics_result(),
             prompt_library=None,
             allocation=self._make_allocation(),
@@ -212,10 +224,20 @@ class TestGenerateReproductionGuide(unittest.TestCase):
             allocation=self._make_allocation(),
             is_preference_dataset=True,
             preference_pairs=[
-                {"topic": "safety", "human_query": "Is this safe?", "chosen_response": "Yes", "rejected_response": "No"},
+                {
+                    "topic": "safety",
+                    "human_query": "Is this safe?",
+                    "chosen_response": "Yes",
+                    "rejected_response": "No",
+                },
             ],
             preference_topics={"safety": 10, "helpfulness": 5},
-            preference_patterns={"chosen_longer": 8, "rejected_longer": 2, "same_length": 0, "chosen_safer": 3},
+            preference_patterns={
+                "chosen_longer": 8,
+                "rejected_longer": 2,
+                "same_length": 0,
+                "chosen_safer": 3,
+            },
         )
         self.assertIn("RLHF", result)
         self.assertIn("偏好", result)
@@ -257,7 +279,10 @@ class TestGenerateReproductionGuide(unittest.TestCase):
         self.assertIn("Python", result)
         self.assertIn("django/django", result)
 
-    @patch("datarecipe.analyzers.llm_dataset_analyzer.generate_llm_guide_section", return_value="## LLM Section")
+    @patch(
+        "datarecipe.analyzers.llm_dataset_analyzer.generate_llm_guide_section",
+        return_value="## LLM Section",
+    )
     def test_guide_with_llm_analysis(self, mock_llm_section):
         from datarecipe.cli.deep import _generate_reproduction_guide
 
@@ -363,9 +388,7 @@ class TestDeepAnalyzeExtended(unittest.TestCase):
     def test_deep_analyze_exception(self, MockCore):
         MockCore.return_value.analyze.side_effect = RuntimeError("Connection failed")
 
-        result = self.runner.invoke(
-            main, ["deep-analyze", "test/bad-dataset", "--no-cache"]
-        )
+        result = self.runner.invoke(main, ["deep-analyze", "test/bad-dataset", "--no-cache"])
         self.assertEqual(result.exit_code, 0)  # catches exceptions, prints error
 
     @patch("datarecipe.cache.AnalysisCache")
@@ -379,9 +402,7 @@ class TestDeepAnalyzeExtended(unittest.TestCase):
         MockCache.return_value.get.return_value = mock_entry
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = self.runner.invoke(
-                main, ["deep-analyze", "test/dataset", "-o", tmpdir]
-            )
+            result = self.runner.invoke(main, ["deep-analyze", "test/dataset", "-o", tmpdir])
             self.assertEqual(result.exit_code, 0)
             self.assertIn("2025-06-01", result.output)
             MockCache.return_value.copy_to_output.assert_called_once()
@@ -404,14 +425,20 @@ class TestDeepAnalyzeExtended(unittest.TestCase):
         result = self.runner.invoke(
             main,
             [
-                "deep-analyze", "test/ds",
+                "deep-analyze",
+                "test/ds",
                 "--no-cache",
                 "--use-llm",
-                "--llm-provider", "openai",
-                "--size", "5000",
-                "--region", "us",
-                "--split", "test",
-                "--sample-size", "100",
+                "--llm-provider",
+                "openai",
+                "--size",
+                "5000",
+                "--region",
+                "us",
+                "--split",
+                "test",
+                "--sample-size",
+                "100",
             ],
         )
         self.assertEqual(result.exit_code, 0)
@@ -504,9 +531,7 @@ class TestAnalyzeSpecCommand(unittest.TestCase):
                 mock_enhanced.generated = False
                 MockEnhancer.return_value.enhance.return_value = mock_enhanced
 
-                result = self.runner.invoke(
-                    main, ["analyze-spec", tmppath, "-o", "/tmp/test_spec"]
-                )
+                result = self.runner.invoke(main, ["analyze-spec", tmppath, "-o", "/tmp/test_spec"])
                 self.assertEqual(result.exit_code, 0)
         finally:
             os.unlink(tmppath)
@@ -539,9 +564,7 @@ class TestAnalyzeSpecCommand(unittest.TestCase):
             with patch("datarecipe.generators.llm_enhancer.LLMEnhancer") as MockEnhancer:
                 MockEnhancer.return_value.enhance.side_effect = Exception("no API key")
 
-                result = self.runner.invoke(
-                    main, ["analyze-spec", tmppath, "-o", "/tmp/test_spec"]
-                )
+                result = self.runner.invoke(main, ["analyze-spec", tmppath, "-o", "/tmp/test_spec"])
                 self.assertEqual(result.exit_code, 0)
         finally:
             os.unlink(tmppath)
@@ -620,9 +643,7 @@ class TestAnalyzeSpecCommand(unittest.TestCase):
             with patch("datarecipe.generators.llm_enhancer.LLMEnhancer") as MockEnhancer:
                 MockEnhancer.return_value.enhance.side_effect = Exception("skip")
 
-                result = self.runner.invoke(
-                    main, ["analyze-spec", "--from-json", json_path]
-                )
+                result = self.runner.invoke(main, ["analyze-spec", "--from-json", json_path])
                 self.assertEqual(result.exit_code, 0)
         finally:
             os.unlink(json_path)
@@ -683,7 +704,8 @@ class TestAnalyzeSpecCommand(unittest.TestCase):
 
         try:
             result = self.runner.invoke(
-                main, ["analyze-spec", tmppath, "--interactive"],
+                main,
+                ["analyze-spec", tmppath, "--interactive"],
                 input="\n",
             )
             self.assertEqual(result.exit_code, 0)
@@ -759,9 +781,7 @@ class TestAnalyzeSpecCommand(unittest.TestCase):
             with patch("datarecipe.generators.llm_enhancer.LLMEnhancer") as MockEnhancer:
                 MockEnhancer.return_value.enhance.side_effect = Exception("skip")
 
-                result = self.runner.invoke(
-                    main, ["analyze-spec", tmppath]
-                )
+                result = self.runner.invoke(main, ["analyze-spec", tmppath])
                 self.assertEqual(result.exit_code, 0)
         finally:
             os.unlink(tmppath)
@@ -864,7 +884,16 @@ class TestBatchFromRadar(unittest.TestCase):
                 with patch("datasets.load_dataset", side_effect=Exception("skip")):
                     result = self.runner.invoke(
                         main,
-                        ["batch-from-radar", tmppath, "-o", tmpdir, "--sort-by", "name", "--limit", "2"],
+                        [
+                            "batch-from-radar",
+                            tmppath,
+                            "-o",
+                            tmpdir,
+                            "--sort-by",
+                            "name",
+                            "--limit",
+                            "2",
+                        ],
                     )
                     self.assertEqual(result.exit_code, 0)
         finally:
@@ -948,7 +977,16 @@ class TestBatchFromRadar(unittest.TestCase):
                 with patch("datasets.load_dataset", side_effect=Exception("skip")):
                     result = self.runner.invoke(
                         main,
-                        ["batch-from-radar", tmppath, "-o", tmpdir, "--orgs", "Anthropic", "--categories", "eval"],
+                        [
+                            "batch-from-radar",
+                            tmppath,
+                            "-o",
+                            tmpdir,
+                            "--orgs",
+                            "Anthropic",
+                            "--categories",
+                            "eval",
+                        ],
                     )
                     self.assertEqual(result.exit_code, 0)
         finally:
@@ -976,7 +1014,10 @@ class TestIntegrateReport(unittest.TestCase):
         mock_report.total_reproduction_cost = 50000
         mock_report.insights = ["Insight 1", "Insight 2"]
         MockGen.return_value.generate_weekly_report.return_value = mock_report
-        MockGen.return_value.save_report.return_value = {"md": "/tmp/report.md", "json": "/tmp/report.json"}
+        MockGen.return_value.save_report.return_value = {
+            "md": "/tmp/report.md",
+            "json": "/tmp/report.json",
+        }
 
         result = self.runner.invoke(
             main,
@@ -1001,9 +1042,12 @@ class TestIntegrateReport(unittest.TestCase):
             main,
             [
                 "integrate-report",
-                "--start-date", "2025-06-01",
-                "--end-date", "2025-06-07",
-                "-o", "/tmp/reports",
+                "--start-date",
+                "2025-06-01",
+                "--end-date",
+                "2025-06-07",
+                "-o",
+                "/tmp/reports",
             ],
         )
         self.assertEqual(result.exit_code, 0)
@@ -1036,18 +1080,14 @@ class TestWorkflowCommand(unittest.TestCase):
         MockWFGen.return_value.generate.return_value = mock_wf
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = self.runner.invoke(
-                main, ["workflow", "test/dataset", "-o", tmpdir]
-            )
+            result = self.runner.invoke(main, ["workflow", "test/dataset", "-o", tmpdir])
             self.assertEqual(result.exit_code, 0)
             self.assertIn("Workflow generated", result.output)
 
     @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_workflow_analyze_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = ValueError("Not found")
-        result = self.runner.invoke(
-            main, ["workflow", "bad/ds", "-o", "/tmp/wf"]
-        )
+        result = self.runner.invoke(main, ["workflow", "bad/ds", "-o", "/tmp/wf"])
         self.assertNotEqual(result.exit_code, 0)
 
 
@@ -1094,9 +1134,7 @@ class TestDeployCommand(unittest.TestCase):
         MockDeployer.return_value.deploy.return_value = mock_result
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = self.runner.invoke(
-                main, ["deploy", "test/dataset", "-o", tmpdir]
-            )
+            result = self.runner.invoke(main, ["deploy", "test/dataset", "-o", tmpdir])
             self.assertEqual(result.exit_code, 0)
             self.assertIn("Deployment successful", result.output)
 
@@ -1130,17 +1168,13 @@ class TestDeployCommand(unittest.TestCase):
         MockDeployer.return_value.deploy.return_value = mock_result
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = self.runner.invoke(
-                main, ["deploy", "test/ds", "-o", tmpdir]
-            )
+            result = self.runner.invoke(main, ["deploy", "test/ds", "-o", tmpdir])
             self.assertNotEqual(result.exit_code, 0)
 
     @patch.object(_cli_tools_mod, "DatasetAnalyzer")
     def test_deploy_analyze_error(self, MockAnalyzer):
         MockAnalyzer.return_value.analyze.side_effect = Exception("Cannot analyze")
-        result = self.runner.invoke(
-            main, ["deploy", "bad/ds", "-o", "/tmp/deploy"]
-        )
+        result = self.runner.invoke(main, ["deploy", "bad/ds", "-o", "/tmp/deploy"])
         self.assertNotEqual(result.exit_code, 0)
 
 
@@ -1199,14 +1233,16 @@ class TestQualityTableMode(unittest.TestCase):
         mock_report.ai_detection = MagicMock()
         mock_report.ai_detection.ai_probability = 0.8
         mock_report.ai_detection.confidence = 0.9
-        mock_report.ai_detection.indicators = ["repetitive phrases", "uniform length", "formal tone"]
+        mock_report.ai_detection.indicators = [
+            "repetitive phrases",
+            "uniform length",
+            "formal tone",
+        ]
         mock_report.recommendations = []
         mock_report.warnings = []
         MockQA.return_value.analyze_from_huggingface.return_value = mock_report
 
-        result = self.runner.invoke(
-            main, ["quality", "test/dataset", "--detect-ai"]
-        )
+        result = self.runner.invoke(main, ["quality", "test/dataset", "--detect-ai"])
         self.assertEqual(result.exit_code, 0)
         self.assertIn("AI Detection", result.output)
 
@@ -1231,9 +1267,7 @@ class TestCompareWithOutput(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "compare.txt")
-            result = self.runner.invoke(
-                main, ["compare", "ds1", "ds2", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["compare", "ds1", "ds2", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1307,9 +1341,7 @@ class TestProfileTableMode(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "profile.md")
-            result = self.runner.invoke(
-                main, ["profile", "test/dataset", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["profile", "test/dataset", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1336,9 +1368,7 @@ class TestProfileTableMode(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "profile.json")
-            result = self.runner.invoke(
-                main, ["profile", "test/dataset", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["profile", "test/dataset", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1365,9 +1395,7 @@ class TestProfileTableMode(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "profile.yaml")
-            result = self.runner.invoke(
-                main, ["profile", "test/dataset", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["profile", "test/dataset", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1394,13 +1422,13 @@ class TestGenerateContexts(unittest.TestCase):
         mock_result = MagicMock()
         mock_result.summary.return_value = "Generated 5 contexts"
         mock_result.items = [
-            MagicMock(data_type="context", content="A long context about AI safety and alignment research"),
+            MagicMock(
+                data_type="context", content="A long context about AI safety and alignment research"
+            ),
         ]
         MockGen.return_value.generate_contexts.return_value = mock_result
 
-        result = self.runner.invoke(
-            main, ["generate", "--type", "contexts", "--count", "5"]
-        )
+        result = self.runner.invoke(main, ["generate", "--type", "contexts", "--count", "5"])
         self.assertEqual(result.exit_code, 0)
 
     @patch("datarecipe.generators.PatternGenerator")
@@ -1423,13 +1451,13 @@ class TestGenerateContexts(unittest.TestCase):
         """Test generate with > 5 items to test truncation display."""
         mock_result = MagicMock()
         mock_result.summary.return_value = "Generated 10 prompts"
-        items = [MagicMock(data_type="prompt", content=f"Prompt {i} content text") for i in range(10)]
+        items = [
+            MagicMock(data_type="prompt", content=f"Prompt {i} content text") for i in range(10)
+        ]
         mock_result.items = items
         MockGen.return_value.generate_prompts.return_value = mock_result
 
-        result = self.runner.invoke(
-            main, ["generate", "--type", "prompts", "--count", "10"]
-        )
+        result = self.runner.invoke(main, ["generate", "--type", "prompts", "--count", "10"])
         self.assertEqual(result.exit_code, 0)
         self.assertIn("5 more", result.output)
 
@@ -1490,9 +1518,7 @@ class TestExtractRubrics(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "rubrics.json")
-            result = self.runner.invoke(
-                main, ["extract-rubrics", "test/dataset", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["extract-rubrics", "test/dataset", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1549,9 +1575,7 @@ class TestExtractPrompts(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "prompts.json")
-            result = self.runner.invoke(
-                main, ["extract-prompts", "test/dataset", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["extract-prompts", "test/dataset", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1600,9 +1624,7 @@ class TestDetectStrategy(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "strategy.json")
-            result = self.runner.invoke(
-                main, ["detect-strategy", "test/dataset", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["detect-strategy", "test/dataset", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1645,7 +1667,11 @@ class TestEnhancedGuide(unittest.TestCase):
         MockTaskType.QUALITY_REVIEW = "QUALITY_REVIEW"
 
         items = [
-            {"rubrics": ["Test rubric"], "messages": [{"role": "system", "content": "You are helpful"}], "context": "Some text"},
+            {
+                "rubrics": ["Test rubric"],
+                "messages": [{"role": "system", "content": "You are helpful"}],
+                "context": "Some text",
+            },
         ]
         MockLoadDS.return_value = iter(items)
 
@@ -1656,9 +1682,7 @@ class TestEnhancedGuide(unittest.TestCase):
         MockGuideGen.return_value.generate.return_value = mock_guide
         MockGuideGen.return_value.to_markdown.return_value = "# Enhanced Guide\nContent..."
 
-        result = self.runner.invoke(
-            main, ["enhanced-guide", "test/dataset"]
-        )
+        result = self.runner.invoke(main, ["enhanced-guide", "test/dataset"])
         self.assertEqual(result.exit_code, 0)
 
     @patch("datarecipe.generators.EnhancedGuideGenerator")
@@ -1682,9 +1706,7 @@ class TestEnhancedGuide(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "guide.md")
-            result = self.runner.invoke(
-                main, ["enhanced-guide", "test/dataset", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["enhanced-guide", "test/dataset", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1747,9 +1769,7 @@ class TestAllocateExtended(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "allocate.json")
-            result = self.runner.invoke(
-                main, ["allocate", "--format", "json", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["allocate", "--format", "json", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1769,9 +1789,7 @@ class TestAllocateExtended(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "allocate.md")
-            result = self.runner.invoke(
-                main, ["allocate", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["allocate", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1820,9 +1838,7 @@ class TestBatchFromFile(unittest.TestCase):
         MockBatch.return_value.export_results.return_value = ["file1.yaml"]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = self.runner.invoke(
-                main, ["batch", "ds1", "-o", tmpdir]
-            )
+            result = self.runner.invoke(main, ["batch", "ds1", "-o", tmpdir])
             self.assertEqual(result.exit_code, 0)
             self.assertIn("Results exported", result.output)
 
@@ -1878,9 +1894,7 @@ class TestDeepGuideCommand(unittest.TestCase):
         MockLLMAnalyzer.return_value.analyze.return_value = mock_result
         MockToMd.return_value = "# Deep Guide\nContent"
 
-        result = self.runner.invoke(
-            main, ["deep-guide", "https://arxiv.org/abs/1234"]
-        )
+        result = self.runner.invoke(main, ["deep-guide", "https://arxiv.org/abs/1234"])
         self.assertEqual(result.exit_code, 0)
         self.assertIn("TestDataset", result.output)
 
@@ -1905,9 +1919,7 @@ class TestDeepGuideCommand(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "guide.md")
-            result = self.runner.invoke(
-                main, ["deep-guide", "https://example.com", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["deep-guide", "https://example.com", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(os.path.exists(outpath))
 
@@ -1942,9 +1954,7 @@ class TestDeepGuideCommand(unittest.TestCase):
         MockLLMAnalyzer.return_value.analyze.return_value = mock_result
         MockToMd.return_value = "# LLM Guide"
 
-        result = self.runner.invoke(
-            main, ["deep-guide", "https://example.com", "--llm"]
-        )
+        result = self.runner.invoke(main, ["deep-guide", "https://example.com", "--llm"])
         self.assertEqual(result.exit_code, 0)
         self.assertIn("LLMTest", result.output)
 
@@ -1989,9 +1999,7 @@ class TestGuideExtended(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             outpath = os.path.join(tmpdir, "recipe.yaml")
-            result = self.runner.invoke(
-                main, ["analyze", "test/dataset", "-o", outpath]
-            )
+            result = self.runner.invoke(main, ["analyze", "test/dataset", "-o", outpath])
             self.assertEqual(result.exit_code, 0)
             MockAnalyzer.return_value.export_recipe.assert_called_once()
 
@@ -2047,15 +2055,24 @@ class TestWatchExtended(unittest.TestCase):
     @patch("datarecipe.triggers.RadarWatcher")
     @patch("datarecipe.triggers.TriggerConfig")
     def test_watch_with_org_and_category_filters(self, MockConfig, MockWatcher):
-        mock_config = MagicMock(
-            orgs=["OpenAI"], categories=["qa"], min_downloads=500
-        )
+        mock_config = MagicMock(orgs=["OpenAI"], categories=["qa"], min_downloads=500)
         MockConfig.return_value = mock_config
         MockWatcher.return_value.check_once.return_value = []
 
         with tempfile.TemporaryDirectory() as tmpdir:
             result = self.runner.invoke(
-                main, ["watch", tmpdir, "--once", "--orgs", "OpenAI", "--categories", "qa", "--min-downloads", "500"]
+                main,
+                [
+                    "watch",
+                    tmpdir,
+                    "--once",
+                    "--orgs",
+                    "OpenAI",
+                    "--categories",
+                    "qa",
+                    "--min-downloads",
+                    "500",
+                ],
             )
             self.assertEqual(result.exit_code, 0)
 
@@ -2113,9 +2130,7 @@ class TestKnowledgeExtended(unittest.TestCase):
         mock_bench.avg_human_percentage = 60
         mock_bench.datasets = ["ds1", "ds2"]
 
-        MockKB.return_value.trends.get_all_benchmarks.return_value = {
-            "evaluation": mock_bench
-        }
+        MockKB.return_value.trends.get_all_benchmarks.return_value = {"evaluation": mock_bench}
 
         result = self.runner.invoke(main, ["knowledge", "--benchmarks"])
         self.assertEqual(result.exit_code, 0)
@@ -2196,9 +2211,7 @@ class TestCostExtended(unittest.TestCase):
         mock_breakdown.assumptions = []
         MockCalc.return_value.estimate_from_recipe.return_value = mock_breakdown
 
-        result = self.runner.invoke(
-            main, ["cost", "test/dataset", "--examples", "20000"]
-        )
+        result = self.runner.invoke(main, ["cost", "test/dataset", "--examples", "20000"])
         self.assertEqual(result.exit_code, 0)
         # Verify target size was used
         call_args = MockCalc.return_value.estimate_from_recipe.call_args
