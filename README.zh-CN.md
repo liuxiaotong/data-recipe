@@ -6,6 +6,9 @@
 
 <div align="center">
 
+<img src="assets/icon.png" width="128" alt="data-recipe icon">
+<br/>
+
 <h1>DataRecipe</h1>
 
 <h3>自动化数据集逆向工程与复刻成本估算<br/>Automated Dataset Reverse Engineering</h3>

@@ -6,6 +6,9 @@
 
 <div align="center">
 
+<img src="assets/icon.png" width="128" alt="data-recipe icon">
+<br/>
+
 <h1>DataRecipe</h1>
 
 <h3>Automated Dataset Reverse Engineering<br/>and Reproduction Cost Estimation</h3>
